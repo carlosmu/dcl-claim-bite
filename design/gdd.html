@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Claim Bite — GDD render</title>
+<style>
+  :root {
+    --bg: #1c140f;
+    --panel: #241a13;
+    --wood: #3a2a1c;
+    --ink: #ead9c2;
+    --ink-dim: #b7a488;
+    --accent: #ff3fd6;
+    --accent-dim: #a8267f;
+    --line: #4a3626;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: Georgia, 'Times New Roman', serif;
+    line-height: 1.55;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 100px; }
+  .stamp {
+    font-family: -apple-system, Segoe UI, sans-serif;
+    font-size: 12px;
+    color: var(--ink-dim);
+    text-align: center;
+    letter-spacing: 0.04em;
+    margin-bottom: 8px;
+  }
+  .banner {
+    font-family: -apple-system, Segoe UI, sans-serif;
+    font-size: 12px;
+    color: var(--ink-dim);
+    text-align: center;
+    border: 1px dashed var(--line);
+    border-radius: 6px;
+    padding: 8px 14px;
+    margin-bottom: 36px;
+  }
+  h1.title {
+    text-align: center;
+    font-size: 44px;
+    letter-spacing: 0.03em;
+    margin: 0 0 4px;
+    color: var(--ink);
+    text-shadow: 0 0 18px rgba(255,63,214,0.25);
+  }
+  .subtitle {
+    text-align: center;
+    color: var(--accent);
+    font-family: -apple-system, Segoe UI, sans-serif;
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 30px;
+  }
+  .header-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 40px;
+    font-family: -apple-system, Segoe UI, sans-serif;
+    font-size: 13px;
+  }
+  .header-table td { padding: 6px 10px; border-bottom: 1px solid var(--line); }
+  .header-table td:first-child { color: var(--ink-dim); width: 180px; }
+  hr.divider {
+    border: none;
+    border-top: 1px solid var(--line);
+    margin: 44px 0;
+  }
+  h2 {
+    color: var(--accent);
+    font-size: 24px;
+    border-bottom: 2px solid var(--accent-dim);
+    padding-bottom: 8px;
+    margin-top: 0;
+  }
+  h3 { color: var(--ink); font-size: 17px; margin-top: 26px; }
+  .promise {
+    font-size: 19px;
+    font-style: italic;
+    background: var(--panel);
+    border-left: 4px solid var(--accent);
+    padding: 16px 20px;
+    border-radius: 4px;
+  }
+  table.data {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0 20px;
+    font-size: 14.5px;
+  }
+  table.data th, table.data td {
+    border: 1px solid var(--line);
+    padding: 9px 12px;
+    text-align: left;
+    vertical-align: top;
+  }
+  table.data th {
+    background: var(--wood);
+    color: var(--accent);
+    font-family: -apple-system, Segoe UI, sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  table.data tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+  ul.plain { padding-left: 22px; }
+  ul.plain li { margin-bottom: 6px; }
+  .pillars li { margin-bottom: 10px; }
+  .note {
+    font-family: -apple-system, Segoe UI, sans-serif;
+    font-size: 13px;
+    color: var(--ink-dim);
+    background: var(--panel);
+    border-radius: 4px;
+    padding: 10px 14px;
+    margin: 12px 0;
+  }
+  .tag {
+    display: inline-block;
+    font-family: -apple-system, Segoe UI, sans-serif;
+    font-size: 11px;
+    background: var(--accent-dim);
+    color: #fff0fa;
+    border-radius: 3px;
+    padding: 1px 6px;
+    margin-left: 4px;
+  }
+  .fail { background: #6b2323; color: #ffd6d6; }
+  .survived { background: #235a2e; color: #d6ffe0; }
+  .cuts li { margin-bottom: 8px; }
+  .risk { border-left: 4px solid var(--accent-dim); padding-left: 16px; margin-top: 16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="stamp">rendered from design/gdd.md · v3 · 2026-09-02</div>
+  <div class="banner">This page is for looking at and sharing — <strong>design/gdd.md</strong> is what actually goes into the program.</div>
+
+  <h1 class="title">⛏️ Claim Bite</h1>
+  <div class="subtitle">Decentraland Creator Success Program</div>
+
+  <table class="header-table">
+    <tr><td>Public experience title</td><td>Claim Bite — IP &amp; Content Policy self-check: clear</td></tr>
+    <tr><td>Deployment target</td><td>World: carlosmu.dcl.eth</td></tr>
+    <tr><td>Studio / team name</td><td>carlosmu studio</td></tr>
+    <tr><td>Date</td><td>2026-09-01</td></tr>
+    <tr><td>Contact</td><td>Discord: carlosmu_noz · carlos.damian.munoz@gmail.com</td></tr>
+  </table>
+
+  <h2>0 · TL;DR</h2>
+  <table class="data">
+    <tr><th>Player promise</th><td>You are a stranger turned miner in a gold-rush town, mining and selling to get rich while every sale drops the price you see.</td></tr>
+    <tr><th>Primary player</th><td>Fans of idle/incremental tap games, arriving mostly alone from Discover or a friend's invite, wanting a reason to check in daily.</td></tr>
+    <tr><th>Current status</th><td>Core-mechanic prototype — the mining tap is built and owner-tested (<code>H1-01</code>, <code>H1-04</code> <span class="tag survived">survived</span>). Rest of the loop designed, not built.</td></tr>
+    <tr><th>Requested round</th><td>v0 (vertical slice)</td></tr>
+    <tr><th>Live at end of round</th><td>At minimum the full mine → sell → spend loop, playable solo.</td></tr>
+  </table>
+
+  <hr class="divider">
+
+  <h2>🪙 1 · Player Promise</h2>
+  <p class="promise">"You are a stranger turned miner in a gold-rush town, mining and selling to get rich while every sale drops the price you see."</p>
+  <p><em>Why this game —</em> I want players to see themselves in this. We all chase shiny things, but real happiness was never in the stuff itself — the gold rush is a mirror for that chase, not just a theme.</p>
+
+  <hr class="divider">
+
+  <h2>👀 2 · First Minutes &amp; How to Play</h2>
+  <table class="data">
+    <tr><th>0–5s</th><td>Spawn at town's edge. The mayor holds out a pick. A vein glows in the public digging ground.</td></tr>
+    <tr><th>5–10s</th><td>Take the pick. A green timing bar appears. One tap — spark, ore breaks free.</td></tr>
+    <tr><th>10–60s</th><td>Chain a few timed hits. Raw ore climbs. Other diggers visible if present.</td></tr>
+    <tr><th>1–3min</th><td>Carry ore to the bank, sell. Town price ticks down for everyone — first coins.</td></tr>
+    <tr><th>3–10min</th><td>Patch the worn pick, or save toward renting your own claim.</td></tr>
+    <tr><th>Stopping point</th><td>Log off looking at coins vs. rent, and a town price a little higher than when you sold.</td></tr>
+  </table>
+  <ul class="plain">
+    <li>Tap the timing bar to mine ore.</li>
+    <li>Sell ore at the bank for coins.</li>
+    <li>Every sale drops the price for everyone.</li>
+  </ul>
+
+  <hr class="divider">
+
+  <h2>🔁 3 · Core Loop</h2>
+  <table class="data">
+    <tr><th>#</th><th>Step</th><th>What happens</th><th>Why again?</th></tr>
+    <tr><td>1</td><td>Mine</td><td>Tap in time with the moving bar — chip breaks loose, pick wears a little.</td><td>A well-timed hit pays more.</td></tr>
+    <tr><td>2</td><td>Sell</td><td>Tap the bank when the price is right — the shared price ticks down.</td><td>Ore buys nothing; coins are the only way across.</td></tr>
+    <tr><td>3</td><td>Spend</td><td>Buy tools, or rent a mining claim for an idle machine.</td><td>Better tools, and a claim enables idle production.</td></tr>
+  </table>
+  <div class="note"><strong>Toy test (H1-01, H1-04 — both survived):</strong> the bare tap held up with nothing attached; adding sound + a juicier hit turned it into a clean, unhedged improvement. Untested past this: selling, the market, spending, the whole loop together.</div>
+  <h3 class="pillars">Pillars</h3>
+  <ul class="plain pillars">
+    <li><strong>The market belongs to the town, not the player.</strong> Shared price + the bank's sale log carry this even at a quiet hour.</li>
+    <li><strong>Selling is the default; patience is a small bet.</strong> Tool wear means waiting always costs something.</li>
+  </ul>
+
+  <hr class="divider">
+
+  <h2>📅 4 · Why Players Come Back</h2>
+  <p><strong>D1:</strong> a player returns the next day because their idle rig's storage has filled to its cap — coming back means claiming a full haul before more piles up for nothing.</p>
+  <table class="data">
+    <tr><th>Moment</th><th>Persists</th><th>Unlocks</th><th>Visible to others</th></tr>
+    <tr><td>End of session 1</td><td>Coins, a claimed dig with a name-flag, pick wear</td><td>Renting a claim, first upgrade</td><td>The name-flag at the quarry</td></tr>
+    <tr><td>End of week 1</td><td>Upgraded gear, entries in the sale log</td><td>The idle rig or its next tier</td><td>Visibly better gear; a recognizable name in the log</td></tr>
+    <tr><td>Week 3+</td><td>A house in town, upgradable to a mansion</td><td><em>open — waits on pricing</em></td><td>The skyline itself — no board, no number</td></tr>
+  </table>
+  <table class="data">
+    <tr><th>Hook</th><th>Trigger</th><th>Anticipation</th></tr>
+    <tr><td>Appointment timer</td><td>Idle rig fills to a cap</td><td>A full haul waiting</td></tr>
+    <tr><td>Building progression</td><td>Whenever enough is saved for the next tier — no clock</td><td>A real, permanent change to the shared world, not a private number</td></tr>
+  </table>
+
+  <hr class="divider">
+
+  <h2>🤝 5 · Social by Design</h2>
+  <table class="data">
+    <tr><th>Repeatable social loop</th><td>A starts mining in the public dig → B joins nearby → both mine boosted (the "boom town" bonus, ~+10%/miner, capped ~+20%) → boost fades when either leaves.</td></tr>
+    <tr><th>Disappearance test</th><td>The bonus disappears; the price only moves on the last player's own sales. What stays: name-flags, houses, the sale log.</td></tr>
+    <tr><th>Strangers → group</th><td>Same verb for everyone — no roles to explain. A magenta glow at the dig says "people mine here."</td></tr>
+    <tr><th>Recognition &amp; continuity</th><td>A name means something once it repeats in the sale log; a growing house is memory nobody looks up.</td></tr>
+    <tr><th>Player counts</th><td>Solo does everything · social threshold: <strong>2</strong> · ideal group: <strong>3–4</strong> · v1 tested max: <strong>20</strong></td></tr>
+    <tr><th>Drop-in / drop-out</th><td>Joining = standing and mining. Leaving costs only that player's share of the bonus.</td></tr>
+    <tr><th>Bystander test</th><td>Watching a tap-then-sell tells the whole game in ten seconds.</td></tr>
+    <tr><th>Memorable moment</th><td>Your shack next to someone's mansion — the gap visible at a glance.</td></tr>
+    <tr><th>Bring-a-friend</th><td>"Come mine with me, we both get more" — the bonus is the reason.</td></tr>
+  </table>
+
+  <hr class="divider">
+
+  <h2>📱 6 · Mobile-First</h2>
+  <table class="data">
+    <tr><th>Verb</th><th>Touch</th></tr>
+    <tr><td>Mine</td><td>Tap the timing bar — identical to the mouse input already tested</td></tr>
+    <tr><td>Sell</td><td>Tap a large "sell" button</td></tr>
+    <tr><td>Spend</td><td>Tap from a buy menu of large targets</td></tr>
+  </table>
+  <p>Target: <strong>60fps</strong> desktop, <strong>30fps</strong> on a <strong>Moto G41</strong> (floor device; Moto G75 as the better-supported one), at 20 players. Top risk: total geometry from 20 players' houses/rigs at once — mitigated by the same low-poly + magenta-highlight approach already used to de-risk solo art production.</p>
+
+  <hr class="divider">
+
+  <h2>🏜️ 7 · World, Look &amp; Story</h2>
+  <p>A couple of blocks of a gold-rush town hemmed in by mountains, one street running from the bank to the quarry in the foothills. Someone new always shows up with the same free pick, so the town never really empties out.</p>
+  <p><strong>Visual signature:</strong> the ore vein's magenta glow against sun-bleached wood — the one color the town otherwise refuses to use. Boarded-up "coming soon" storefronts hint at a saloon and a cabaret to come.</p>
+
+  <hr class="divider">
+
+  <h2>🎯 8 · Audience &amp; Comparables</h2>
+  <p>For players who already enjoy idle/incremental tap games, arriving mostly alone from Discover or a friend's invite, looking for a reason to check back in daily. Not for players chasing twitch/reflex combat.</p>
+  <table class="data">
+    <tr><th></th><th>Comparable A — Tap Space</th><th>Comparable B — Old School RuneScape</th></tr>
+    <tr><td>Works</td><td>Tap → resource → spend-to-upgrade rhythm, same as Claim Bite</td><td>The Grand Exchange — prices move from real aggregate player trading, visible to all</td></tr>
+    <tr><td>Doesn't fit</td><td>Entirely single-player, no shared stakes</td><td>—</td></tr>
+    <tr><td>We'll do differently</td><td>Shared, player-moved price + a real cost to waiting</td><td>—</td></tr>
+  </table>
+
+  <hr class="divider">
+
+  <h2>🗓️ 9 · 4 Week Plan (v1 scope)</h2>
+  <table class="data">
+    <tr><th>Week</th><th>Playable</th></tr>
+    <tr><td>1</td><td>Loop alone: mine, sell, buy tools. Greybox town + quarry. The mayor's free pick.</td></tr>
+    <tr><td>2 <span class="tag">milestone</span></td><td>Multiplayer: shared price, sale log, boom-town bonus. Playtest at 2 players.</td></tr>
+    <tr><td>3</td><td>Claim rental with auto-deducted rent; idle rig with cap; first house.</td></tr>
+    <tr><td>4 <span class="tag">milestone</span></td><td>Polish: magenta highlight system, touch controls, first mobile pass.</td></tr>
+  </table>
+  <div class="note"><strong>What keeps it changing after launch:</strong> the market price and the town's visible wealth skyline shift from player behavior alone, no scripted content needed — the same is true if an update slips. Nothing resets by design; a newcomer matters immediately at the public dig regardless of anyone else's fortune. If players stop selling and just hoard, that is the signal to revisit tool wear.</div>
+  <ul class="plain cuts">
+    <li><strong>1st cut:</strong> house visual tiers → ship one cabin model</li>
+    <li><strong>2nd cut:</strong> "coming soon" storefronts</li>
+    <li><strong>3rd cut:</strong> boom-town bonus VFX → plain numeric indicator</li>
+  </ul>
+  <div class="risk"><strong>Top risk:</strong> one solo dev across code, art and UI in four weeks. <strong>Fallback (three layers):</strong> the magenta system already de-risks fidelity → AI-assisted 3D generation (Tripo) → a modeling collaborator, if still needed.</div>
+
+  <hr class="divider">
+  <p class="note" style="text-align:center;">Hardest section to write: <em>Why Players Come Back</em>.</p>
+</div>
+</body>
+</html>
