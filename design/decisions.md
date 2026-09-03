@@ -2,6 +2,12 @@
 
 Append-only, newest first. `date · decision · why`. Standing non-goals live here too.
 
+- 2026-09-02 · A missed swing still pays ore (placeholder: hit 3, miss 1), never zero · agent call, pending owner review: a zero-payout miss turns the timing bar into a punishment in a game §8 explicitly says is not reflex-based — the gap between hit and miss carries §3's "a well-timed hit pays more" on its own. Both numbers are TBD and live in `src/economy/constants.ts`
+
+- 2026-09-02 · Scene geometry (town, quarry, buildings) is authored in the Creator Hub inspector, not in code; code finds those entities by name and attaches behaviour · owner call: the art is the owner's own job and the inspector is where it happens. Accepted tradeoff: `main.crdt` is binary, so scene edits can't be reviewed in a diff and only one of us touches it at a time
+
+- 2026-09-02 · Game state (ore, coins, and later the bank price, the rig, the house) lives in plain-data modules under `src/state/`, with no ECS, React or rendering imports · owner call: client-only is fast enough to build and tune the week-1 loop, and keeping state render-free means the same module moves to the authoritative server in week 2 (§9) without rewriting anything that draws
+
 - 2026-09-02 · The pick also expires after one real-world week regardless of use, on top of its existing per-swing wear · owner call: per-swing wear stays as the sell-timing pressure (Pillar 2); the weekly backstop just stops a rarely-used pick from lasting forever. Kept cheap on purpose — a starting pick is a flat 10 coins, so this is a light nudge, not a punishment
 
 - 2026-09-02 · Return hook 2 replaced: "persistent building progression" (the next tier of your claim/rig/house, permanent and visible to others) instead of the bank's async trace · owner call: the trace made the world feel alive, but never gave a real reason to come BACK — the promise of building something real and lasting does. The trace itself stays in the design (§3 repetition-10, §5 disappearance test), it just stopped pulling double duty as a return hook

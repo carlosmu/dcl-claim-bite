@@ -1,9 +1,19 @@
 import ReactEcs, { ReactEcsRenderer, UiEntity, Label } from "@dcl/sdk/react-ecs"
 import { Color4 } from "@dcl/sdk/math"
 import { engine, AudioSource, Transform } from "@dcl/sdk/ecs"
+import { ORE_PER_HIT, ORE_PER_MISS } from './economy/constants'
+import { addOre, getCoins, getOre } from './state/wallet'
+import { isPlayerAtMine } from './mining/mine-proximity'
 
-// H1-01/H1-04 experiment: is the tap-timing swing fun on its own, then with sound + juice added?
-// No score is shown on screen on purpose — see design/01-find-the-fun/H1-04-sound-and-juice-lift-the-tap_active.md
+// The mining tap. The swing itself is settled — H1-01 and H1-04 both `survived`, the second
+// one thanks to the hit/miss sound and the flash below. What is new here is the payout: a
+// swing now puts raw ore in the bag, and the HUD shows it.
+//
+// H1-01 deliberately showed no score. That experiment is closed, so the counter is no longer
+// withheld — see design/01-find-the-fun/H1-04-sound-and-juice-lift-the-tap_survived.md
+//
+// The bar itself is contextual, per §6: it only exists while the player stands at the dig.
+// The HUD is the one permanent thing on screen.
 
 const SWEET_SPOT_START = 0.42
 const SWEET_SPOT_END = 0.58
@@ -41,10 +51,12 @@ function updateNeedle(dt: number) {
 function onSwing() {
     swingCount += 1
     const isHit = needlePos >= SWEET_SPOT_START && needlePos <= SWEET_SPOT_END
+    const oreGained = isHit ? ORE_PER_HIT : ORE_PER_MISS
+    addOre(oreGained)
     flashColor = isHit ? 'hit' : 'miss'
     flashTimer = FLASH_DURATION_SECONDS
     playSound(isHit ? hitSoundEntity : missSoundEntity)
-    console.log(`[H1-04] swing #${swingCount}: ${isHit ? 'HIT' : 'miss'} (needle at ${needlePos.toFixed(2)})`)
+    console.log(`[mine] swing #${swingCount}: ${isHit ? 'HIT' : 'miss'} +${oreGained} ore (total ${getOre()})`)
 }
 
 export function setupUi() {
@@ -76,6 +88,19 @@ export function setupUi() {
 const BAR_WIDTH = 500
 const BAR_HEIGHT = 50
 
+// Everything on screen lives inside one centered column 40% of the screen wide, so the UI
+// keeps a single, predictable frame as more of it arrives (the bank, the buy menu).
+const MAIN_CONTAINER_WIDTH = '40%'
+
+// The HUD is the only permanent thing on screen (§6): small, clear of the thumb, pinned to
+// the top of the container. Magenta is reserved for interactables (§7), so it never appears here.
+const HUD_PANEL_WIDTH = 220
+const HUD_ROW_HEIGHT = 34
+const PANEL_BACKGROUND = Color4.create(0, 0, 0, 0.8)
+const PANEL_RADIUS = 12
+const ORE_COLOR = Color4.create(0.92, 0.92, 0.88, 1)
+const COIN_COLOR = Color4.create(1, 0.84, 0.35, 1)
+
 function barBackgroundColor(): Color4 {
     if (flashColor === 'hit') return Color4.create(0.35, 1, 0.4, 1)
     if (flashColor === 'miss') return Color4.create(0.5, 0.15, 0.15, 1)
@@ -86,14 +111,46 @@ function barHeight(): number {
     return flashColor === 'hit' ? BAR_HEIGHT + PULSE_EXTRA_HEIGHT : BAR_HEIGHT
 }
 
-export const uiMenu = () => (
+const hud = () => (
     <UiEntity
         uiTransform={{
-            width: '100%',
-            height: '100%',
+            positionType: 'absolute',
+            position: { top: 24, right: 0 },
+            width: HUD_PANEL_WIDTH,
+            height: HUD_ROW_HEIGHT * 2 + 20,
+            flexDirection: 'column',
+            alignItems: 'flex-end',
             justifyContent: 'center',
+            padding: { top: 10, bottom: 10, left: 16, right: 16 },
+            borderRadius: PANEL_RADIUS
+        }}
+        uiBackground={{ color: PANEL_BACKGROUND }}
+    >
+        <Label
+            value={`Ore  ${getOre()}`}
+            fontSize={24}
+            color={ORE_COLOR}
+            textAlign="middle-right"
+            uiTransform={{ width: '100%', height: HUD_ROW_HEIGHT }}
+        />
+        <Label
+            value={`Coins  ${getCoins()}`}
+            fontSize={24}
+            color={COIN_COLOR}
+            textAlign="middle-right"
+            uiTransform={{ width: '100%', height: HUD_ROW_HEIGHT }}
+        />
+    </UiEntity>
+)
+
+const miningBar = () => (
+    <UiEntity
+        uiTransform={{
+            width: BAR_WIDTH,
+            height: BAR_HEIGHT + PULSE_EXTRA_HEIGHT,
+            flexDirection: 'column',
             alignItems: 'center',
-            flexDirection: 'column'
+            justifyContent: 'center'
         }}
     >
         <Label
@@ -131,6 +188,33 @@ export const uiMenu = () => (
                 }}
                 uiBackground={{ color: Color4.White() }}
             />
+        </UiEntity>
+    </UiEntity>
+)
+
+export const uiMenu = () => (
+    <UiEntity
+        uiTransform={{
+            width: '100%',
+            height: '100%',
+            justifyContent: 'center',
+            alignItems: 'center',
+            flexDirection: 'row'
+        }}
+    >
+        {/* main-container: every piece of UI goes in here */}
+        <UiEntity
+            uiTransform={{
+                width: MAIN_CONTAINER_WIDTH,
+                height: '100%',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                positionType: 'relative'
+            }}
+        >
+            {hud()}
+            {isPlayerAtMine() ? miningBar() : null}
         </UiEntity>
     </UiEntity>
 )
