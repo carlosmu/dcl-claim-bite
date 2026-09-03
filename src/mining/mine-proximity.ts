@@ -1,7 +1,7 @@
 import { createProximityZone, ProximityZone } from '../world/proximity-zone'
 
 export const MINE_ENTITY_NAME = 'Goldmine'
-export const MINE_RADIUS_METERS = 3
+export const MINE_RADIUS_METERS = 6
 
 let zone: ProximityZone | null = null
 
