@@ -6,6 +6,9 @@ import { addOre, getCoins, getOre } from './state/wallet'
 import { isPlayerAtMine } from './mining/mine-proximity'
 import { changeSellAmount, getSellAmount, isPlayerAtBank, sellSelectedOre, setSellAmount } from './bank/bank'
 import { getOrePrice, quoteSale } from './state/market'
+import { buySelected, getSelectedItem, getSelectedItemId, isPlayerAtShop, selectItem } from './shop/shop'
+import { CATALOGUE, ShopItem } from './economy/catalogue'
+import { getOwned } from './state/inventory'
 
 // The mining tap. The swing itself is settled — H1-01 and H1-04 both `survived`, the second
 // one thanks to the hit/miss sound and the flash below. What is new here is the payout: a
@@ -333,6 +336,132 @@ const bankPanel = () => {
     )
 }
 
+const TILE_COLOR = Color4.create(0.16, 0.16, 0.18, 1)
+const TILE_SELECTED_COLOR = Color4.create(0.28, 0.1, 0.24, 1)
+const TILE_BORDER_COLOR = Color4.create(0.32, 0.32, 0.34, 1)
+const TILE_WIDTH = 220
+const TILE_HEIGHT = 88
+
+const shopTile = (item: ShopItem) => {
+    const selected = getSelectedItemId() === item.id
+    const owned = getOwned(item.id)
+    const affordable = getCoins() >= item.price
+
+    return (
+        <UiEntity
+            uiTransform={{
+                width: TILE_WIDTH,
+                height: TILE_HEIGHT,
+                margin: { left: 6, right: 6, top: 6, bottom: 6 },
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'center',
+                borderRadius: 10,
+                borderWidth: 2,
+                borderColor: selected ? MAGENTA : TILE_BORDER_COLOR
+            }}
+            uiBackground={{ color: selected ? TILE_SELECTED_COLOR : TILE_COLOR }}
+            onMouseDown={() => selectItem(item.id)}
+        >
+            <Label
+                value={item.label}
+                fontSize={22}
+                color={Color4.White()}
+                textAlign="middle-center"
+                uiTransform={{ width: '100%', height: 30 }}
+            />
+            <Label
+                value={`${item.price} coins`}
+                fontSize={18}
+                color={affordable ? COIN_COLOR : MUTED_COLOR}
+                textAlign="middle-center"
+                uiTransform={{ width: '100%', height: 24 }}
+            />
+            {owned > 0 ? (
+                <Label
+                    value={`owned ${owned}`}
+                    fontSize={14}
+                    color={MUTED_COLOR}
+                    textAlign="middle-center"
+                    uiTransform={{ width: '100%', height: 18 }}
+                />
+            ) : null}
+        </UiEntity>
+    )
+}
+
+const shopRow = (items: ShopItem[]) => (
+    <UiEntity
+        uiTransform={{
+            width: '100%',
+            height: TILE_HEIGHT + 12,
+            flexDirection: 'row',
+            justifyContent: 'center',
+            alignItems: 'center'
+        }}
+    >
+        {items.map(shopTile)}
+    </UiEntity>
+)
+
+const marketPanel = () => {
+    const selected = getSelectedItem()
+    const coins = getCoins()
+    const affordable = selected !== null && coins >= selected.price
+
+    return (
+        <UiEntity
+            uiTransform={{
+                width: '100%',
+                height: 360,
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 20,
+                borderRadius: PANEL_RADIUS
+            }}
+            uiBackground={{ color: PANEL_BACKGROUND }}
+        >
+            <Label
+                value="Market"
+                fontSize={30}
+                color={Color4.White()}
+                textAlign="middle-center"
+                uiTransform={{ width: '100%', height: 42 }}
+            />
+
+            {shopRow(CATALOGUE.slice(0, 3))}
+            {shopRow(CATALOGUE.slice(3))}
+
+            {/* The buy button only exists once something is picked. */}
+            {selected === null ? (
+                <Label
+                    value="Pick an item"
+                    fontSize={20}
+                    color={MUTED_COLOR}
+                    textAlign="middle-center"
+                    uiTransform={{ width: '100%', height: 56, margin: { top: 12 } }}
+                />
+            ) : (
+                <Button
+                    value={affordable ? `Buy ${selected.label}` : `Need ${selected.price - coins} more coins`}
+                    fontSize={24}
+                    color={Color4.White()}
+                    disabled={!affordable}
+                    uiTransform={{
+                        width: '100%',
+                        height: 56,
+                        margin: { top: 12 },
+                        borderRadius: 10
+                    }}
+                    uiBackground={{ color: affordable ? MAGENTA : DISABLED_COLOR }}
+                    onMouseDown={buySelected}
+                />
+            )}
+        </UiEntity>
+    )
+}
+
 export const uiMenu = () => (
     <UiEntity
         uiTransform={{
@@ -357,6 +486,7 @@ export const uiMenu = () => (
             {hud()}
             {isPlayerAtMine() ? miningBar() : null}
             {isPlayerAtBank() ? bankPanel() : null}
+            {isPlayerAtShop() ? marketPanel() : null}
         </UiEntity>
     </UiEntity>
 )

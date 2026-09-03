@@ -2,6 +2,12 @@
 
 Append-only, newest first. `date · decision · why`. Standing non-goals live here too.
 
+- 2026-09-03 · A missed swing pays 0 ore; a hit stays at 3 · owner call, reversing the agent call of 2026-09-02 that had a miss paying 1. Missing now costs the whole swing, which makes the timing bar the yield dial it was always meant to be
+
+- 2026-09-03 · The Market is a 5m proximity zone around a `Market` entity: a grid of five items (Pick, Shovel, Wheelbarrow, House, M.U.L.E.), select one and a Buy button appears; the button is disabled and names the shortfall when coins are short · owner call. Closes the third verb of §3, "Spend"
+
+- 2026-09-03 · M.U.L.E. is taken to be the idle rig, so it carries the GDD's fixed 100-coin price · agent call, pending owner review. Shovel (25), Wheelbarrow (60) and House (500) are pure placeholders — only the pick's 10 and the rig's 100 come from the GDD
+
 - 2026-09-02 · A sale is priced ore by ore down a descending ladder, not at one flat rate: the first unit of a batch fetches today's price and each following unit a notch less · agent call, pending owner review: at a flat rate, dumping the whole bag is always optimal and the amount selector would be decoration. Measured at the placeholder numbers — 100 ore dumped at once pays 150 coins, the same 100 sold in four batches 15s apart pays 188
 
 - 2026-09-02 · The ore price moves linearly in both directions with a hard floor · owner call: two dials that can be balanced by hand, per the 2026-08-31 call. Placeholders in `src/economy/constants.ts` — base 2.00 coins/ore, floor 0.50, −0.01 per ore sold, +0.02/s recovery

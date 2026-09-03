@@ -2,9 +2,12 @@ import { engine } from '@dcl/sdk/ecs'
 import { createProximityZone, ProximityZone } from '../world/proximity-zone'
 import { addCoins, getOre, takeOre } from '../state/wallet'
 import { applySale, getOrePrice, quoteSale, recoverPrice } from '../state/market'
+import { playSfx } from '../world/sfx'
 
 export const BANK_ENTITY_NAME = 'Bank'
 export const BANK_RADIUS_METERS = 5
+const BANK_SOUND_CLIP = 'assets/sounds/bank.mp3'
+const BANK_SOUND_VOLUME = 0.8
 
 let zone: ProximityZone | null = null
 
@@ -43,6 +46,7 @@ export function sellSelectedOre(): void {
   applySale(amount)
   addCoins(payout)
   sellAmount = getOre() // whatever is left, ready to sell again
+  playSfx(BANK_SOUND_CLIP, BANK_SOUND_VOLUME)
 
   console.log(`[bank] sold ${amount} ore for ${payout} coins · price now ${getOrePrice().toFixed(2)}`)
 }

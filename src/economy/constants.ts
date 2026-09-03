@@ -10,8 +10,8 @@
 /** Ore granted by a swing that lands inside the sweet spot. */
 export const ORE_PER_HIT = 3
 
-/** Ore granted by a swing that misses. A miss still pays: the pick did hit the rock. */
-export const ORE_PER_MISS = 1
+/** Ore granted by a swing that misses the sweet spot. Nothing: a bad swing is a wasted one. */
+export const ORE_PER_MISS = 0
 
 /** Coins per ore when the town has not sold anything for a while. */
 export const ORE_BASE_PRICE = 2
