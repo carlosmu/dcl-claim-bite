@@ -29,14 +29,19 @@ let flashColor: 'hit' | 'miss' | null = null
 let flashTimer = 0
 let swingCount = 0
 
+const HIT_SOUND_CLIP = 'assets/sounds/match.mp3'
+const MISS_SOUND_CLIP = 'assets/sounds/fail.mp3'
+
 let hitSoundEntity: ReturnType<typeof engine.addEntity> | null = null
 let missSoundEntity: ReturnType<typeof engine.addEntity> | null = null
 
-function playSound(entity: ReturnType<typeof engine.addEntity> | null) {
+// Two hits in a row have to be heard twice. Toggling `playing` false->true inside one tick
+// does not do that: the CRDT only ships the final state of the frame, so the renderer never
+// sees a change and the clip is left alone, still playing. `AudioSource.playSound` replaces
+// the whole component with currentTime 0, which always emits a PUT and so always retriggers.
+function playSound(entity: ReturnType<typeof engine.addEntity> | null, clip: string) {
     if (entity === null) return
-    const audio = AudioSource.getMutable(entity)
-    audio.playing = false
-    audio.playing = true
+    AudioSource.playSound(entity, clip, true)
 }
 
 function updateNeedle(dt: number) {
@@ -57,7 +62,8 @@ function onSwing() {
     addOre(oreGained)
     flashColor = isHit ? 'hit' : 'miss'
     flashTimer = FLASH_DURATION_SECONDS
-    playSound(isHit ? hitSoundEntity : missSoundEntity)
+    if (isHit) playSound(hitSoundEntity, HIT_SOUND_CLIP)
+    else playSound(missSoundEntity, MISS_SOUND_CLIP)
     console.log(`[mine] swing #${swingCount}: ${isHit ? 'HIT' : 'miss'} +${oreGained} ore (total ${getOre()})`)
 }
 
@@ -67,7 +73,7 @@ export function setupUi() {
     hitSoundEntity = engine.addEntity()
     Transform.create(hitSoundEntity, {})
     AudioSource.create(hitSoundEntity, {
-        audioClipUrl: 'assets/sounds/match.mp3',
+        audioClipUrl: HIT_SOUND_CLIP,
         playing: false,
         loop: false,
         volume: 0.8,
@@ -77,7 +83,7 @@ export function setupUi() {
     missSoundEntity = engine.addEntity()
     Transform.create(missSoundEntity, {})
     AudioSource.create(missSoundEntity, {
-        audioClipUrl: 'assets/sounds/fail.mp3',
+        audioClipUrl: MISS_SOUND_CLIP,
         playing: false,
         loop: false,
         volume: 0.6,
