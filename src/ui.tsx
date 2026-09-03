@@ -1,9 +1,11 @@
-import ReactEcs, { ReactEcsRenderer, UiEntity, Label } from "@dcl/sdk/react-ecs"
+import ReactEcs, { ReactEcsRenderer, UiEntity, Label, Button } from "@dcl/sdk/react-ecs"
 import { Color4 } from "@dcl/sdk/math"
 import { engine, AudioSource, Transform } from "@dcl/sdk/ecs"
 import { ORE_PER_HIT, ORE_PER_MISS } from './economy/constants'
 import { addOre, getCoins, getOre } from './state/wallet'
 import { isPlayerAtMine } from './mining/mine-proximity'
+import { changeSellAmount, getSellAmount, isPlayerAtBank, sellSelectedOre, setSellAmount } from './bank/bank'
+import { getOrePrice, quoteSale } from './state/market'
 
 // The mining tap. The swing itself is settled — H1-01 and H1-04 both `survived`, the second
 // one thanks to the hit/miss sound and the flash below. What is new here is the payout: a
@@ -89,17 +91,24 @@ const BAR_WIDTH = 500
 const BAR_HEIGHT = 50
 
 // Everything on screen lives inside one centered column 40% of the screen wide, so the UI
-// keeps a single, predictable frame as more of it arrives (the bank, the buy menu).
+// keeps a single, predictable frame as more of it arrives.
 const MAIN_CONTAINER_WIDTH = '40%'
 
 // The HUD is the only permanent thing on screen (§6): small, clear of the thumb, pinned to
-// the top of the container. Magenta is reserved for interactables (§7), so it never appears here.
+// the top of the container. The mining bar and the bank panel are contextual — they exist
+// only while the player stands in the matching zone.
 const HUD_PANEL_WIDTH = 220
 const HUD_ROW_HEIGHT = 34
 const PANEL_BACKGROUND = Color4.create(0, 0, 0, 0.8)
 const PANEL_RADIUS = 12
 const ORE_COLOR = Color4.create(0.92, 0.92, 0.88, 1)
 const COIN_COLOR = Color4.create(1, 0.84, 0.35, 1)
+const MUTED_COLOR = Color4.create(0.65, 0.63, 0.6, 1)
+
+// Magenta is the town's one interactable colour (§7), so it belongs on the button that acts.
+const MAGENTA = Color4.create(0.9, 0.15, 0.65, 1)
+const STEP_BUTTON_COLOR = Color4.create(0.22, 0.22, 0.24, 1)
+const DISABLED_COLOR = Color4.create(0.25, 0.25, 0.26, 1)
 
 function barBackgroundColor(): Color4 {
     if (flashColor === 'hit') return Color4.create(0.35, 1, 0.4, 1)
@@ -192,6 +201,132 @@ const miningBar = () => (
     </UiEntity>
 )
 
+const infoRow = (label: string, value: string, valueColor: Color4) => (
+    <UiEntity
+        uiTransform={{
+            width: '100%',
+            height: 34,
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+        }}
+    >
+        <Label
+            value={label}
+            fontSize={20}
+            color={MUTED_COLOR}
+            textAlign="middle-left"
+            uiTransform={{ width: '50%', height: 34 }}
+        />
+        <Label
+            value={value}
+            fontSize={22}
+            color={valueColor}
+            textAlign="middle-right"
+            uiTransform={{ width: '50%', height: 34 }}
+        />
+    </UiEntity>
+)
+
+const stepButton = (label: string, onClick: () => void, width: number) => (
+    <Button
+        value={label}
+        fontSize={20}
+        color={Color4.White()}
+        uiTransform={{
+            width,
+            height: 44,
+            margin: { left: 4, right: 4 },
+            borderRadius: 8
+        }}
+        uiBackground={{ color: STEP_BUTTON_COLOR }}
+        onMouseDown={onClick}
+    />
+)
+
+const bankPanel = () => {
+    const ore = getOre()
+    const amount = getSellAmount()
+    const payout = quoteSale(amount)
+
+    return (
+        <UiEntity
+            uiTransform={{
+                width: '100%',
+                height: 380,
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 20,
+                borderRadius: PANEL_RADIUS
+            }}
+            uiBackground={{ color: PANEL_BACKGROUND }}
+        >
+            <Label
+                value="The Bank"
+                fontSize={30}
+                color={Color4.White()}
+                textAlign="middle-center"
+                uiTransform={{ width: '100%', height: 42 }}
+            />
+            {infoRow('Town price', `${getOrePrice().toFixed(2)} coins / ore`, ORE_COLOR)}
+            {infoRow('Your ore', `${ore}`, ORE_COLOR)}
+
+            <UiEntity
+                uiTransform={{
+                    width: '100%',
+                    height: 52,
+                    flexDirection: 'row',
+                    justifyContent: 'center',
+                    alignItems: 'center'
+                }}
+            >
+                {stepButton('-10', () => changeSellAmount(-10), 64)}
+                {stepButton('-1', () => changeSellAmount(-1), 64)}
+                <Label
+                    value={`${amount}`}
+                    fontSize={26}
+                    color={Color4.White()}
+                    textAlign="middle-center"
+                    uiTransform={{ width: 96, height: 44 }}
+                />
+                {stepButton('+1', () => changeSellAmount(1), 64)}
+                {stepButton('+10', () => changeSellAmount(10), 64)}
+            </UiEntity>
+
+            <UiEntity
+                uiTransform={{
+                    width: '100%',
+                    height: 48,
+                    flexDirection: 'row',
+                    justifyContent: 'center',
+                    alignItems: 'center'
+                }}
+            >
+                {stepButton('Half', () => setSellAmount(Math.floor(getOre() / 2)), 96)}
+                {stepButton('All', () => setSellAmount(getOre()), 96)}
+            </UiEntity>
+
+            {infoRow('You get', `${payout} coins`, COIN_COLOR)}
+
+            <Button
+                value={amount > 0 ? `SELL ${amount} ORE` : 'NOTHING TO SELL'}
+                fontSize={24}
+                color={Color4.White()}
+                disabled={amount <= 0}
+                uiTransform={{
+                    width: '100%',
+                    height: 56,
+                    margin: { top: 12 },
+                    borderRadius: 10
+                }}
+                uiBackground={{ color: amount > 0 ? MAGENTA : DISABLED_COLOR }}
+                onMouseDown={sellSelectedOre}
+            />
+        </UiEntity>
+    )
+}
+
 export const uiMenu = () => (
     <UiEntity
         uiTransform={{
@@ -215,6 +350,7 @@ export const uiMenu = () => (
         >
             {hud()}
             {isPlayerAtMine() ? miningBar() : null}
+            {isPlayerAtBank() ? bankPanel() : null}
         </UiEntity>
     </UiEntity>
 )

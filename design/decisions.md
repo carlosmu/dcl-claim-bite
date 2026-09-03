@@ -2,6 +2,14 @@
 
 Append-only, newest first. `date · decision · why`. Standing non-goals live here too.
 
+- 2026-09-02 · A sale is priced ore by ore down a descending ladder, not at one flat rate: the first unit of a batch fetches today's price and each following unit a notch less · agent call, pending owner review: at a flat rate, dumping the whole bag is always optimal and the amount selector would be decoration. Measured at the placeholder numbers — 100 ore dumped at once pays 150 coins, the same 100 sold in four batches 15s apart pays 188
+
+- 2026-09-02 · The ore price moves linearly in both directions with a hard floor · owner call: two dials that can be balanced by hand, per the 2026-08-31 call. Placeholders in `src/economy/constants.ts` — base 2.00 coins/ore, floor 0.50, −0.01 per ore sold, +0.02/s recovery
+
+- 2026-09-02 · Selling takes an amount, not a single "sell all" button: ±1 / ±10 steppers plus Half and All shortcuts · owner call, chosen over the one-button option. Adds a second decision (how much) on top of the GDD's original one (when)
+
+- 2026-09-02 · The bank is a 5m proximity zone around the `Bank` entity, the same pattern as the dig's 3m zone · owner call. Both use a per-frame distance check rather than `pointerEventsSystem.onProximityEnter`: proximity events are new in SDK 7.27 and an older Explorer never emits them, which is exactly what silently broke the dig's first implementation
+
 - 2026-09-02 · A missed swing still pays ore (placeholder: hit 3, miss 1), never zero · agent call, pending owner review: a zero-payout miss turns the timing bar into a punishment in a game §8 explicitly says is not reflex-based — the gap between hit and miss carries §3's "a well-timed hit pays more" on its own. Both numbers are TBD and live in `src/economy/constants.ts`
 
 - 2026-09-02 · Scene geometry (town, quarry, buildings) is authored in the Creator Hub inspector, not in code; code finds those entities by name and attaches behaviour · owner call: the art is the owner's own job and the inspector is where it happens. Accepted tradeoff: `main.crdt` is binary, so scene edits can't be reviewed in a diff and only one of us touches it at a time
