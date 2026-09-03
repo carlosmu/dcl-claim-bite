@@ -2,12 +2,16 @@ import { createProximityZone, ProximityZone } from '../world/proximity-zone'
 import { CATALOGUE, findItem, ShopItem, ShopItemId } from '../economy/catalogue'
 import { getCoins, spendCoins } from '../state/wallet'
 import { addOwned } from '../state/inventory'
+import { playSfx } from '../world/sfx'
+import { equipPick } from '../player/held-pick'
 
 // The Market: where coins turn back into gear. Not to be confused with `state/market.ts`,
 // which is the town's ore *price* — this module is the shop the player walks into.
 
 export const SHOP_ENTITY_NAME = 'Market'
 export const SHOP_RADIUS_METERS = 5
+const BUY_SOUND_CLIP = 'assets/sounds/buy.mp3'
+const BUY_SOUND_VOLUME = 0.8
 
 let zone: ProximityZone | null = null
 let selectedId: ShopItemId | null = null
@@ -44,6 +48,8 @@ export function buySelected(): void {
   }
 
   addOwned(item.id)
+  playSfx(BUY_SOUND_CLIP, BUY_SOUND_VOLUME)
+  if (item.id === 'pick') equipPick()
   console.log(`[shop] bought ${item.label} for ${item.price} coins · balance ${getCoins()}`)
 }
 

@@ -351,6 +351,48 @@
             },
             "parent": 0
           }
+        },
+        "526": {
+          "json": {
+            "position": {
+              "x": -0.5,
+              "y": 1.75,
+              "z": 0.75
+            },
+            "rotation": {
+              "x": 0,
+              "y": -0.7933533191680908,
+              "z": 0,
+              "w": 0.6087614297866821
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
+            "parent": 512
+          }
+        },
+        "527": {
+          "json": {
+            "position": {
+              "x": 0.25,
+              "y": 1.5,
+              "z": 1.25
+            },
+            "rotation": {
+              "x": 0,
+              "y": -0.7933533191680908,
+              "z": 0,
+              "w": 0.6087614297866821
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
+            "parent": 512
+          }
         }
       }
     },
@@ -453,6 +495,20 @@
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
+        },
+        "526": {
+          "json": {
+            "src": "assets/asset-packs/beryl/Gem_03/Gem_03.glb",
+            "visibleMeshesCollisionMask": 0,
+            "invisibleMeshesCollisionMask": 3
+          }
+        },
+        "527": {
+          "json": {
+            "src": "assets/asset-packs/beryl/Gem_03/Gem_03.glb",
+            "visibleMeshesCollisionMask": 0,
+            "invisibleMeshesCollisionMask": 3
+          }
         }
       }
     },
@@ -537,6 +593,16 @@
         "525": {
           "json": {
             "value": "Mountain 1"
+          }
+        },
+        "526": {
+          "json": {
+            "value": "Beryl_3"
+          }
+        },
+        "527": {
+          "json": {
+            "value": "Beryl_4"
           }
         }
       }
@@ -642,7 +708,9 @@
                 "open": true,
                 "children": [
                   513,
-                  514
+                  514,
+                  526,
+                  527
                 ]
               },
               {
@@ -698,6 +766,14 @@
               },
               {
                 "entity": 525,
+                "children": []
+              },
+              {
+                "entity": 526,
+                "children": []
+              },
+              {
+                "entity": 527,
                 "children": []
               }
             ]
@@ -762,6 +838,12 @@
           "json": {}
         },
         "525": {
+          "json": {}
+        },
+        "526": {
+          "json": {}
+        },
+        "527": {
           "json": {}
         }
       }
