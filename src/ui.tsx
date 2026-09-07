@@ -9,6 +9,7 @@ import { getOrePrice, quoteSale } from './state/market'
 import { buySelected, getSelectedItem, getSelectedItemId, isPlayerAtShop, selectItem } from './shop/shop'
 import { CATALOGUE, ShopItem } from './economy/catalogue'
 import { getOwned } from './state/inventory'
+import { playMineEmote } from './player/mine-emote'
 
 // The mining tap. The swing itself is settled — H1-01 and H1-04 both `survived`, the second
 // one thanks to the hit/miss sound and the flash below. What is new here is the payout: a
@@ -65,6 +66,7 @@ function onSwing() {
     addOre(oreGained)
     flashColor = isHit ? 'hit' : 'miss'
     flashTimer = FLASH_DURATION_SECONDS
+    playMineEmote()
     if (isHit) playSound(hitSoundEntity, HIT_SOUND_CLIP)
     else playSound(missSoundEntity, MISS_SOUND_CLIP)
     console.log(`[mine] swing #${swingCount}: ${isHit ? 'HIT' : 'miss'} +${oreGained} ore (total ${getOre()})`)
