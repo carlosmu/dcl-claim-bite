@@ -2,10 +2,10 @@ import ReactEcs, { ReactEcsRenderer, UiEntity, Label, Button } from "@dcl/sdk/re
 import { Color4 } from "@dcl/sdk/math"
 import { engine, AudioSource, Transform } from "@dcl/sdk/ecs"
 import { ORE_PER_HIT, ORE_PER_MISS } from './shared/economy/constants'
-import { addOre, getCoins, getOre } from './shared/state/wallet'
+import { getCoins, getOre } from './shared/state/wallet'
 import { isPlayerAtMine } from './mining/mine-proximity'
 import { changeSellAmount, getSellAmount, isPlayerAtBank, sellSelectedOre, setSellAmount } from './bank/bank'
-import { getOrePrice, quoteSale } from './shared/state/market'
+import { getSyncedOrePrice, quoteSaleForDisplay, sendSwing } from './net/economy-link'
 import { buySelected, getSelectedItem, getSelectedItemId, isPlayerAtShop, selectItem } from './shop/shop'
 import { CATALOGUE, ShopItem } from './shared/economy/catalogue'
 import { getOwned } from './shared/state/inventory'
@@ -64,13 +64,17 @@ function onSwing() {
     swingCount += 1
     const isHit = needlePos >= SWEET_SPOT_START && needlePos <= SWEET_SPOT_END
     const oreGained = isHit ? ORE_PER_HIT : ORE_PER_MISS
-    addOre(oreGained)
+
+    // The ore is the server's to grant, so this only reports the swing. The flash, the sound
+    // and the emote stay local and immediate: waiting a round trip to acknowledge a tap
+    // would make the bar feel broken, and none of them touch a balance.
+    sendSwing(isHit)
     flashColor = isHit ? 'hit' : 'miss'
     flashTimer = FLASH_DURATION_SECONDS
     playMineEmote()
     if (isHit) playSound(hitSoundEntity, HIT_SOUND_CLIP)
     else playSound(missSoundEntity, MISS_SOUND_CLIP)
-    console.log(`[mine] swing #${swingCount}: ${isHit ? 'HIT' : 'miss'} +${oreGained} ore (total ${getOre()})`)
+    console.log(`[mine] swing #${swingCount}: ${isHit ? 'HIT' : 'miss'}, ${oreGained} ore requested`)
 }
 
 export function setupUi() {
@@ -266,7 +270,7 @@ const stepButton = (label: string, onClick: () => void, width: number) => (
 const bankPanel = () => {
     const ore = getOre()
     const amount = getSellAmount()
-    const payout = quoteSale(amount)
+    const payout = quoteSaleForDisplay(amount)
 
     return (
         <UiEntity
@@ -288,7 +292,7 @@ const bankPanel = () => {
                 textAlign="middle-center"
                 uiTransform={{ width: '100%', height: 42 }}
             />
-            {infoRow('Town price', `${getOrePrice().toFixed(2)} coins / ore`, ORE_COLOR)}
+            {infoRow('Town price', `${getSyncedOrePrice().toFixed(2)} coins / ore`, ORE_COLOR)}
             {infoRow('Your ore', `${ore}`, ORE_COLOR)}
 
             <UiEntity

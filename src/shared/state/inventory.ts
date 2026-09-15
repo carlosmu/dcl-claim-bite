@@ -15,7 +15,14 @@ export function getOwned(id: ShopItemId): number {
   return owned[id] ?? 0
 }
 
-export function addOwned(id: ShopItemId, amount: number = 1): void {
-  if (amount <= 0) return
-  owned[id] = getOwned(id) + amount
+/** Replaces the inventory from the `id:count` pairs the server sends. */
+export function applyServerOwned(encoded: string): void {
+  for (const id of Object.keys(owned)) delete owned[id as ShopItemId]
+  if (encoded === '') return
+
+  for (const pair of encoded.split(',')) {
+    const [id, count] = pair.split(':')
+    owned[id as ShopItemId] = Number(count)
+  }
 }
+

@@ -2,6 +2,10 @@
 
 Append-only, newest first. `date · decision · why`. Standing non-goals live here too.
 
+- 2026-09-15 · The ore price is synced live from the server rather than quoted on demand · owner call. The panel keeps showing a price that moves on its own, including while another player sells — which is the §9 pillar of a market that shifts from player behaviour, and it was invisible while every client kept a private copy. Both sides quote through the same `quoteSaleAt(price, amount)` so the displayed number and the paid number cannot drift
+
+- 2026-09-15 · The client is now a mirror: mining, selling and buying are requests, and balances change only when the server's `wallet` message arrives · forced by the migration. The local adders were deleted rather than left unused, since adding ore client-side would move the HUD without the server agreeing. TBD: a swing is still trusted — the server takes the client's word for a sweet-spot hit, so ore can be minted by a modified client. Closing it needs the sweep to be server-driven, deliberately left as its own step
+
 - 2026-09-15 · The authoritative server is pulled forward from week 2 to now, before the M.U.L.E. is built · owner call. The idle rig only earns its 100 coins if it fills while the player is away, and offline accrual needs a trusted clock plus per-player persistence — both server-only. Two things already in the design were fiction without it: the shared ore price (one private copy per client) and §9's "nothing resets by design". `wallet`, `market`, `inventory` and `catalogue` were already written ECS-free for this move, so they relocated to `src/shared` unchanged
 
 - 2026-09-15 · Deployment is a World, `carlosmu.dcl.eth`, now fixed in scene.json rather than only in the GDD · forced by the authoritative runtime, which requires `worldConfiguration.name`. The 1024 parcels in scene.json are a Genesis-sized footprint and will have to be cut to what the NAME allows before the first deploy — TBD, not blocking local work

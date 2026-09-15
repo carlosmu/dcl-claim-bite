@@ -1,18 +1,13 @@
 import { createProximityZone, ProximityZone } from '../world/proximity-zone'
 import { CATALOGUE, findItem, ShopItem, ShopItemId } from '../shared/economy/catalogue'
-import { getCoins, spendCoins } from '../shared/state/wallet'
-import { addOwned } from '../shared/state/inventory'
-import { playSfx } from '../world/sfx'
-import { equipPick } from '../player/held-pick'
+import { getCoins } from '../shared/state/wallet'
+import { sendBuy } from '../net/economy-link'
 
 // The Market: where coins turn back into gear. Not to be confused with `state/market.ts`,
 // which is the town's ore *price* — this module is the shop the player walks into.
 
 export const SHOP_ENTITY_NAME = 'Market'
 export const SHOP_RADIUS_METERS = 5
-const BUY_SOUND_CLIP = 'assets/sounds/buy.mp3'
-const BUY_SOUND_VOLUME = 0.8
-
 let zone: ProximityZone | null = null
 let selectedId: ShopItemId | null = null
 
@@ -37,20 +32,19 @@ export function canAffordSelected(): boolean {
   return item !== null && getCoins() >= item.price
 }
 
-/** Buys the selected item, if the balance covers it. Does nothing otherwise. */
+/**
+ * Asks the server to buy the selected item.
+ *
+ * `canAffordSelected()` still gates the button, but that is a courtesy to the player, not a
+ * check: the server refuses a purchase the balance cannot cover regardless of what this
+ * client believed. The sound and the equipped pick follow the server's answer, in
+ * `net/economy-link.ts`, so a refused purchase is silent.
+ */
 export function buySelected(): void {
   const item = getSelectedItem()
   if (item === null) return
 
-  if (!spendCoins(item.price)) {
-    console.log(`[shop] not enough coins for ${item.label} (${item.price}, balance ${getCoins()})`)
-    return
-  }
-
-  addOwned(item.id)
-  playSfx(BUY_SOUND_CLIP, BUY_SOUND_VOLUME)
-  if (item.id === 'pick') equipPick()
-  console.log(`[shop] bought ${item.label} for ${item.price} coins · balance ${getCoins()}`)
+  sendBuy(item.id)
 }
 
 export function setupShop(): void {

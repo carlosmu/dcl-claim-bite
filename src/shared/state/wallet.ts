@@ -1,11 +1,15 @@
 // What the player carries: raw ore (mined) and coins (legal tender).
 //
 // Two currencies, and only the bank converts one into the other — see design/decisions.md,
-// 2026-08-31. Coins stay at 0 until the bank exists.
+// 2026-08-31.
 //
-// Deliberately free of ECS, React and rendering imports: this module is plain data and
-// plain functions, so it can move to the authoritative server later without dragging
-// anything that draws along with it.
+// That move to the authoritative server has happened (decisions.md, 2026-09-15), and it
+// turned this module inside out: the purse is no longer kept here, it is kept per player on
+// the server. What is left is a read-only mirror of the local player's copy of it.
+//
+// The adders that used to live here are gone on purpose rather than left unused. On this
+// side they would be a trap: adding ore locally would move the number on screen without the
+// server agreeing, and the next wallet message would silently undo it.
 
 let ore = 0
 let coins = 0
@@ -18,26 +22,13 @@ export function getCoins(): number {
   return coins
 }
 
-export function addOre(amount: number): void {
-  if (amount <= 0) return
-  ore += amount
-}
-
-/** Removes ore from the bag. Returns false and changes nothing if there isn't enough. */
-export function takeOre(amount: number): boolean {
-  if (amount <= 0 || amount > ore) return false
-  ore -= amount
-  return true
-}
-
-export function addCoins(amount: number): void {
-  if (amount <= 0) return
-  coins += amount
-}
-
-/** Spends coins. Returns false and changes nothing if the balance can't cover it. */
-export function spendCoins(amount: number): boolean {
-  if (amount <= 0 || amount > coins) return false
-  coins -= amount
-  return true
+/**
+ * Overwrites the purse with the server's copy.
+ *
+ * The ONLY thing that changes a balance on this side: mining, selling and buying all ask
+ * the server and wait to be told the result.
+ */
+export function applyServerWallet(serverOre: number, serverCoins: number): void {
+  ore = serverOre
+  coins = serverCoins
 }

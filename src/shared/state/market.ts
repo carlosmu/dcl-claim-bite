@@ -24,11 +24,22 @@ export function getOrePrice(): number {
  * invents a fraction of a coin. Does not change anything.
  */
 export function quoteSale(oreAmount: number): number {
+  return quoteSaleAt(price, oreAmount)
+}
+
+/**
+ * The same quote against a price passed in rather than the module's own.
+ *
+ * The server owns the price now, so the client has no local `price` to quote against — it
+ * has the synced one. Both sides call this, which is the point: the number the panel shows
+ * and the number the server pays out come from one formula, so they cannot drift apart.
+ */
+export function quoteSaleAt(atPrice: number, oreAmount: number): number {
   if (oreAmount <= 0) return 0
 
   // Units priced above the floor, before the descending price bottoms out.
-  const aboveFloor = Math.min(oreAmount, Math.max(0, Math.ceil((price - ORE_MIN_PRICE) / PRICE_DROP_PER_ORE)))
-  const descending = aboveFloor * price - (PRICE_DROP_PER_ORE * aboveFloor * (aboveFloor - 1)) / 2
+  const aboveFloor = Math.min(oreAmount, Math.max(0, Math.ceil((atPrice - ORE_MIN_PRICE) / PRICE_DROP_PER_ORE)))
+  const descending = aboveFloor * atPrice - (PRICE_DROP_PER_ORE * aboveFloor * (aboveFloor - 1)) / 2
   const atFloor = (oreAmount - aboveFloor) * ORE_MIN_PRICE
 
   return Math.floor(descending + atFloor)

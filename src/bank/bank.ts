@@ -1,13 +1,9 @@
-import { engine } from '@dcl/sdk/ecs'
 import { createProximityZone, ProximityZone } from '../world/proximity-zone'
-import { addCoins, getOre, takeOre } from '../shared/state/wallet'
-import { applySale, getOrePrice, quoteSale, recoverPrice } from '../shared/state/market'
-import { playSfx } from '../world/sfx'
+import { getOre } from '../shared/state/wallet'
+import { sendSell } from '../net/economy-link'
 
 export const BANK_ENTITY_NAME = 'Bank'
 export const BANK_RADIUS_METERS = 5
-const BANK_SOUND_CLIP = 'assets/sounds/bank.mp3'
-const BANK_SOUND_VOLUME = 0.8
 
 let zone: ProximityZone | null = null
 
@@ -35,20 +31,20 @@ function clampToBag(amount: number): number {
   return Math.max(0, Math.min(Math.floor(amount), getOre()))
 }
 
-/** Turns the selected ore into coins at today's price, and pushes the price down. */
+/**
+ * Asks the server to sell the selected ore. Nothing changes here.
+ *
+ * The payout is not computed on this side any more, not even optimistically: the price can
+ * have moved since the panel drew it, because somebody else sold. What the bank pays is
+ * whatever the server says it pays, and the HUD updates when the wallet message lands.
+ */
 export function sellSelectedOre(): void {
   const amount = getSellAmount()
   if (amount <= 0) return
 
-  const payout = quoteSale(amount) // priced before the sale moves the market
-  if (!takeOre(amount)) return
-
-  applySale(amount)
-  addCoins(payout)
-  sellAmount = getOre() // whatever is left, ready to sell again
-  playSfx(BANK_SOUND_CLIP, BANK_SOUND_VOLUME)
-
-  console.log(`[bank] sold ${amount} ore for ${payout} coins · price now ${getOrePrice().toFixed(2)}`)
+  sendSell(amount)
+  // The selection is left alone: getSellAmount() clamps to the bag, so it shrinks by itself
+  // once the smaller purse arrives.
 }
 
 export function setupBank(): void {
@@ -59,5 +55,5 @@ export function setupBank(): void {
     onEnter: () => setSellAmount(getOre())
   })
 
-  engine.addSystem((dt: number) => recoverPrice(dt), undefined, 'market-recovery')
+  // The price recovery system moved to the server: one town, one price, one clock.
 }
