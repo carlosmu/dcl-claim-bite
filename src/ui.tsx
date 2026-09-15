@@ -1,15 +1,16 @@
 import ReactEcs, { ReactEcsRenderer, UiEntity, Label, Button } from "@dcl/sdk/react-ecs"
 import { Color4 } from "@dcl/sdk/math"
 import { engine, AudioSource, Transform } from "@dcl/sdk/ecs"
-import { ORE_PER_HIT, ORE_PER_MISS } from './economy/constants'
-import { addOre, getCoins, getOre } from './state/wallet'
+import { ORE_PER_HIT, ORE_PER_MISS } from './shared/economy/constants'
+import { addOre, getCoins, getOre } from './shared/state/wallet'
 import { isPlayerAtMine } from './mining/mine-proximity'
 import { changeSellAmount, getSellAmount, isPlayerAtBank, sellSelectedOre, setSellAmount } from './bank/bank'
-import { getOrePrice, quoteSale } from './state/market'
+import { getOrePrice, quoteSale } from './shared/state/market'
 import { buySelected, getSelectedItem, getSelectedItemId, isPlayerAtShop, selectItem } from './shop/shop'
-import { CATALOGUE, ShopItem } from './economy/catalogue'
-import { getOwned } from './state/inventory'
+import { CATALOGUE, ShopItem } from './shared/economy/catalogue'
+import { getOwned } from './shared/state/inventory'
 import { playMineEmote } from './player/mine-emote'
+import { getServerTick, isServerOnline } from './net/server-link'
 
 // The mining tap. The swing itself is settled — H1-01 and H1-04 both `survived`, the second
 // one thanks to the hit/miss sound and the flash below. What is new here is the payout: a
@@ -120,6 +121,13 @@ const MUTED_COLOR = Color4.create(0.65, 0.63, 0.6, 1)
 const MAGENTA = Color4.create(0.9, 0.15, 0.65, 1)
 const STEP_BUTTON_COLOR = Color4.create(0.22, 0.22, 0.24, 1)
 const DISABLED_COLOR = Color4.create(0.25, 0.25, 0.26, 1)
+
+// The server indicator is a development readout, not part of the game's look: it sits at the
+// bottom centre, out of the way of the mining bar and the panels, and says plainly whether
+// the authoritative server is answering. Green with a rising number means it is.
+const SERVER_ONLINE_COLOR = Color4.create(0.3, 0.9, 0.4, 1)
+const SERVER_OFFLINE_COLOR = Color4.create(1, 0.3, 0.3, 1)
+const SERVER_LABEL_HEIGHT = 28
 
 function barBackgroundColor(): Color4 {
     if (flashColor === 'hit') return Color4.create(0.35, 1, 0.4, 1)
@@ -464,6 +472,30 @@ const marketPanel = () => {
     )
 }
 
+const serverStatus = () => {
+    const online = isServerOnline()
+    return (
+        <UiEntity
+            uiTransform={{
+                positionType: 'absolute',
+                position: { bottom: 16 },
+                width: '100%',
+                height: SERVER_LABEL_HEIGHT,
+                justifyContent: 'center',
+                alignItems: 'center'
+            }}
+        >
+            <Label
+                value={online ? `server tick: ${getServerTick()}` : 'server: offline'}
+                fontSize={18}
+                color={online ? SERVER_ONLINE_COLOR : SERVER_OFFLINE_COLOR}
+                textAlign="middle-center"
+                uiTransform={{ width: '100%', height: SERVER_LABEL_HEIGHT }}
+            />
+        </UiEntity>
+    )
+}
+
 export const uiMenu = () => (
     <UiEntity
         uiTransform={{
@@ -489,6 +521,7 @@ export const uiMenu = () => (
             {isPlayerAtMine() ? miningBar() : null}
             {isPlayerAtBank() ? bankPanel() : null}
             {isPlayerAtShop() ? marketPanel() : null}
+            {serverStatus()}
         </UiEntity>
     </UiEntity>
 )

@@ -2,6 +2,10 @@
 
 Append-only, newest first. `date · decision · why`. Standing non-goals live here too.
 
+- 2026-09-15 · The authoritative server is pulled forward from week 2 to now, before the M.U.L.E. is built · owner call. The idle rig only earns its 100 coins if it fills while the player is away, and offline accrual needs a trusted clock plus per-player persistence — both server-only. Two things already in the design were fiction without it: the shared ore price (one private copy per client) and §9's "nothing resets by design". `wallet`, `market`, `inventory` and `catalogue` were already written ECS-free for this move, so they relocated to `src/shared` unchanged
+
+- 2026-09-15 · Deployment is a World, `carlosmu.dcl.eth`, now fixed in scene.json rather than only in the GDD · forced by the authoritative runtime, which requires `worldConfiguration.name`. The 1024 parcels in scene.json are a Genesis-sized footprint and will have to be cut to what the NAME allows before the first deploy — TBD, not blocking local work
+
 - 2026-09-03 · A missed swing pays 0 ore; a hit stays at 3 · owner call, reversing the agent call of 2026-09-02 that had a miss paying 1. Missing now costs the whole swing, which makes the timing bar the yield dial it was always meant to be
 
 - 2026-09-03 · The Market is a 5m proximity zone around a `Market` entity: a grid of five items (Pick, Shovel, Wheelbarrow, House, M.U.L.E.), select one and a Buy button appears; the button is disabled and names the shortfall when coins are short · owner call. Closes the third verb of §3, "Spend"

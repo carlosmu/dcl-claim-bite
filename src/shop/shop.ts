@@ -1,7 +1,7 @@
 import { createProximityZone, ProximityZone } from '../world/proximity-zone'
-import { CATALOGUE, findItem, ShopItem, ShopItemId } from '../economy/catalogue'
-import { getCoins, spendCoins } from '../state/wallet'
-import { addOwned } from '../state/inventory'
+import { CATALOGUE, findItem, ShopItem, ShopItemId } from '../shared/economy/catalogue'
+import { getCoins, spendCoins } from '../shared/state/wallet'
+import { addOwned } from '../shared/state/inventory'
 import { playSfx } from '../world/sfx'
 import { equipPick } from '../player/held-pick'
 

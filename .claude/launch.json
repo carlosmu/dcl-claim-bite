@@ -4,8 +4,12 @@
     {
       "name": "claim-bite",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "start"],
-      "port": 8000
+      "runtimeArgs": [
+        "run",
+        "start"
+      ],
+      "port": 8000,
+      "autoPort": true
     }
   ]
 }

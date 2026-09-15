@@ -14,6 +14,7 @@ export enum EntityNames {
   Goldmine = "Goldmine",
   House_5_M_Blue = "House 5 M Blue",
   House_7_M_Blue = "House 7 M Blue",
+  MULE = "MULE",
   Market = "Market",
   Mountain_1 = "Mountain 1",
   Peak = "Peak",

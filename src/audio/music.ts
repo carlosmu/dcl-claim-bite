@@ -5,7 +5,7 @@ import { engine, AudioSource, Transform } from '@dcl/sdk/ecs'
 // something emitted by an object in the world.
 
 const MUSIC_CLIP = 'assets/sounds/western_loop.mp3'
-const MUSIC_VOLUME = 0.4
+const MUSIC_VOLUME = 1
 
 export function setupMusic() {
     const musicEntity = engine.addEntity()

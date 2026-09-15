@@ -9,7 +9,7 @@ import { AudioSource, engine, Transform } from '@dcl/sdk/ecs'
 // that report on an action still cut through it.
 
 const MUSIC_CLIP = 'assets/sounds/western_loop.mp3'
-const MUSIC_VOLUME = 0.25
+const MUSIC_VOLUME = 1
 
 export function setupMusic(): void {
   const entity = engine.addEntity()

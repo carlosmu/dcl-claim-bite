@@ -1,7 +1,7 @@
 import { engine } from '@dcl/sdk/ecs'
 import { createProximityZone, ProximityZone } from '../world/proximity-zone'
-import { addCoins, getOre, takeOre } from '../state/wallet'
-import { applySale, getOrePrice, quoteSale, recoverPrice } from '../state/market'
+import { addCoins, getOre, takeOre } from '../shared/state/wallet'
+import { applySale, getOrePrice, quoteSale, recoverPrice } from '../shared/state/market'
 import { playSfx } from '../world/sfx'
 
 export const BANK_ENTITY_NAME = 'Bank'
