@@ -1,8 +1,29 @@
-# SDK7 Empty Scene Template
+# Claim Bite
 
-The empty scene template used by the Creator Hub when you create a new scene. It contains the minimal files for a Decentraland SDK7 scene project.
+<p align="center">
+  <img src="assets/images/thumbnail.png" alt="Claim Bite" width="640">
+</p>
 
-## Try it out
+A Decentraland SDK7 scene set in a half-abandoned gold-rush mining town.
+
+You arrive as a stranger with a pick. Tap in time with the swing bar to break ore out of the rock,
+carry it to the bank in town, and sell it for coins — the only legal tender. Every sale pushes the
+town's ore price down for everyone, and it recovers slowly, so *when* you sell is the decision the
+game is built on. Coins buy better tools and rent a claim out at the quarry, where an idle rig keeps
+producing while you are away.
+
+The game runs on an authoritative server: mining, selling and buying are requests, and balances and
+the shared market price come back from the server, so the town is the same town for everyone in it.
+
+**Deployment target:** World `carlosmu.dcl.eth`
+
+## Design documents
+
+The design lives in [`design/`](design) — the [GDD](design/gdd.md), an append-only
+[decision log](design/decisions.md), the [hypothesis log](design/hypothesis-log.md) and
+[ideas](design/ideas.md).
+
+## Run it
 
 **With the Creator Hub (recommended)**
 
@@ -22,6 +43,8 @@ Inside this scene's root directory run:
 npm install
 npm run start
 ```
+
+`npm run build` type-checks and bundles the scene, `npm run deploy` publishes it.
 
 **With an AI coding assistant**
 
