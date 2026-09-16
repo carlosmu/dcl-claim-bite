@@ -1079,7 +1079,7 @@
   },
   "creator": "",
   "skyboxConfig": {},
-  "landscapeTerrain": true,
+  "landscapeTerrain": false,
   "source": {
     "origin": "creator-hub",
     "projectId": "56bb1826-9826-456e-9a91-0abc74c31606"
@@ -1090,5 +1090,6 @@
   },
   "logsPermissions": [
     "0x4B538E1E044922aec2F428EC7E17A99f44205fF9"
-  ]
+  ],
+  "rating": "A"
 }

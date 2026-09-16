@@ -13,6 +13,7 @@ import { setupMineProximity } from './mining/mine-proximity'
 import { setupBank } from './bank/bank'
 import { setupShop } from './shop/shop'
 import { setupMusic } from './world/music'
+import { setupIsometricCamera } from './world/isometric-camera'
 import { setupServerLink } from './net/server-link'
 import { setupEconomyLink } from './net/economy-link'
 
@@ -31,6 +32,7 @@ export async function main() {
     setupServerLink()
     setupEconomyLink()
     setupMusic()
+    setupIsometricCamera()
     setupMineProximity()
     setupBank()
     setupShop()

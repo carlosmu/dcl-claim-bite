@@ -45,6 +45,16 @@ export function quoteSaleAt(atPrice: number, oreAmount: number): number {
   return Math.floor(descending + atFloor)
 }
 
+/**
+ * Puts the price back to a value read from storage, on server start.
+ *
+ * Deliberately not a general setter: the price is only ever *restored* from outside, never
+ * assigned. Everything else moves it through applySale and recoverPrice.
+ */
+export function restorePrice(stored: number): void {
+  price = Math.max(ORE_MIN_PRICE, Math.min(ORE_BASE_PRICE, stored))
+}
+
 /** Pushes the price down for a sale that has just happened. */
 export function applySale(oreAmount: number): void {
   if (oreAmount <= 0) return

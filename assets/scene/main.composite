@@ -48451,6 +48451,7 @@
             "name": "Claim Bite",
             "description": "Empty Scene Template",
             "thumbnail": "assets/images/thumbnail.png",
+            "ageRating": "A",
             "categories": [],
             "author": "SDK",
             "email": "",
@@ -52598,7 +52599,7 @@
             "skyboxConfig": {},
             "creator": "",
             "disableNearbyVoiceChat": false,
-            "hideLandscapeTerrain": false
+            "hideLandscapeTerrain": true
           }
         }
       }

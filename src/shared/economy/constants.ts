@@ -24,3 +24,17 @@ export const PRICE_DROP_PER_ORE = 0.01
 
 /** How fast the price climbs back toward ORE_BASE_PRICE while nobody sells. */
 export const PRICE_RECOVERY_PER_SECOND = 0.02
+
+/**
+ * The shortest gap the server accepts between two swings from the same player. Anything
+ * faster is dropped, not paid.
+ *
+ * The bar sweeps in 1.6s and the needle bounces, so the sweet spot passes about every 0.8s:
+ * that is the fastest a player can legitimately *score*. This sits below that on purpose, so
+ * network jitter or an eager tapper is never punished — it exists to cap an autoclicker at
+ * two swings a second instead of twenty, not to police honest play.
+ *
+ * TBD: a real fix validates the swing's timing rather than its rate, which needs the sweep
+ * to be server-driven (design/decisions.md, 2026-09-15).
+ */
+export const MIN_SWING_INTERVAL_SECONDS = 0.5

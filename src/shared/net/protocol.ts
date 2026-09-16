@@ -13,6 +13,11 @@ export const Messages = {
   // TBD: `swing` is trusted for now — the server takes the client's word for whether the
   // needle was in the sweet spot, so a modified client can mint ore. Closing that needs the
   // sweep to become server-driven, which is its own step (design/decisions.md, 2026-09-15).
+  // "I am connected and listening." The server cannot know when a client's channel is ready,
+  // and a wallet sent a moment too early is simply lost — so the client asks instead of being
+  // guessed at. Retried until answered, which also covers a server that restarted underneath.
+  hello: Schemas.Map({ ready: Schemas.Boolean }),
+
   swing: Schemas.Map({ hit: Schemas.Boolean }),
   sell: Schemas.Map({ amount: Schemas.Number }),
   buy: Schemas.Map({ itemId: Schemas.String }),

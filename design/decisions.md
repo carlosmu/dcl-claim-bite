@@ -2,6 +2,12 @@
 
 Append-only, newest first. `date · decision · why`. Standing non-goals live here too.
 
+- 2026-09-16 · The client announces itself with `hello` and retries until answered, rather than the server pushing a wallet when it guesses the player has arrived · forced by a bug: the purse was restored correctly but the message carrying it was sent before the client's channel could receive, so the HUD sat at 0 until the first swing produced a second wallet message. A client asking is reliable where a server guessing is not, and the retry also covers a server that restarted under a client that never disconnected
+
+- 2026-09-16 · Purses persist per player in server Storage, and the ore price persists scene-wide · agent call on the price, pending owner review. Restoring the price rather than resetting it to base keeps a restart from quietly handing the town a fresh market, and keeps balance playtests honest — a floored price stays floored instead of being washed away by a reload. One line to flip if that proves annoying while tuning
+
+- 2026-09-16 · A purse is only in memory once it has actually been read from storage; actions from a player whose purse is still loading are refused, not served · agent call. The alternative — inventing an empty purse on first touch — risks a slow read being mistaken for a new player and then saved over a real balance. Writes are batched every 5s and flushed on departure rather than written per swing
+
 - 2026-09-15 · The ore price is synced live from the server rather than quoted on demand · owner call. The panel keeps showing a price that moves on its own, including while another player sells — which is the §9 pillar of a market that shifts from player behaviour, and it was invisible while every client kept a private copy. Both sides quote through the same `quoteSaleAt(price, amount)` so the displayed number and the paid number cannot drift
 
 - 2026-09-15 · The client is now a mirror: mining, selling and buying are requests, and balances change only when the server's `wallet` message arrives · forced by the migration. The local adders were deleted rather than left unused, since adding ore client-side would move the HUD without the server agreeing. TBD: a swing is still trusted — the server takes the client's word for a sweet-spot hit, so ore can be minted by a modified client. Closing it needs the sweep to be server-driven, deliberately left as its own step
