@@ -12,7 +12,7 @@ import { room } from '../shared/net/protocol'
 import { OreMarket } from '../shared/net/market-sync'
 import { applyServerWallet } from '../shared/state/wallet'
 import { applyServerOwned, getOwned } from '../shared/state/inventory'
-import { ORE_BASE_PRICE } from '../shared/economy/constants'
+import { RATE_BASE } from '../shared/economy/constants'
 import { quoteSaleAt } from '../shared/state/market'
 import { playSfx } from '../world/sfx'
 import { equipPick } from '../player/held-pick'
@@ -23,17 +23,29 @@ const SOUND_VOLUME = 0.8
 
 // Falls back to the base price only until the first sync lands, so the panel never has to
 // render an empty slot.
-let price = ORE_BASE_PRICE
+let price = RATE_BASE
 
 /** How often the client re-announces itself while it still has no purse. */
 const HELLO_RETRY_SECONDS = 1
 
+let capacity = 0
+let orePerHit = 0
 let walletReceived = false
 let sinceLastHello = HELLO_RETRY_SECONDS
 
-/** The town's price as the server last published it. */
-export function getSyncedOrePrice(): number {
+/** The town's rate as the server last published it, in ore per coin. */
+export function getSyncedRate(): number {
   return price
+}
+
+/** How much ore the bag holds, as the server computed it from what the player owns. */
+export function getCarryCapacity(): number {
+  return capacity
+}
+
+/** Ore a landed swing pays with the player's best pick. Zero means they own none. */
+export function getOrePerHit(): number {
+  return orePerHit
 }
 
 /** What selling `amount` would pay at the synced price — for display only. */
@@ -83,15 +95,20 @@ function readPrice() {
 export function setupEconomyLink(): void {
   room.onMessage('wallet', (data) => {
     walletReceived = true
+    capacity = data.capacity
+    orePerHit = data.orePerHit
     applyServerWallet(data.ore, data.coins)
     applyServerOwned(data.owned)
 
     // Gear follows what is OWNED, not the moment of purchase. After a reload the purchase is
     // history but the pick is still theirs, so it has to be put back in their hand here —
     // this is the only message that runs on arrival. equipPick() is idempotent.
-    if (getOwned('pick') > 0) equipPick()
+    if (orePerHit > 0) equipPick()
 
-    console.log(`[economy] wallet from server: ${data.ore} ore, ${data.coins} coins, owned "${data.owned}"`)
+    console.log(
+      `[economy] wallet from server: ${data.ore}/${data.capacity} ore, ${data.coins} coins, ` +
+        `${data.orePerHit} per hit, owned "${data.owned}"`
+    )
   })
 
   // The feedback for an action fires here rather than at the button, because only now is it

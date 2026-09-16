@@ -29,7 +29,11 @@ export const Messages = {
     coins: Schemas.Number,
     // The inventory as `id:count` pairs joined by commas. A map schema would be tidier, but
     // the item list is short and this keeps one message instead of one per item.
-    owned: Schemas.String
+    owned: Schemas.String,
+    // Derived server-side from `owned` rather than worked out by the client, so the HUD can
+    // draw the bag and the yield without the client deciding what a player is entitled to.
+    capacity: Schemas.Number,
+    orePerHit: Schemas.Number
   }),
 
   // Server -> one client: the outcome of something the player asked for, for the log and

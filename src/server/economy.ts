@@ -16,10 +16,10 @@ import { syncEntity } from '@dcl/sdk/network'
 
 import { MARKET_ENTITY_ENUM_ID, OreMarket } from '../shared/net/market-sync'
 import { room } from '../shared/net/protocol'
-import { applySale, getOrePrice, quoteSale, recoverPrice, restorePrice } from '../shared/state/market'
+import { applySale, getMacroRate, getRate, oreForCoins, quoteSale, recoverRate, restoreMacroRate } from '../shared/state/market'
 import { loadMarketPrice, loadPurse, savePurse, saveMarketPrice } from './persistence'
-import { MIN_SWING_INTERVAL_SECONDS, ORE_PER_HIT, ORE_PER_MISS } from '../shared/economy/constants'
-import { findItem, ShopItemId } from '../shared/economy/catalogue'
+import { MIN_SWING_INTERVAL_SECONDS, ORE_PER_MISS } from '../shared/economy/constants'
+import { bestOrePerHit, carryCapacity, findItem, ShopItemId } from '../shared/economy/catalogue'
 
 type Purse = {
   ore: number
@@ -114,9 +114,16 @@ function sendWallet(address: string): void {
   const purse = purses.get(address)
   if (purse === undefined) return
 
+  const owned = (id: ShopItemId) => purse.owned[id] ?? 0
   room.send(
     'wallet',
-    { ore: purse.ore, coins: purse.coins, owned: encodeOwned(purse) },
+    {
+      ore: purse.ore,
+      coins: purse.coins,
+      owned: encodeOwned(purse),
+      capacity: carryCapacity(owned),
+      orePerHit: bestOrePerHit(owned)
+    },
     { to: [address] }
   )
 }
@@ -139,7 +146,17 @@ function handleSwing(address: string, hit: boolean): void {
   if (purse === null) return
 
   lastSwingAt.set(address, serverClock)
-  purse.ore += hit ? ORE_PER_HIT : ORE_PER_MISS
+
+  // Yield comes from the best pick the player OWNS, which is server state — so the tier
+  // cannot be claimed by a client, only earned. No pick pays nothing.
+  const owned = (id: ShopItemId) => purse.owned[id] ?? 0
+  const gained = hit ? bestOrePerHit(owned) : ORE_PER_MISS
+
+  // The bag is the ceiling. Overflow is refused rather than dropped silently or lost: the
+  // mining bar is disabled at capacity, so reaching this means a swing slipped through.
+  const room = Math.max(0, carryCapacity(owned) - purse.ore)
+  purse.ore += Math.min(gained, room)
+
   dirty.add(address)
   sendWallet(address)
 }
@@ -160,15 +177,27 @@ function handleSell(address: string, requested: number): void {
   }
 
   const payout = quoteSale(amount) // priced before the sale moves the market
-  purse.ore -= amount
+
+  // A sale that rounds down to nothing is refused rather than served: the payout floors, so
+  // serving it would swallow the ore and hand back zero coins. The ladder means the first
+  // coin costs a shade over ten ore, not exactly ten.
+  if (payout <= 0) {
+    sendResult(address, 'sell', false, 'too little ore to make a coin')
+    return
+  }
+
+  // Only the ore that actually bought those coins is taken; the remainder stays in the bag
+  // rather than being burned by the rounding.
+  const spent = Math.min(amount, oreForCoins(getRate(), payout))
+  purse.ore -= spent
   purse.coins += payout
-  applySale(amount)
+  applySale(spent)
   dirty.add(address)
   marketDirty = true
 
   sendWallet(address)
-  sendResult(address, 'sell', true, `${amount} ore for ${payout} coins`)
-  console.log(`[Server] ${address} sold ${amount} ore for ${payout} · price now ${getOrePrice().toFixed(2)}`)
+  sendResult(address, 'sell', true, `${spent} ore for ${payout} coins`)
+  console.log(`[Server] ${address} sold ${spent} ore for ${payout} · rate now ${getRate().toFixed(2)} ore/coin`)
 }
 
 function handleBuy(address: string, itemId: string): void {
@@ -256,7 +285,7 @@ function flushSaves(dt: number) {
 
   if (marketDirty) {
     marketDirty = false
-    saveMarketPrice(getOrePrice())
+    saveMarketPrice(getMacroRate())
   }
 }
 
@@ -278,16 +307,18 @@ function reportAbuse(dt: number) {
   droppedSwings.clear()
 }
 
-function publishPrice(dt: number) {
-  recoverPrice(dt)
+function publishRate(dt: number) {
+  // Population is what makes the macro recover at a town's pace rather than one player's, so
+  // the equilibrium rate is the same in an empty town and a full one.
+  recoverRate(dt, present.size)
 
-  // Only on a real change, and only to two decimals: the recovery moves the price by a
-  // fraction every frame, and syncing that every frame would be 30 writes a second of noise.
-  const price = Math.round(getOrePrice() * 100) / 100
-  if (price === lastPublishedPrice) return
-  lastPublishedPrice = price
+  // Only on a real change, and only to two decimals: recovery moves the rate by a fraction
+  // every frame, and syncing that every frame would be 30 writes a second of noise.
+  const rate = Math.round(getRate() * 100) / 100
+  if (rate === lastPublishedPrice) return
+  lastPublishedPrice = rate
   marketDirty = true
-  OreMarket.getMutable(marketEntity).price = price
+  OreMarket.getMutable(marketEntity).price = rate
 }
 
 export function setupEconomy(): void {
@@ -296,13 +327,13 @@ export function setupEconomy(): void {
   loadMarketPrice()
     .then((stored) => {
       if (stored === null) return
-      restorePrice(stored)
-      console.log(`[Server] market price restored at ${stored.toFixed(2)}`)
+      restoreMacroRate(stored)
+      console.log(`[Server] macro rate restored at ${stored.toFixed(2)} ore per coin`)
     })
     .catch((error) => console.log(`[Server] market price restore failed: ${error}`))
 
   marketEntity = engine.addEntity()
-  OreMarket.create(marketEntity, { price: getOrePrice() })
+  OreMarket.create(marketEntity, { price: getRate() })
   syncEntity(marketEntity, [OreMarket.componentId], MARKET_ENTITY_ENUM_ID)
 
   room.onMessage('hello', (_data, context) => {
@@ -329,7 +360,7 @@ export function setupEconomy(): void {
 
   // The clock goes first so everything scheduled after it reads the current frame's time.
   engine.addSystem(advanceClock, undefined, 'server:clock')
-  engine.addSystem(publishPrice, undefined, 'server:market-price')
+  engine.addSystem(publishRate, undefined, 'server:market-rate')
   engine.addSystem(reportAbuse, undefined, 'server:abuse-report')
   engine.addSystem(flushSaves, undefined, 'server:save')
   engine.addSystem(checkPresence, undefined, 'server:presence')

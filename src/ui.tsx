@@ -1,11 +1,10 @@
 import ReactEcs, { ReactEcsRenderer, UiEntity, Label, Button } from "@dcl/sdk/react-ecs"
 import { Color4 } from "@dcl/sdk/math"
 import { engine, AudioSource, Transform } from "@dcl/sdk/ecs"
-import { ORE_PER_HIT, ORE_PER_MISS } from './shared/economy/constants'
 import { getCoins, getOre } from './shared/state/wallet'
 import { isPlayerAtMine } from './mining/mine-proximity'
 import { changeSellAmount, getSellAmount, isPlayerAtBank, sellSelectedOre, setSellAmount } from './bank/bank'
-import { getSyncedOrePrice, quoteSaleForDisplay, sendSwing } from './net/economy-link'
+import { getCarryCapacity, getOrePerHit, getSyncedRate, quoteSaleForDisplay, sendSwing } from './net/economy-link'
 import { buySelected, getSelectedItem, getSelectedItemId, isPlayerAtShop, selectItem } from './shop/shop'
 import { CATALOGUE, ShopItem } from './shared/economy/catalogue'
 import { getOwned } from './shared/state/inventory'
@@ -63,7 +62,7 @@ function updateNeedle(dt: number) {
 function onSwing() {
     swingCount += 1
     const isHit = needlePos >= SWEET_SPOT_START && needlePos <= SWEET_SPOT_END
-    const oreGained = isHit ? ORE_PER_HIT : ORE_PER_MISS
+    const oreGained = isHit ? getOrePerHit() : 0
 
     // The ore is the server's to grant, so this only reports the swing. The flash, the sound
     // and the emote stay local and immediate: waiting a round trip to acknowledge a tap
@@ -159,7 +158,7 @@ const hud = () => (
         uiBackground={{ color: PANEL_BACKGROUND }}
     >
         <Label
-            value={`Ore  ${getOre()}`}
+            value={getCarryCapacity() > 0 ? `Ore  ${getOre()}/${getCarryCapacity()}` : `Ore  ${getOre()}`}
             fontSize={24}
             color={ORE_COLOR}
             textAlign="middle-right"
@@ -171,6 +170,34 @@ const hud = () => (
             color={COIN_COLOR}
             textAlign="middle-right"
             uiTransform={{ width: '100%', height: HUD_ROW_HEIGHT }}
+        />
+    </UiEntity>
+)
+
+function isBagFull(): boolean {
+    const capacity = getCarryCapacity()
+    return capacity > 0 && getOre() >= capacity
+}
+
+// A tap that answers but pays nothing reads as broken, so at capacity the bar is replaced
+// rather than left running. The wording says what to do next, not just what went wrong.
+const bagFullNotice = () => (
+    <UiEntity
+        uiTransform={{
+            width: BAR_WIDTH,
+            height: BAR_HEIGHT,
+            justifyContent: 'center',
+            alignItems: 'center',
+            borderRadius: PANEL_RADIUS
+        }}
+        uiBackground={{ color: PANEL_BACKGROUND }}
+    >
+        <Label
+            value={`Bag full — ${getOre()}/${getCarryCapacity()} ore. Sell at the bank.`}
+            fontSize={20}
+            color={MUTED_COLOR}
+            textAlign="middle-center"
+            uiTransform={{ width: '100%', height: BAR_HEIGHT }}
         />
     </UiEntity>
 )
@@ -292,7 +319,7 @@ const bankPanel = () => {
                 textAlign="middle-center"
                 uiTransform={{ width: '100%', height: 42 }}
             />
-            {infoRow('Town price', `${getSyncedOrePrice().toFixed(2)} coins / ore`, ORE_COLOR)}
+            {infoRow('Town rate', `${getSyncedRate().toFixed(1)} ore = 1 coin`, ORE_COLOR)}
             {infoRow('Your ore', `${ore}`, ORE_COLOR)}
 
             <UiEntity
@@ -522,7 +549,7 @@ export const uiMenu = () => (
             }}
         >
             {hud()}
-            {isPlayerAtMine() ? miningBar() : null}
+            {isPlayerAtMine() ? (isBagFull() ? bagFullNotice() : miningBar()) : null}
             {isPlayerAtBank() ? bankPanel() : null}
             {isPlayerAtShop() ? marketPanel() : null}
             {serverStatus()}
