@@ -138,9 +138,10 @@ const DISABLED_COLOR = Color4.create(0.25, 0.25, 0.26, 1)
 // the authoritative server is answering. Green with a rising number means it is.
 // --- HUD -------------------------------------------------------------------------------
 //
-// One horizontal pill in the top-left OF THE CENTRED COLUMN — not of the screen, so it never
-// lands on top of the explorer's own interface. Tool, ore and coins, three segments split by
-// hair lines, each an icon beside a caption and its value.
+// One horizontal pill at the top of the centred column, centred in X and sized to whatever it
+// holds. It stays inside the column rather than the screen, so it never lands on top of the
+// explorer's own interface. Tool, ore and coins, three segments split by hair lines, each an
+// icon beside a caption and its value.
 //
 // TBD: the icons are placeholders taken from atlas_01.png — the first three cells of a 4x4
 // grid. Swap ATLAS_* below when the real art lands; nothing else needs to change.
@@ -233,10 +234,21 @@ const hud = () => {
     const capacity = getCarryCapacity()
 
     return (
+        // Two entities, not one. The pill has to size itself to its contents, so it cannot
+        // also be the thing that centres itself — an absolute box with `left` set is anchored,
+        // not centred. The outer entity spans the column and centres whatever it holds; the
+        // inner one is the pill, laid out normally and free to be as wide as it needs.
         <UiEntity
             uiTransform={{
                 positionType: 'absolute',
-                position: { top: HUD_MARGIN, left: HUD_MARGIN },
+                position: { top: HUD_MARGIN },
+                width: '100%',
+                flexDirection: 'row',
+                justifyContent: 'center'
+            }}
+        >
+        <UiEntity
+            uiTransform={{
                 height: HUD_HEIGHT,
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -250,6 +262,7 @@ const hud = () => {
             {hudSegment(ICON_ORE, 'Ore', capacity > 0 ? `${getOre()} / ${capacity}` : `${getOre()}`, ORE_COLOR)}
             {hudDivider()}
             {hudSegment(ICON_COINS, 'Coins', `${getCoins()}`, COIN_COLOR)}
+        </UiEntity>
         </UiEntity>
     )
 }
