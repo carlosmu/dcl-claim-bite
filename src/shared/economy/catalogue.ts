@@ -40,12 +40,16 @@ export const PICKS: ShopItem[] = CATALOGUE.filter((item) => item.orePerHit !== u
  * Zero when they own no pick at all — the mayor's gift is what starts the loop, so having
  * nothing in hand should pay nothing rather than quietly paying as if bare hands were a tool.
  */
-export function bestOrePerHit(ownedCount: (id: ShopItemId) => number): number {
-  let best = 0
+export function bestPick(ownedCount: (id: ShopItemId) => number): ShopItem | null {
+  let best: ShopItem | null = null
   for (const pick of PICKS) {
-    if (ownedCount(pick.id) > 0 && pick.orePerHit! > best) best = pick.orePerHit!
+    if (ownedCount(pick.id) > 0 && (best === null || pick.orePerHit! > best.orePerHit!)) best = pick
   }
   return best
+}
+
+export function bestOrePerHit(ownedCount: (id: ShopItemId) => number): number {
+  return bestPick(ownedCount)?.orePerHit ?? 0
 }
 
 /** How much ore the bag holds, given what the player owns. */

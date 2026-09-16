@@ -6,7 +6,7 @@ import { isPlayerAtMine } from './mining/mine-proximity'
 import { changeSellAmount, getSellAmount, isPlayerAtBank, sellSelectedOre, setSellAmount } from './bank/bank'
 import { getCarryCapacity, getOrePerHit, getSyncedRate, quoteSaleForDisplay, sendSwing } from './net/economy-link'
 import { buySelected, getSelectedItem, getSelectedItemId, isPlayerAtShop, selectItem } from './shop/shop'
-import { CATALOGUE, ShopItem } from './shared/economy/catalogue'
+import { bestPick, CATALOGUE, ShopItem } from './shared/economy/catalogue'
 import { getOwned } from './shared/state/inventory'
 import { playMineEmote } from './player/mine-emote'
 import { getServerTick, isServerOnline } from './net/server-link'
@@ -105,8 +105,16 @@ export function setupUi() {
 const BAR_WIDTH = 500
 const BAR_HEIGHT = 50
 
-// Everything on screen lives inside one centered column 40% of the screen wide, so the UI
-// keeps a single, predictable frame as more of it arrives.
+// Everything this scene draws lives inside one centred column: full screen height, but only
+// 40% of its width.
+//
+// The narrowness is the point, not a layout accident. The left and right edges of the screen
+// belong to the explorer's own interface — chat, minimap, the emote wheel — and anything we
+// pin out there sits on top of it. Keeping to the middle band means the scene never has to
+// guess where the client put its own UI this version.
+//
+// So nothing here is positioned against the SCREEN. An absolute child with `top`/`left`
+// anchors to this column, which is what makes the HUD land inside the safe band.
 const MAIN_CONTAINER_WIDTH = '40%'
 
 // The HUD is the only permanent thing on screen (§6): small, clear of the thumb, pinned to
@@ -128,6 +136,45 @@ const DISABLED_COLOR = Color4.create(0.25, 0.25, 0.26, 1)
 // The server indicator is a development readout, not part of the game's look: it sits at the
 // bottom centre, out of the way of the mining bar and the panels, and says plainly whether
 // the authoritative server is answering. Green with a rising number means it is.
+// --- HUD -------------------------------------------------------------------------------
+//
+// One horizontal pill in the top-left OF THE CENTRED COLUMN — not of the screen, so it never
+// lands on top of the explorer's own interface. Tool, ore and coins, three segments split by
+// hair lines, each an icon beside a caption and its value.
+//
+// TBD: the icons are placeholders taken from atlas_01.png — the first three cells of a 4x4
+// grid. Swap ATLAS_* below when the real art lands; nothing else needs to change.
+const ATLAS = 'assets/images/atlas_01.png'
+const ATLAS_COLUMNS = 4
+const ATLAS_ROWS = 4
+
+const HUD_MARGIN = 16
+const HUD_HEIGHT = 64
+const HUD_ICON_SIZE = 34
+const HUD_CAPTION_SIZE = 15
+const HUD_VALUE_SIZE = 24
+const HUD_BACKGROUND = Color4.create(0.07, 0.08, 0.1, 0.92)
+const HUD_DIVIDER = Color4.create(1, 1, 1, 0.14)
+
+/**
+ * UVs for one cell of the atlas, addressed like a spreadsheet: column 1 is the left, row 1 is
+ * the TOP. The v axis runs bottom-up in the texture, which is why the row is flipped here
+ * rather than at every call site.
+ *
+ * The four corners go bottom-left, top-left, top-right, bottom-right.
+ */
+function atlasCell(column: number, row: number): number[] {
+    const w = 1 / ATLAS_COLUMNS
+    const h = 1 / ATLAS_ROWS
+    const u0 = (column - 1) * w
+    const v0 = 1 - row * h
+    return [u0, v0, u0, v0 + h, u0 + w, v0 + h, u0 + w, v0]
+}
+
+const ICON_PICK = atlasCell(1, 1)
+const ICON_ORE = atlasCell(2, 1)
+const ICON_COINS = atlasCell(3, 1)
+
 const SERVER_ONLINE_COLOR = Color4.create(0.3, 0.9, 0.4, 1)
 const SERVER_OFFLINE_COLOR = Color4.create(1, 0.3, 0.3, 1)
 const SERVER_LABEL_HEIGHT = 28
@@ -142,37 +189,70 @@ function barHeight(): number {
     return flashColor === 'hit' ? BAR_HEIGHT + PULSE_EXTRA_HEIGHT : BAR_HEIGHT
 }
 
-const hud = () => (
+const hudIcon = (uvs: number[]) => (
     <UiEntity
-        uiTransform={{
-            positionType: 'absolute',
-            position: { top: 24, right: 0 },
-            width: HUD_PANEL_WIDTH,
-            height: HUD_ROW_HEIGHT * 2 + 20,
-            flexDirection: 'column',
-            alignItems: 'flex-end',
-            justifyContent: 'center',
-            padding: { top: 10, bottom: 10, left: 16, right: 16 },
-            borderRadius: PANEL_RADIUS
-        }}
-        uiBackground={{ color: PANEL_BACKGROUND }}
-    >
-        <Label
-            value={getCarryCapacity() > 0 ? `Ore  ${getOre()}/${getCarryCapacity()}` : `Ore  ${getOre()}`}
-            fontSize={24}
-            color={ORE_COLOR}
-            textAlign="middle-right"
-            uiTransform={{ width: '100%', height: HUD_ROW_HEIGHT }}
-        />
-        <Label
-            value={`Coins  ${getCoins()}`}
-            fontSize={24}
-            color={COIN_COLOR}
-            textAlign="middle-right"
-            uiTransform={{ width: '100%', height: HUD_ROW_HEIGHT }}
-        />
+        uiTransform={{ width: HUD_ICON_SIZE, height: HUD_ICON_SIZE, margin: { right: 10 } }}
+        uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs }}
+    />
+)
+
+const hudDivider = () => (
+    <UiEntity
+        uiTransform={{ width: 1, height: HUD_HEIGHT * 0.5, margin: { left: 14, right: 14 } }}
+        uiBackground={{ color: HUD_DIVIDER }}
+    />
+)
+
+/** Icon, caption, value. The caption is omitted for the tool, which reads as its own label. */
+const hudSegment = (uvs: number[], caption: string | null, value: string, color: Color4) => (
+    <UiEntity uiTransform={{ height: '100%', flexDirection: 'row', alignItems: 'center' }}>
+        {hudIcon(uvs)}
+        <UiEntity uiTransform={{ flexDirection: 'column', justifyContent: 'center' }}>
+            {caption !== null ? (
+                <Label
+                    value={caption}
+                    fontSize={HUD_CAPTION_SIZE}
+                    color={MUTED_COLOR}
+                    textAlign="middle-left"
+                    uiTransform={{ height: HUD_CAPTION_SIZE + 6 }}
+                />
+            ) : null}
+            <Label
+                value={value}
+                fontSize={HUD_VALUE_SIZE}
+                color={color}
+                textAlign="middle-left"
+                uiTransform={{ height: HUD_VALUE_SIZE + 6 }}
+            />
+        </UiEntity>
     </UiEntity>
 )
+
+const hud = () => {
+    const pick = bestPick((id) => getOwned(id))
+    const capacity = getCarryCapacity()
+
+    return (
+        <UiEntity
+            uiTransform={{
+                positionType: 'absolute',
+                position: { top: HUD_MARGIN, left: HUD_MARGIN },
+                height: HUD_HEIGHT,
+                flexDirection: 'row',
+                alignItems: 'center',
+                padding: { left: 18, right: 22 },
+                borderRadius: PANEL_RADIUS
+            }}
+            uiBackground={{ color: HUD_BACKGROUND }}
+        >
+            {hudSegment(ICON_PICK, null, pick?.label ?? 'No pick', Color4.White())}
+            {hudDivider()}
+            {hudSegment(ICON_ORE, 'Ore', capacity > 0 ? `${getOre()} / ${capacity}` : `${getOre()}`, ORE_COLOR)}
+            {hudDivider()}
+            {hudSegment(ICON_COINS, 'Coins', `${getCoins()}`, COIN_COLOR)}
+        </UiEntity>
+    )
+}
 
 function isBagFull(): boolean {
     const capacity = getCarryCapacity()
