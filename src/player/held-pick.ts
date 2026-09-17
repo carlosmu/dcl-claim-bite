@@ -14,7 +14,7 @@ import { Quaternion, Vector3 } from '@dcl/sdk/math'
 const PICK_MODEL = 'assets/asset-packs/peak/Peak.glb'
 
 const HELD_POSITION = Vector3.create(0, 0, 0)
-const HELD_ROTATION = Quaternion.fromEulerDegrees(0, 0, 0)
+const HELD_ROTATION = Quaternion.fromEulerDegrees(0, 75, 0)
 const HELD_SCALE = Vector3.create(1, 1, 1)
 
 let anchor: Entity | null = null
