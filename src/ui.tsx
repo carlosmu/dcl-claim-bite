@@ -1,4 +1,4 @@
-import ReactEcs, { ReactEcsRenderer, UiEntity, Label, Button } from "@dcl/sdk/react-ecs"
+import ReactEcs, { ReactEcsRenderer, UiEntity, Label, Button, Input } from "@dcl/sdk/react-ecs"
 import { Color4 } from "@dcl/sdk/math"
 import { getCoins, getOre } from './shared/state/wallet'
 import { changeSellAmount, getSellAmount, isPlayerAtBank, sellSelectedOre, setSellAmount } from './bank/bank'
@@ -7,13 +7,15 @@ import {
     getMuleCapacity,
     getMuleOre,
     getSyncedRate,
-    quoteSaleForDisplay
+    quoteSaleForDisplay,
+    sendDebugCoins
 } from './net/economy-link'
 import { buySelected, getSelectedItem, getSelectedItemId, isPlayerAtShop, selectItem } from './shop/shop'
 import { collectMule, isPlayerAtMule } from './mule/mule'
 import { bestPick, CATALOGUE, ShopItem } from './shared/economy/catalogue'
 import { getOwned } from './shared/state/inventory'
 import { getServerTick, isServerOnline } from './net/server-link'
+import { DEBUG_ADD_COINS, DEBUG_SERVER_STATUS } from './shared/debug-flags'
 
 // Mining has no screen UI any more: its progress floats over the player's head
 // (src/mining/rocks.ts). The HUD is the one permanent thing on screen (§6).
@@ -428,6 +430,72 @@ const marketPanel = () => {
     )
 }
 
+// --- Debug: add coins -------------------------------------------------------------------
+//
+// A small button at the bottom-left of the column that opens an amount field. Only drawn while
+// DEBUG_ADD_COINS is on; the server checks the same flag, so hiding it is not the only guard.
+
+let debugOpen = false
+let debugAmount = ''
+
+function submitDebugCoins() {
+    const amount = Math.floor(Number(debugAmount))
+    if (!(amount > 0)) return
+    sendDebugCoins(amount)
+    debugAmount = ''
+    debugOpen = false
+}
+
+const debugCoinsTool = () => (
+    <UiEntity
+        uiTransform={{
+            positionType: 'absolute',
+            position: { bottom: 56, left: 0 },
+            flexDirection: 'row',
+            alignItems: 'center'
+        }}
+    >
+        <Button
+            value={debugOpen ? 'Close' : '+ Coins (debug)'}
+            fontSize={16}
+            color={Color4.White()}
+            uiTransform={{ width: 150, height: 40, borderRadius: 8 }}
+            uiBackground={{ color: STEP_BUTTON_COLOR }}
+            onMouseDown={() => {
+                debugOpen = !debugOpen
+            }}
+        />
+        {debugOpen ? (
+            <UiEntity uiTransform={{ flexDirection: 'row', alignItems: 'center', margin: { left: 8 } }}>
+                <Input
+                    placeholder="amount"
+                    value={debugAmount}
+                    fontSize={18}
+                    color={Color4.White()}
+                    placeholderColor={MUTED_COLOR}
+                    uiTransform={{ width: 140, height: 40 }}
+                    uiBackground={{ color: PANEL_BACKGROUND }}
+                    onChange={(value) => {
+                        debugAmount = value
+                    }}
+                    onSubmit={(value) => {
+                        debugAmount = value
+                        submitDebugCoins()
+                    }}
+                />
+                <Button
+                    value="Add"
+                    fontSize={18}
+                    color={Color4.White()}
+                    uiTransform={{ width: 70, height: 40, margin: { left: 8 }, borderRadius: 8 }}
+                    uiBackground={{ color: MAGENTA }}
+                    onMouseDown={submitDebugCoins}
+                />
+            </UiEntity>
+        ) : null}
+    </UiEntity>
+)
+
 const serverStatus = () => {
     const online = isServerOnline()
     return (
@@ -512,7 +580,8 @@ export const uiMenu = () => (
             {isPlayerAtBank() ? bankPanel() : null}
             {isPlayerAtShop() ? marketPanel() : null}
             {isPlayerAtMule() && getMuleCapacity() > 0 ? mulePanel() : null}
-            {serverStatus()}
+            {DEBUG_SERVER_STATUS ? serverStatus() : null}
+            {DEBUG_ADD_COINS ? debugCoinsTool() : null}
         </UiEntity>
     </UiEntity>
 )

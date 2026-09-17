@@ -19,6 +19,7 @@ import { room } from '../shared/net/protocol'
 import { applySale, getMacroRate, getRate, oreForCoins, quoteSale, recoverRate, restoreMacroRate } from '../shared/state/market'
 import { loadMarketPrice, loadPurse, savePurse, saveMarketPrice } from './persistence'
 import { ORE_PER_ROCK, ROCK_TIME_TOLERANCE, SWING_SECONDS } from '../shared/economy/constants'
+import { DEBUG_ADD_COINS, DEBUG_MAX_COINS } from '../shared/debug-flags'
 import { bestHitsPerRock, carryCapacity, findItem, ShopItemId } from '../shared/economy/catalogue'
 import { MULE_CAPACITY } from '../shared/economy/constants'
 import { collectableOre, settleMule } from './mule'
@@ -254,6 +255,33 @@ function handleBuy(address: string, itemId: string): void {
   console.log(`[Server] ${address} bought ${item.label} for ${item.price} · balance ${purse.coins}`)
 }
 
+// DEBUG: coins out of nothing, for testing purchases without playing up to them. They skip the
+// bank, so the market never hears about them — but nothing else in the economy is protected.
+function handleDebugCoins(address: string, requested: number): void {
+  if (!DEBUG_ADD_COINS) {
+    sendResult(address, 'debugCoins', false, 'debug tools are off')
+    return
+  }
+
+  const purse = purseOf(address)
+  if (purse === null) {
+    sendResult(address, 'debugCoins', false, 'still loading')
+    return
+  }
+
+  const amount = Math.max(0, Math.min(Math.floor(requested), DEBUG_MAX_COINS))
+  if (amount <= 0 || Number.isNaN(amount)) {
+    sendResult(address, 'debugCoins', false, 'nothing to add')
+    return
+  }
+
+  purse.coins += amount
+  dirty.add(address)
+  sendWallet(address)
+  sendResult(address, 'debugCoins', true, `+${amount} coins`)
+  console.log(`[Server] DEBUG granted ${amount} coins to ${address} · balance ${purse.coins}`)
+}
+
 function handleCollect(address: string): void {
   const purse = purseOf(address)
   if (purse === null) {
@@ -431,6 +459,11 @@ export function setupEconomy(): void {
     // purseOf starts the read if it has not happened yet; the load's own completion sends the
     // wallet in that case, so this only sends when there is already something true to send.
     if (purseOf(context.from) !== null) sendWallet(context.from)
+  })
+
+  room.onMessage('debugCoins', (data, context) => {
+    if (!context) return
+    handleDebugCoins(context.from, data.amount)
   })
 
   room.onMessage('collect', (_data, context) => {

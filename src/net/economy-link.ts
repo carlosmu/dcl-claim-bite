@@ -80,6 +80,12 @@ export function sendBuy(itemId: string): void {
   room.send('buy', { itemId })
 }
 
+/** DEBUG: asks the server for free coins. */
+export function sendDebugCoins(amount: number): void {
+  if (!isStateSyncronized()) return
+  room.send('debugCoins', { amount })
+}
+
 export function sendCollect(): void {
   if (!isStateSyncronized()) return
   room.send('collect', { ready: true })

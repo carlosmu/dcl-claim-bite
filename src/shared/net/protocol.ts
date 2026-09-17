@@ -24,6 +24,9 @@ export const Messages = {
   /** "Empty the rig into my bag." Takes what fits and leaves the rest in the rig. */
   collect: Schemas.Map({ ready: Schemas.Boolean }),
 
+  /** DEBUG: "give me coins." Refused by the server unless DEBUG_ADD_COINS is on (shared/debug-flags.ts). */
+  debugCoins: Schemas.Map({ amount: Schemas.Number }),
+
   // Server -> one client: that player's own purse, after anything that changed it.
   // Sent to the owner alone, not broadcast: another player's balance is nobody's business.
   wallet: Schemas.Map({
