@@ -5,7 +5,6 @@ import { MINE_FACING_DEGREES, MINE_REACH_METERS, SWING_SECONDS } from '../shared
 import { getCarryCapacity, getHitsPerRock, sendRockDone } from '../net/economy-link'
 import { getOre } from '../shared/state/wallet'
 import { playMineEmote } from '../player/mine-emote'
-import { hideHeadProgress, showHeadProgress } from '../player/head-progress'
 import { playSfx } from '../world/sfx'
 
 // Manual mining (design/balance.md §2, 2026-09-17). No timing bar: the rocks are the children
@@ -25,6 +24,16 @@ const MINING_PLACE_NAME = 'Mining_Place'
 const ROCK_DONE_SOUND = 'assets/sounds/match.mp3'
 
 type Rock = { entity: Entity; scale: Vector3 }
+
+/** What the HUD draws under itself while mining. Null while there is nothing to say. */
+export type MiningStatus = { hits: number; needed: number; blocked: string }
+
+let status: MiningStatus | null = null
+
+/** The mining bar's state, for the UI. Null means draw nothing. */
+export function getMiningStatus(): MiningStatus | null {
+  return status
+}
 
 let rocks: Rock[] = []
 let place: Entity | null = null
@@ -100,21 +109,21 @@ function update(dt: number): void {
   if (!isPlayerAtRock()) {
     // Progress on the rock is kept; only the swing in flight is dropped.
     swingTimer = -1
-    hideHeadProgress()
+    status = null
     return
   }
 
   const needed = getHitsPerRock()
   if (needed <= 0) {
     swingTimer = -1
-    showHeadProgress(0, 1, 'Need a pick')
+    status = { hits: 0, needed: 1, blocked: 'You need a pick — the mayor has one for you' }
     return
   }
 
   const capacity = getCarryCapacity()
   if (capacity > 0 && getOre() >= capacity) {
     swingTimer = -1
-    showHeadProgress(hits, needed, 'Bag full')
+    status = { hits, needed, blocked: 'Bag full — sell at the bank' }
     return
   }
 
@@ -132,13 +141,13 @@ function update(dt: number): void {
       sendRockDone()
       playSfx(ROCK_DONE_SOUND, 0.8)
       console.log(`[mine] rock done after ${hits} hits`)
-      hideHeadProgress()
+      status = null
       showNextRock()
       return
     }
   }
 
-  showHeadProgress(hits, needed, '')
+  status = { hits, needed, blocked: '' }
 }
 
 export function setupRocks(): void {

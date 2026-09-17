@@ -15,10 +15,8 @@ import { collectMule, isPlayerAtMule } from './mule/mule'
 import { bestPick, CATALOGUE, ShopItem } from './shared/economy/catalogue'
 import { getOwned } from './shared/state/inventory'
 import { getServerTick, isServerOnline } from './net/server-link'
+import { getMiningStatus } from './mining/rocks'
 import { DEBUG_ADD_COINS, DEBUG_SERVER_STATUS } from './shared/debug-flags'
-
-// Mining has no screen UI any more: its progress floats over the player's head
-// (src/mining/rocks.ts). The HUD is the one permanent thing on screen (§6).
 
 export function setupUi() {
     // No screen inset: the SDK's default ('device') pulls the whole UI in by the phone's safe
@@ -505,6 +503,84 @@ const debugCoinsTool = () => (
     </UiEntity>
 )
 
+// --- Mining bar ------------------------------------------------------------------------
+//
+// Sits right under the HUD, and only while the player is actually at a rock (§6: nothing
+// permanent on screen but the HUD). Local by nature: it is drawn from this client's own swing
+// count, so nobody else sees it.
+//
+// The wording carries the rule that the bar is the payout: no ore until it fills.
+
+const MINING_BAR_WIDTH = 320
+const MINING_BAR_HEIGHT = 14
+const MINING_PANEL_TOP = HUD_MARGIN + HUD_HEIGHT + 10
+const MINING_FILL_COLOR = Color4.create(1, 198 / 255, 0, 1)
+const MINING_TRACK_COLOR = Color4.create(0.12, 0.1, 0.06, 1)
+
+const miningBar = () => {
+    const status = getMiningStatus()
+    if (status === null) return null
+
+    const progress = status.needed > 0 ? Math.min(1, status.hits / status.needed) : 0
+    const caption = status.blocked !== '' ? status.blocked : `Mining... ${status.hits}/${status.needed}`
+
+    return (
+        <UiEntity
+            uiTransform={{
+                positionType: 'absolute',
+                position: { top: MINING_PANEL_TOP },
+                width: '100%',
+                flexDirection: 'row',
+                justifyContent: 'center'
+            }}
+        >
+            <UiEntity
+                uiTransform={{
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    padding: { left: 18, right: 18, top: 10, bottom: 12 },
+                    borderRadius: PANEL_RADIUS
+                }}
+                uiBackground={{ color: HUD_BACKGROUND }}
+            >
+                <Label
+                    value={caption}
+                    fontSize={18}
+                    color={status.blocked !== '' ? MUTED_COLOR : Color4.White()}
+                    textAlign="middle-center"
+                    textWrap="nowrap"
+                    uiTransform={{ height: 26 }}
+                />
+                {/* The bar is the payout: it has to be visibly unfinished for the caption below
+                    to mean anything. */}
+                <UiEntity
+                    uiTransform={{
+                        width: MINING_BAR_WIDTH,
+                        height: MINING_BAR_HEIGHT,
+                        borderRadius: 4,
+                        borderWidth: 2,
+                        borderColor: Color4.Black()
+                    }}
+                    uiBackground={{ color: MINING_TRACK_COLOR }}
+                >
+                    <UiEntity
+                        uiTransform={{ width: `${progress * 100}%`, height: '100%' }}
+                        uiBackground={{ color: MINING_FILL_COLOR }}
+                    />
+                </UiEntity>
+                <Label
+                    value="Ore lands when the bar fills"
+                    fontSize={14}
+                    color={MUTED_COLOR}
+                    textAlign="middle-center"
+                    textWrap="nowrap"
+                    uiTransform={{ height: 22, margin: { top: 4 } }}
+                />
+            </UiEntity>
+        </UiEntity>
+    )
+}
+
 const serverStatus = () => {
     const online = isServerOnline()
     return (
@@ -586,6 +662,7 @@ export const uiMenu = () => (
             }}
         >
             {hud()}
+            {miningBar()}
             {isPlayerAtBank() ? bankPanel() : null}
             {isPlayerAtShop() ? marketPanel() : null}
             {isPlayerAtMule() && getMuleCapacity() > 0 ? mulePanel() : null}
