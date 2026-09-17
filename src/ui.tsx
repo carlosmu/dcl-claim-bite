@@ -4,8 +4,17 @@ import { engine, AudioSource, Transform } from "@dcl/sdk/ecs"
 import { getCoins, getOre } from './shared/state/wallet'
 import { isPlayerAtMine } from './mining/mine-proximity'
 import { changeSellAmount, getSellAmount, isPlayerAtBank, sellSelectedOre, setSellAmount } from './bank/bank'
-import { getCarryCapacity, getOrePerHit, getSyncedRate, quoteSaleForDisplay, sendSwing } from './net/economy-link'
+import {
+    getCarryCapacity,
+    getMuleCapacity,
+    getMuleOre,
+    getOrePerHit,
+    getSyncedRate,
+    quoteSaleForDisplay,
+    sendSwing
+} from './net/economy-link'
 import { buySelected, getSelectedItem, getSelectedItemId, isPlayerAtShop, selectItem } from './shop/shop'
+import { collectMule, isPlayerAtMule } from './mule/mule'
 import { bestPick, CATALOGUE, ShopItem } from './shared/economy/catalogue'
 import { getOwned } from './shared/state/inventory'
 import { playMineEmote } from './player/mine-emote'
@@ -620,6 +629,41 @@ const serverStatus = () => {
     )
 }
 
+// The rig's panel. Collecting is a deliberate act at the rig itself rather than ore appearing
+// in the bag on login: arriving to claim a load is the return the rig is built to create.
+const mulePanel = () => {
+    const waiting = getMuleOre()
+    const room = Math.max(0, getCarryCapacity() - getOre())
+    const takeable = Math.min(waiting, room)
+
+    let buttonText = `Collect ${takeable} ore`
+    if (waiting <= 0) buttonText = 'The rig is empty'
+    else if (room <= 0) buttonText = 'Bag full'
+    else if (takeable < waiting) buttonText = `Collect ${takeable} of ${waiting} ore`
+
+    return (
+        <UiEntity
+            uiTransform={{
+                width: BAR_WIDTH,
+                flexDirection: 'column',
+                alignItems: 'center',
+                padding: { top: 16, bottom: 16, left: 20, right: 20 },
+                borderRadius: PANEL_RADIUS
+            }}
+            uiBackground={{ color: PANEL_BACKGROUND }}
+        >
+            {infoRow('M.U.L.E.', `${waiting} / ${getMuleCapacity()} ore`, ORE_COLOR)}
+            <Button
+                value={buttonText}
+                fontSize={20}
+                uiTransform={{ width: '100%', height: 46, margin: { top: 12 } }}
+                uiBackground={{ color: takeable > 0 ? MAGENTA : DISABLED_COLOR }}
+                onMouseDown={collectMule}
+            />
+        </UiEntity>
+    )
+}
+
 export const uiMenu = () => (
     <UiEntity
         uiTransform={{
@@ -645,6 +689,7 @@ export const uiMenu = () => (
             {isPlayerAtMine() ? (isBagFull() ? bagFullNotice() : miningBar()) : null}
             {isPlayerAtBank() ? bankPanel() : null}
             {isPlayerAtShop() ? marketPanel() : null}
+            {isPlayerAtMule() && getMuleCapacity() > 0 ? mulePanel() : null}
             {serverStatus()}
         </UiEntity>
     </UiEntity>

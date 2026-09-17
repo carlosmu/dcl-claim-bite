@@ -30,6 +30,8 @@ const HELLO_RETRY_SECONDS = 1
 
 let capacity = 0
 let orePerHit = 0
+let muleOre = 0
+let muleCapacity = 0
 let walletReceived = false
 let sinceLastHello = HELLO_RETRY_SECONDS
 
@@ -46,6 +48,16 @@ export function getCarryCapacity(): number {
 /** Ore a landed swing pays with the player's best pick. Zero means they own none. */
 export function getOrePerHit(): number {
   return orePerHit
+}
+
+/** Ore waiting in the player's rig. */
+export function getMuleOre(): number {
+  return muleOre
+}
+
+/** What the rig holds when full. Zero means the player owns none. */
+export function getMuleCapacity(): number {
+  return muleCapacity
 }
 
 /** What selling `amount` would pay at the synced price — for display only. */
@@ -66,6 +78,11 @@ export function sendSell(amount: number): void {
 export function sendBuy(itemId: string): void {
   if (!isStateSyncronized()) return
   room.send('buy', { itemId })
+}
+
+export function sendCollect(): void {
+  if (!isStateSyncronized()) return
+  room.send('collect', { ready: true })
 }
 
 /**
@@ -97,6 +114,8 @@ export function setupEconomyLink(): void {
     walletReceived = true
     capacity = data.capacity
     orePerHit = data.orePerHit
+    muleOre = data.muleOre
+    muleCapacity = data.muleCapacity
     applyServerWallet(data.ore, data.coins)
     applyServerOwned(data.owned)
 
@@ -121,6 +140,7 @@ export function setupEconomyLink(): void {
 
     if (data.action === 'sell') playSfx(BANK_SOUND_CLIP, SOUND_VOLUME)
     if (data.action === 'buy') playSfx(BUY_SOUND_CLIP, SOUND_VOLUME)
+    if (data.action === 'collect') playSfx(BANK_SOUND_CLIP, SOUND_VOLUME)
     console.log(`[economy] ${data.action}: ${data.detail}`)
   })
 

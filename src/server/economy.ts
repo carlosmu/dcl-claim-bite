@@ -20,11 +20,16 @@ import { applySale, getMacroRate, getRate, oreForCoins, quoteSale, recoverRate, 
 import { loadMarketPrice, loadPurse, savePurse, saveMarketPrice } from './persistence'
 import { MIN_SWING_INTERVAL_SECONDS, ORE_PER_MISS } from '../shared/economy/constants'
 import { bestOrePerHit, carryCapacity, findItem, ShopItemId } from '../shared/economy/catalogue'
+import { MULE_CAPACITY } from '../shared/economy/constants'
+import { collectableOre, settleMule } from './mule'
 
 type Purse = {
   ore: number
   coins: number
   owned: Record<string, number>
+  /** Ore sitting in the player's M.U.L.E., and when it was last settled. */
+  muleOre: number
+  muleAt: number
 }
 
 const purses = new Map<string, Purse>()
@@ -37,6 +42,17 @@ const PRESENCE_CHECK_PERIOD_SECONDS = 1
 
 /** How often the dropped-swing report is printed, so a spammer cannot flood the log too. */
 const ABUSE_REPORT_PERIOD_SECONDS = 5
+
+/**
+ * How often idle rigs are settled for players who are here.
+ *
+ * The rig pays a whole ore a minute, so anything under that is wasted work — twenty seconds
+ * is frequent enough that the number on the panel never looks stuck while someone watches it.
+ * Players who are away are settled on arrival instead, from the stored timestamp.
+ */
+const MULE_SETTLE_PERIOD_SECONDS = 20
+
+let sinceLastMuleSettle = 0
 
 // Seconds since the server started, accumulated from the frame delta rather than read off
 // the wall clock: it only ever needs to measure gaps, and a monotonic count cannot be
@@ -75,11 +91,19 @@ function beginLoad(address: string): void {
   loadPurse(address)
     .then((stored) => {
       loading.delete(address)
-      purses.set(address, {
+      const purse: Purse = {
         ore: stored?.ore ?? 0,
         coins: stored?.coins ?? 0,
-        owned: stored?.owned ?? {}
-      })
+        owned: stored?.owned ?? {},
+        muleOre: stored?.muleOre ?? 0,
+        muleAt: stored?.muleAt ?? 0
+      }
+
+      // Settled the moment it is read, so the wallet the player is about to be shown already
+      // includes everything the rig dug while they were away.
+      settleMule(purse, (purse.owned['mule'] ?? 0) > 0)
+      purses.set(address, purse)
+      dirty.add(address)
       sendWallet(address)
       console.log(`[Server] purse ${stored === null ? 'created for' : 'restored for'} ${address}`)
     })
@@ -122,7 +146,9 @@ function sendWallet(address: string): void {
       coins: purse.coins,
       owned: encodeOwned(purse),
       capacity: carryCapacity(owned),
-      orePerHit: bestOrePerHit(owned)
+      orePerHit: bestOrePerHit(owned),
+      muleOre: collectableOre(purse),
+      muleCapacity: owned('mule') > 0 ? MULE_CAPACITY : 0
     },
     { to: [address] }
   )
@@ -227,6 +253,43 @@ function handleBuy(address: string, itemId: string): void {
   console.log(`[Server] ${address} bought ${item.label} for ${item.price} · balance ${purse.coins}`)
 }
 
+function handleCollect(address: string): void {
+  const purse = purseOf(address)
+  if (purse === null) {
+    sendResult(address, 'collect', false, 'still loading')
+    return
+  }
+
+  const owned = (id: ShopItemId) => purse.owned[id] ?? 0
+  if (owned('mule') <= 0) {
+    sendResult(address, 'collect', false, 'no rig')
+    return
+  }
+
+  settleMule(purse, true)
+
+  const waiting = collectableOre(purse)
+  const room = Math.max(0, carryCapacity(owned) - purse.ore)
+  const taken = Math.min(waiting, room)
+
+  if (taken <= 0) {
+    sendResult(address, 'collect', false, waiting <= 0 ? 'the rig is empty' : 'bag full')
+    dirty.add(address)
+    sendWallet(address)
+    return
+  }
+
+  // Partial by design: what will not fit stays in the rig instead of being lost, so a full
+  // load is never punished for arriving with a small bag.
+  purse.ore += taken
+  purse.muleOre -= taken
+  dirty.add(address)
+
+  sendWallet(address)
+  sendResult(address, 'collect', true, `${taken} ore`)
+  console.log(`[Server] ${address} collected ${taken} ore from the rig, ${collectableOre(purse)} left`)
+}
+
 // Who is in the scene right now. There is no join or leave message, so presence is read off
 // the player entities and diffed against the last look.
 //
@@ -273,7 +336,13 @@ function flushPurse(address: string): void {
   const purse = purses.get(address)
   if (purse === undefined || !dirty.has(address)) return
   dirty.delete(address)
-  savePurse(address, { ore: purse.ore, coins: purse.coins, owned: purse.owned })
+  savePurse(address, {
+    ore: purse.ore,
+    coins: purse.coins,
+    owned: purse.owned,
+    muleOre: purse.muleOre,
+    muleAt: purse.muleAt
+  })
 }
 
 function flushSaves(dt: number) {
@@ -286,6 +355,26 @@ function flushSaves(dt: number) {
   if (marketDirty) {
     marketDirty = false
     saveMarketPrice(getMacroRate())
+  }
+}
+
+// Only for players actually in the scene: an absent player's rig needs no attention, because
+// its output is worked out from the timestamp the moment they come back.
+function settlePresentMules(dt: number) {
+  sinceLastMuleSettle += dt
+  if (sinceLastMuleSettle < MULE_SETTLE_PERIOD_SECONDS) return
+  sinceLastMuleSettle = 0
+
+  for (const address of present) {
+    const purse = purses.get(address)
+    if (purse === undefined || (purse.owned['mule'] ?? 0) <= 0) continue
+
+    const before = collectableOre(purse)
+    settleMule(purse, true)
+    if (collectableOre(purse) === before) continue
+
+    dirty.add(address)
+    sendWallet(address)
   }
 }
 
@@ -343,6 +432,11 @@ export function setupEconomy(): void {
     if (purseOf(context.from) !== null) sendWallet(context.from)
   })
 
+  room.onMessage('collect', (_data, context) => {
+    if (!context) return
+    handleCollect(context.from)
+  })
+
   room.onMessage('swing', (data, context) => {
     if (!context) return
     handleSwing(context.from, data.hit)
@@ -363,5 +457,6 @@ export function setupEconomy(): void {
   engine.addSystem(publishRate, undefined, 'server:market-rate')
   engine.addSystem(reportAbuse, undefined, 'server:abuse-report')
   engine.addSystem(flushSaves, undefined, 'server:save')
+  engine.addSystem(settlePresentMules, undefined, 'server:mule-settle')
   engine.addSystem(checkPresence, undefined, 'server:presence')
 }

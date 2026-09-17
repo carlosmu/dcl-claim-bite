@@ -22,6 +22,9 @@ export const Messages = {
   sell: Schemas.Map({ amount: Schemas.Number }),
   buy: Schemas.Map({ itemId: Schemas.String }),
 
+  /** "Empty the rig into my bag." Takes what fits and leaves the rest in the rig. */
+  collect: Schemas.Map({ ready: Schemas.Boolean }),
+
   // Server -> one client: that player's own purse, after anything that changed it.
   // Sent to the owner alone, not broadcast: another player's balance is nobody's business.
   wallet: Schemas.Map({
@@ -33,7 +36,10 @@ export const Messages = {
     // Derived server-side from `owned` rather than worked out by the client, so the HUD can
     // draw the bag and the yield without the client deciding what a player is entitled to.
     capacity: Schemas.Number,
-    orePerHit: Schemas.Number
+    orePerHit: Schemas.Number,
+    // What the rig is holding, and how much it can hold. Zero capacity means none is owned.
+    muleOre: Schemas.Number,
+    muleCapacity: Schemas.Number
   }),
 
   // Server -> one client: the outcome of something the player asked for, for the log and

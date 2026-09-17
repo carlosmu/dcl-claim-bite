@@ -76,3 +76,17 @@ export const CARRY_WITH_WHEELBARROW = 500
  * to be server-driven (design/decisions.md, 2026-09-15).
  */
 export const MIN_SWING_INTERVAL_SECONDS = 0.5
+
+// --- The M.U.L.E. ---------------------------------------------------------------------
+//
+// The idle rig. It works while the player is away, which is the whole reason it justifies its
+// price — see design/balance.md §4.
+
+/** Ore the rig digs per hour, running or not, whether anyone is watching. */
+export const MULE_ORE_PER_HOUR = 60
+
+/**
+ * How much it holds before it stops. Matched to the wheelbarrow on purpose, so a full load is
+ * always one trip and never strands ore the player cannot carry.
+ */
+export const MULE_CAPACITY = 500

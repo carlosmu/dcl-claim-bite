@@ -21940,6 +21940,48 @@
             "parent": 529
           }
         },
+        "1555": {
+          "json": {
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "w": 1
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
+            "parent": 0
+          }
+        },
+        "1562": {
+          "json": {
+            "position": {
+              "x": 6.75,
+              "y": 0,
+              "z": 6.25
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "w": 1
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
+            "parent": 1555
+          }
+        },
         "67090": {
           "json": {
             "position": {
@@ -21959,6 +22001,90 @@
               "w": 1
             },
             "parent": 0
+          }
+        },
+        "67092": {
+          "json": {
+            "position": {
+              "x": 9.5,
+              "y": 0,
+              "z": 8.25
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "w": 1
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
+            "parent": 1555
+          }
+        },
+        "67093": {
+          "json": {
+            "position": {
+              "x": 11.25,
+              "y": 0,
+              "z": 4.25
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "w": 1
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
+            "parent": 1555
+          }
+        },
+        "67095": {
+          "json": {
+            "position": {
+              "x": 8.5,
+              "y": 0,
+              "z": 2.25
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "w": 1
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
+            "parent": 1555
+          }
+        },
+        "67097": {
+          "json": {
+            "position": {
+              "x": 5,
+              "y": 0,
+              "z": 3.75
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "w": 1
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
+            "parent": 1555
           }
         }
       }
@@ -29252,9 +29378,44 @@
             "invisibleMeshesCollisionMask": 2
           }
         },
+        "1562": {
+          "json": {
+            "src": "assets/asset-packs/big_rock/RockLarge_01/RockLarge_01.glb",
+            "visibleMeshesCollisionMask": 0,
+            "invisibleMeshesCollisionMask": 3
+          }
+        },
         "67090": {
           "json": {
             "src": "assets/asset-packs/cactus_4/Cactus 4.glb",
+            "visibleMeshesCollisionMask": 0,
+            "invisibleMeshesCollisionMask": 3
+          }
+        },
+        "67092": {
+          "json": {
+            "src": "assets/asset-packs/big_rock/RockLarge_01/RockLarge_01.glb",
+            "visibleMeshesCollisionMask": 0,
+            "invisibleMeshesCollisionMask": 3
+          }
+        },
+        "67093": {
+          "json": {
+            "src": "assets/asset-packs/big_rock/RockLarge_01/RockLarge_01.glb",
+            "visibleMeshesCollisionMask": 0,
+            "invisibleMeshesCollisionMask": 3
+          }
+        },
+        "67095": {
+          "json": {
+            "src": "assets/asset-packs/big_rock/RockLarge_01/RockLarge_01.glb",
+            "visibleMeshesCollisionMask": 0,
+            "invisibleMeshesCollisionMask": 3
+          }
+        },
+        "67097": {
+          "json": {
+            "src": "assets/asset-packs/big_rock/RockLarge_01/RockLarge_01.glb",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
@@ -34484,9 +34645,39 @@
             "value": "Tile 1024"
           }
         },
+        "1555": {
+          "json": {
+            "value": "Mining_Place"
+          }
+        },
+        "1562": {
+          "json": {
+            "value": "Big Rock"
+          }
+        },
         "67090": {
           "json": {
             "value": "Cactus 4"
+          }
+        },
+        "67092": {
+          "json": {
+            "value": "Big Rock_3"
+          }
+        },
+        "67093": {
+          "json": {
+            "value": "Big Rock_4"
+          }
+        },
+        "67095": {
+          "json": {
+            "value": "Big Rock_5"
+          }
+        },
+        "67097": {
+          "json": {
+            "value": "Big Rock_2"
           }
         }
       }
@@ -34579,7 +34770,8 @@
                   525,
                   528,
                   529,
-                  67090
+                  67090,
+                  1555
                 ]
               },
               {
@@ -34610,7 +34802,6 @@
               },
               {
                 "entity": 515,
-                "open": true,
                 "children": [
                   512
                 ]
@@ -39795,6 +39986,37 @@
               {
                 "entity": 67090,
                 "children": []
+              },
+              {
+                "entity": 1555,
+                "open": true,
+                "children": [
+                  1562,
+                  67093,
+                  67095,
+                  67092,
+                  67097
+                ]
+              },
+              {
+                "entity": 1562,
+                "children": []
+              },
+              {
+                "entity": 67097,
+                "children": []
+              },
+              {
+                "entity": 67092,
+                "children": []
+              },
+              {
+                "entity": 67093,
+                "children": []
+              },
+              {
+                "entity": 67095,
+                "children": []
               }
             ]
           }
@@ -39867,6 +40089,24 @@
           "json": {}
         },
         "528": {
+          "json": {}
+        },
+        "1555": {
+          "json": {}
+        },
+        "1562": {
+          "json": {}
+        },
+        "67092": {
+          "json": {}
+        },
+        "67093": {
+          "json": {}
+        },
+        "67095": {
+          "json": {}
+        },
+        "67097": {
           "json": {}
         }
       }

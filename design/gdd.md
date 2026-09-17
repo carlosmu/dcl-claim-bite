@@ -22,7 +22,7 @@
 |---|---|
 | **Player promise** | You are a stranger turned miner in a gold-rush town, mining and selling to get rich while every sale drops the price you see. |
 | **Primary player** | For players who already enjoy idle/incremental tap games, arriving mostly alone from Decentraland's Discover feed or a friend's invite, looking for a reason to check back in on their own progress every day. |
-| **Current status** | Core-mechanic prototype — the mining tap is built and owner-tested (`H1-01`, `H1-04`: `survived`). The rest of the loop (selling, the market, spending) is designed but not yet built. |
+| **Current status** | Vertical-slice build under way on an authoritative server. Progression was redesigned 2026-09-17 (see `balance.md`): mining moved from a timing tap to auto-swing on proximity, so the earlier tap tests (`H1-01`, `H1-04`) no longer apply and the new mechanic is built directly. |
 | **Requested round** | [agent-decided · accepted] v0 (vertical slice) — one verb is validated; the loop around it is not, so v1 is not yet what the document earns. |
 | **Live at end of the round** | At minimum, the full mine → sell → spend loop playable solo; ideally with the shared market and one return hook working too. |
 
@@ -44,16 +44,16 @@ I want players to see themselves in this. We all chase shiny things, but real ha
 
 | Time | Player experience |
 |---|---|
-| **0–5 seconds after control** | You spawn at the town's edge. The mayor is right there, holding out a pick. Past him, a rock face glows with a vein in the public digging ground. |
-| **5–10 seconds** | You take the pick. A green timing bar appears over the vein. One tap lands the swing — a spark, a chip of ore breaks free. |
-| **10–60 seconds** | You chain a few more timed hits. Raw ore climbs on your HUD. Another player digging nearby swings too, if one is around. |
+| **0–5 seconds after control** | You spawn at the town's edge. The mayor is right there, holding out a free pick. Past him, rocks glow magenta in the public quarry. |
+| **5–10 seconds** | You take the pick and walk to a rock. In range, you start swinging on your own; a progress bar over the rock fills with each hit. |
+| **10–60 seconds** | The bar fills — one ore, the rock vanishes for you, and the next one is marked elsewhere in the quarry. If another player is on the same rock, you both mine faster while you share it. |
 | **1–3 minutes** | You carry your ore to the bank at the town center and sell. The town's price ticks down a notch, visible to everyone — your first coins. |
-| **3–10 minutes** | First real choice: patch your worn pick, or hold coins toward renting your own plot — a sign at its gate already shows the rent and what it buys. |
-| **Natural stopping point** | You log off looking at your coins against the plot's rent, and the town price sitting a little higher than when you sold — tomorrow's gap already on screen. |
+| **3–10 minutes** | First real choice: upgrade your pick at the mayor, or hold coins toward a claim of your own — a sign at its gate shows the price, and that it comes with a M.U.L.E. that mines while you're away. |
+| **Natural stopping point** | You log off with a fueled M.U.L.E. filling your warehouse, or looking at your coins against the claim's price — tomorrow's reason to return already on screen. |
 
 **Player-facing How to Play**
 
-- Tap the timing bar to mine ore.
+- Walk up to a rock to mine it.
 - Sell ore at the bank for coins.
 - Every sale drops the price for everyone.
 
@@ -63,16 +63,16 @@ I want players to see themselves in this. We all chase shiny things, but real ha
 
 | # | Step (verb) | What the player does (Player input → what they see or hear → what changes) | Why do it again? |
 |---|---|---|---|
-| 1 | **Mine** | Tap in time with the moving green bar → the swing lands, sound and a chip of ore breaking loose → your raw ore stock rises, your pick wears a little | A well-timed hit pays more than a bad one |
+| 1 | **Mine** | Walk up to a rock → you swing automatically, hit by hit, filling your own progress bar on it (12/10/8/6 hits per ore by pick tier) → one ore lands in your warehouse, the rock vanishes for you and the next one is assigned; your pick wears a little | A better pick needs fewer hits; sharing a rock with another player pays the boom-town bonus |
 | 2 | **Sell** | Tap at the bank when you judge the price is right → the town price ticks down where everyone can see it → your raw ore becomes coins | Ore buys nothing. Coins are the only legal tender, and the bank is the only way across |
-| 3 — slower rhythm | **Spend** | Buy a pick or a shovel, or rent a mining claim out at the quarry to place an idle machine on → your next runs at the rock yield more, or ore now arrives while you are away | Better tools shorten the way back to the bank; a rented claim is what makes idle production possible at all |
+| 3 — slower rhythm | **Spend** | Upgrade the one object in front of you — pick at the mayor, M.U.L.E. and fuel at your claim, warehouse at its building, house at its lot → fewer hits per ore, more idle yield, more storage, or a bigger house on the street | Every system is one object climbing tiers at a doubling cost; a claim (which plants a M.U.L.E.) is what makes idle production possible at all |
 
-**The toy test (`H1-01`, `H1-04` — both `survived`):** the timing-tap held up under an owner self-test even bare, with no score, no ore counter and no reward shown — a qualified pass at first ("not super fun but not bad either"). Adding a hit/miss sound and a bigger hit reaction ("juice") turned that into a clean, unhedged improvement ("se siente mejor, claramente"). The verb itself needed no redesign — only reinforcement it didn't have yet. Untested past this point: everything downstream — selling, the market, spending, and whether the *whole* loop holds together, which this pass never claimed to answer.
+**The toy test (`H1-01`, `H1-04`) — superseded 2026-09-17.** Both survived, but they tested a timing tap that no longer exists. Mining is now auto-swing on proximity with a per-player progress bar on a shared rock (`balance.md` §2). Owner call: no new toy test — the mechanic is built directly and judged in the loop playtest.
 
 | | |
 |---|---|
 | **One complete loop takes** | TBD: tune once the full loop (selling and spending, not just the tap) is built and playtested — the owner's own call, not yet known |
-| **Decision, challenge, or expression** | [agent-decided · accepted] When to sell, under pressure from tool wear. The pick loses yield with every swing rather than breaking outright, so ore keeps arriving slower the longer a player stalls — waiting for a better price is real, but it is not free. Ore is worth more while few players are selling, so holding pays — but only coins cover costs and a fresh pick, so holding has a price. On top of per-swing wear, the pick also expires after one real-world week regardless of use — a backstop so a rarely-played pick is never permanent, cheap to fix since a starting pick is a flat 10 coins. Wear rate and the exact week length: TBD: same plan — tune after the full loop is playtested. |
+| **Decision, challenge, or expression** | [agent-decided · accepted] When to sell, under pressure from tool wear and a filling warehouse. The pick loses yield with use, so ore arrives slower the longer a player stalls; the warehouse caps what can pile up. The rate worsens 1% per 500 ore sold, by anyone (at most +20%, a whale-sized move: 12 ore per coin, from a base of 10) and recovers 1% per hour — across sessions, not within one — so waiting is a real bet, but not free. Wear comes from use only — no pick expires with time — and tier 0 is always free from the mayor. Wear rate: TBD. |
 | **Shortest satisfying visit / typical session** | 5 minutes / 5–15 minutes — the owner's own estimate |
 | **Why repetition 10 differs from repetition 1** | Other players are the variety — but the shared price alone cannot carry this at Decentraland's real concurrency (H1-02, `failed`: most scenes are empty most of the time, so most returns cannot show a stranger's touch, no matter how the price recovers). [agent-decided · accepted] The bank keeps a short log of who sold and when, visible even after the price itself has recovered — so a player still finds evidence someone else was in town, whether or not anyone is online right now. [HYPOTHESIS] (H1-03) This trace reads as "someone else was here" without being explained. |
 
@@ -87,7 +87,7 @@ I want players to see themselves in this. We all chase shiny things, but real ha
 
 ### 4.1 The next-day (D1) sentence
 
-> [agent-decided · accepted] A player who enjoyed their first session returns the next day (D1) because their idle rig's ore storage has filled to its cap — coming back means claiming a full haul before any more piles up for nothing.
+> [agent-decided · accepted] A player who enjoyed their first session returns the next day (D1) because their M.U.L.E. has burned its day of fuel and stopped — coming back means refueling it, and selling the haul before the warehouse fills (~2 days at tier 1) and pauses it for good.
 
 ### 4.2 The progression chain
 
@@ -95,20 +95,20 @@ I want players to see themselves in this. We all chase shiny things, but real ha
 
 | Moment | What persists or has been built? | What becomes possible next? | How can another player tell? |
 |---|---|---|---|
-| **End of first session** | Coins in the bank, a mining claim at the quarry (if rented) with a name-flag staked on it, the pick's current wear | Renting a claim if not yet done; a first tool upgrade | The name-flag on a claimed dig, visible to anyone walking past the quarry |
-| **End of first week** | An upgraded pick or rig tier at the claim; several entries under the player's name in the bank's public sale log | Affording the idle rig, or its next tier; enough saved toward a first house in town | The gear itself looks different (a visibly better pick/rig model), and the player's name is now a recognizable regular in the sale log |
-| **Week 3+ — what takes more than two weeks?** | [agent-decided · accepted] A house in town, upgradable toward a mansion — the wealth marker lives in town, not at the noisy claim out at the quarry | TBD: house/tool tier pricing, tuned once the full loop is built and playtested | Walking down the one street, you can see whose house is biggest — no board, no number, just the skyline |
+| **End of first session** | Coins, ore in the warehouse, a claim at the quarry (if rented) with its tier-1 M.U.L.E. and a name-flag, the pick's tier and wear | Renting a claim if not yet done; a first pick upgrade | The name-flag on a claimed dig, visible to anyone walking past the quarry |
+| **End of first week** | A higher pick, M.U.L.E. or warehouse tier; several entries under the player's name in the bank's public sale log | The next tier of any of the three; enough saved toward a lot on the street | The gear itself looks different (a visibly better pick/M.U.L.E. model), and the player's name is now a recognizable regular in the sale log |
+| **Week 3+ — what takes more than two weeks?** | [agent-decided · accepted] A house in town, Lot → Ranchito → Mansión, on a permanent lot the player chose — closer to the center costs more | Lot ~2 days of play, Ranchito ~4, Mansión ~8 (first pass, `balance.md` §5) | Walking down the one street, you can see whose house is biggest — no board, no number, just the skyline |
 
-*End of first week, as a scene:* You walk back into town after a week away. Out at your claim, the rig has already filled past what it could hold on day one — its case now the polished, higher-tier model last week's sales paid for. Back on the main street, your name shows up half a dozen times in the bank's sale log since you started, and one neighbor's plot now has a real house standing on it instead of an empty lot. Someone else's name is in the log too, more recent than yours — the price had already moved before you got here.
+*End of first week, as a scene:* You walk back into town after a week away. Out at your claim, the M.U.L.E. is now the higher-tier model last week's sales paid for, and the upgraded warehouse holds what the first one never could. Back on the main street, your name shows up half a dozen times in the bank's sale log since you started, and one neighbor's plot now has a real house standing on it instead of an empty lot. Someone else's name is in the log too, more recent than yours — the price had already moved before you got here.
 
-**Currency note:** coins are earned only by selling ore and spent on tools, rent and machines — there is no way to buy ore, so there is no buy-low-sell-high loop to abuse. The rent's automatic deduction is the one place real money-adjacent risk lives: [OPEN: multi-accounting to rent several plots at once — worth a look once the rent price is set]
+**Currency note:** coins are earned only by selling ore and spent on tier upgrades, fuel and house lots — there is no way to buy ore, so there is no buy-low-sell-high loop to abuse. Multi-claiming is braked by fuel: it is bought at each M.U.L.E. and burns faster at higher tiers, so extra claims are never free to run. [OPEN: whether that is enough against alt accounts]
 
 ### 4.3 Two return hooks
 
 | Selected hook | Exact trigger or timing | What the player anticipates | Reminder channel + no-reminder fallback |
 |---|---|---|---|
-| **1. Appointment timer** — idle rig fills to a cap | TBD: exact number of hours, tuned once the full loop is built and playtested | A full haul waiting to be claimed | None relied on — the cap itself is the memory hook ("it'll be full by tonight"); an Event/Community post can remind, never assumed |
-| **2. Persistent building progression** — the next visible tier of your claim, rig or house | Whenever enough is saved for the next tier — no clock, the player's own bank balance is the trigger | Not a bigger number on a private screen: a real, permanent change to the shared world that stays exactly as built, and that others can see | None needed — the current, unfinished state of your own house or rig is the memory itself, the same way an unfinished collection nags at you |
+| **1. Appointment timer** — the M.U.L.E. fills the warehouse, then pauses | Fuel runs out after 24h; a tier-1 warehouse (500) fills in ~50h at 10 ore/h (*first pass*, `balance.md` §3–4) | A M.U.L.E. to refuel, and a filling warehouse to sell before it stops production | None relied on — the cap itself is the memory hook ("it'll be full by tonight"); an Event/Community post can remind, never assumed |
+| **2. Persistent building progression** — the next visible tier of your pick, M.U.L.E., warehouse or house | Whenever enough is saved for the next tier — no clock, the player's own bank balance is the trigger | Not a bigger number on a private screen: a real, permanent change to the shared world that stays exactly as built, and that others can see | None needed — the current, unfinished state of your own house or M.U.L.E. is the memory itself, the same way an unfinished collection nags at you |
 
 ---
 
@@ -116,13 +116,13 @@ I want players to see themselves in this. We all chase shiny things, but real ha
 
 | | |
 |---|---|
-| **The repeatable social loop** | [agent-decided · accepted] Player A starts mining in the public dig at the quarry → Player B joins nearby, drawn by the same free ground → both mine at a boosted rate while together (the "boom town" bonus, roughly +10% per other miner present, capped around +20%) → the boost fades the moment either leaves → a reason to look for company again next visit. |
-| **The disappearance test** | [agent-decided · accepted] The boom-town bonus disappears — the public dig reverts to its base, lower yield, and the shared price only moves when the one remaining player sells. What stays: the name-flags on rented claims, the houses standing on the main street, and every line already written into the bank's sale log — a town that still looks lived-in with nobody left to prove it. |
-| **From strangers to a group** | [agent-decided · accepted] Everyone does the same verb, so there is no role to explain: seeing another player's magenta glow at the dig already says "people mine here." Standing near them and mining is the entire join action — the boom-town bonus confirms it worked. |
+| **The repeatable social loop** | [agent-decided · accepted] Player A is mining a rock in the quarry → Player B walks to the same rock (each has their own progress bar on it) → each completed bar pays its base 5 ore plus 1 per other player active on that rock (the "boom town" bonus: 2 players → 6 each, 3 → 7, 4 → 8) → the boost drops the moment either leaves or finishes their bar → a reason to look for company again next visit. |
+| **The disappearance test** | [agent-decided · accepted] The boom-town bonus disappears — every rock pays only its pick's base rate, and the shared price only moves when the one remaining player sells. What stays: the name-flags on rented claims, the houses standing on the main street, and every line already written into the bank's sale log — a town that still looks lived-in with nobody left to prove it. |
+| **From strangers to a group** | [agent-decided · accepted] Everyone does the same verb, so there is no role to explain: seeing another player swinging at a rock already says "people mine here." Walking to their rock is the entire join action — an explicit social choice, not a coincidence of position — the boom-town bonus confirms it worked. |
 | **Recognition & continuity** | [agent-decided · accepted] A name stops being an anonymous avatar the first time it shows up in the bank's sale log or on a name-flag at a claim. Over time, a name that appears often in the log starts to mean something ("that's the one who sells big and moves the price") — and a growing house on the main street is memory nobody has to look up. |
-| **Quiet hours & player counts** | [agent-decided · accepted] When few people are online, a solo player can do everything — mine, sell, buy, rent a claim, build toward a house. Social play becomes viable at **2** players (the boom-town bonus already applies); the ideal group is **3–4** (where the bonus caps); the v1 tested maximum is **20** (the program's own performance reference). A solo arrival meets someone else by design because the dig's magenta glow and any nearby avatar are the only two things in view — there is nowhere else to look. |
-| **Drop-in / drop-out** | [agent-decided · accepted] Joining is standing at the dig and mining — no role, no queue, contributes to the bonus immediately. Leaving costs the group only that one player's share of the bonus; nobody is mid-anything that breaks. |
-| **Visible play (the bystander test)** | [agent-decided · accepted] Watching someone tap the timing bar and then walk to the bank to sell — the price ticking down for everyone to see — tells the whole game in ten seconds, without the watcher touching anything. |
+| **Quiet hours & player counts** | [agent-decided · accepted] When few people are online, a solo player can do everything — mine, sell, buy, rent a claim, build toward a house. Social play becomes viable at **2** players (the boom-town bonus already applies); the ideal group is **3–4** (cap on the bonus still open); the v1 tested maximum is **20** (the program's own performance reference). A solo arrival meets someone else by design because the quarry rocks' magenta glow and any nearby avatar are the only two things in view — there is nowhere else to look. |
+| **Drop-in / drop-out** | [agent-decided · accepted] Joining is walking to someone's rock — no role, no queue, contributes to the bonus immediately. Leaving costs the group only that one player's share of the bonus; nobody is mid-anything that breaks. |
+| **Visible play (the bystander test)** | [agent-decided · accepted] Watching someone swing at a rock until it vanishes and then walk to the bank to sell — the price ticking down for everyone to see — tells the whole game in ten seconds, without the watcher touching anything. |
 | **Shareable play (the memorable moment)** | [agent-decided · accepted] Walking down the main street and seeing, next to your own shack, another player's mansion — the gap between the two, visible at a glance, no number involved. |
 | **Bring-a-friend** | [agent-decided · accepted] The boom-town bonus is the reason on its own: "come mine with me, we both get more." No extra system needed to make inviting someone worth it. |
 
@@ -136,15 +136,15 @@ I want players to see themselves in this. We all chase shiny things, but real ha
 
 | Core-loop verb | How it works with touch controls |
 |---|---|
-| Mine | Tap the timing bar — the exact same input as a mouse click, tested this way already (`H1-01`, `H1-04`). Confirmed on a real phone via the Creator Hub QR pass: "identical experience to PC." No precision aiming, no hold-and-drag. |
+| Mine | Walk up to a rock with the joystick — swinging is automatic in range. No tapping, no aiming, no hold-and-drag. |
 | Sell | Approach the bank and tap a large "sell" button — no aiming required. |
-| Spend | Choose from a buy menu of large tap targets — same pattern as selling. |
+| Spend | Walk to the object (mayor, claim, warehouse, lot) and tap one large upgrade/buy button — same pattern as selling. |
 
 The loop turned out touch-first by accident: no verb depends on precision aiming, hover states or keyboard combos.
 
-**UI plan.** Only the coin and ore counts sit on screen, small and out of the thumb's way; the timing bar and the buy/sell menus appear only while actually mining, selling or spending, never as a permanent overlay.
+**UI plan.** Only the coin and ore counts sit on screen, small and out of the thumb's way; a rock's progress bar shows only while mining it, buy/sell prompts only at their location, and a read-only status panel (current tier of pick, M.U.L.E., warehouse, house) opens only when the player asks — never a permanent overlay.
 
-**Performance.** Target: 60 fps on recommended desktop hardware, 30 fps on a Moto G41 (the named floor device — the more modest of the owner's two test phones; a Moto G75 is the second, better-supported device), both at the v1 tested maximum of 20 players (§5). Biggest named risk: at up to 20 players, each with their own visible house and idle rig, total on-screen geometry is the most likely thing to hurt frame rate first. Plan: houses and rigs stay low-poly primitives carrying the magenta-highlight treatment already decided for §7 — the same choice that already covers the solo-art-risk fallback in §9 also caps this cost.
+**Performance.** Target: 60 fps on recommended desktop hardware, 30 fps on a Moto G41 (the named floor device — the more modest of the owner's two test phones; a Moto G75 is the second, better-supported device), both at the v1 tested maximum of 20 players (§5). Biggest named risk: at up to 20 players, each with their own visible house and M.U.L.E., total on-screen geometry is the most likely thing to hurt frame rate first. Plan: houses and M.U.L.E.s stay low-poly primitives carrying the magenta-highlight treatment already decided for §7 — the same choice that already covers the solo-art-risk fallback in §9 also caps this cost.
 
 **Desktop-only dependencies.** Checked against the platform's mobile feature-gap tracker (docs.decentraland.org, reviewed 2026-08): none of what this design uses — `AudioSource` one-shot playback, React-ECS UI, pointer events — appears on the missing-features list. The one real gap on the tracker, the `AudioEvent` component (audio-state callbacks), is not something this design needs.
 
@@ -158,7 +158,7 @@ The loop turned out touch-first by accident: no verb depends on precision aiming
 
 **Visual direction**
 
-[agent-decided] Every interactable — the ore vein, the bank counter, the timing bar — carries a magenta emissive outline, a color nothing else in the dusty wood-and-dirt palette ever uses. Legible at arm's length on a phone screen, no ambiguity about what can be touched. Navigation needs no map: one street, nothing to get lost in. A couple of storefronts sit boarded up with a hand-painted "coming soon" sign — future spend sinks (a saloon, a cabaret) the town is saving room for, without building them yet.
+[agent-decided] Every interactable — the rocks, the bank counter, the M.U.L.E., the lot signs — carries a magenta emissive outline, a color nothing else in the dusty wood-and-dirt palette ever uses. Legible at arm's length on a phone screen, no ambiguity about what can be touched. Navigation needs no map: one street, nothing to get lost in. A couple of storefronts sit boarded up with a hand-painted "coming soon" sign — future spend sinks (a saloon, a cabaret) the town is saving room for, without building them yet.
 
 **Visual signature**: the ore vein's magenta glow against sun-bleached wood — one color the whole town otherwise refuses to use.
 
@@ -194,9 +194,9 @@ The loop turned out touch-first by accident: no verb depends on precision aiming
 
 | Week | What's playable |
 |---|---|
-| **1** | The loop alone: mine (tap-timing), sell (dynamic bank price), buy tools at a fixed price. Greybox town and quarry. The mayor hands over the free starting pick. |
+| **1** | The loop alone: mine (auto-swing, per-player rock progress), sell (dynamic bank rate), upgrade the pick at the mayor. Greybox town and quarry. The mayor hands over the free tier-0 pick. |
 | **2** *(program milestone)* | Multiplayer: the shared price and the bank's sale-log trace sync between players; the boom-town bonus. Playtest at the social threshold (2 players). |
-| **3** | Renting a claim at the quarry with automatic rent deduction; the idle rig with its cap and claim action; the first purchasable house in town. |
+| **3** | Claims that plant a tier-1 M.U.L.E., fuel at the claim, the shared warehouse and its tiers; house lots on the street; the status panel. |
 | **4** *(program milestone)* | Polish: the magenta highlight system applied everywhere; baseline touch controls; first mobile pass; bug fixing. |
 
 **What keeps the experience changing after launch**
@@ -205,8 +205,8 @@ The loop turned out touch-first by accident: no verb depends on precision aiming
 
 - **Changes without a new build:** the market price and the visible wealth skyline shift constantly from player behavior alone — no scripted content required.
 - **Survives a skipped update:** the same — the economy and the social comparison it drives generate their own freshness independent of any dev-authored patch.
-- **Persists across resets, and newcomer path:** nothing resets by design — accumulation is meant to last, that is the point. A newcomer still matters immediately at the public dig, where the boom-town bonus pays out regardless of anyone's accumulated wealth.
-- **A player behaviour that would change what gets built next:** if players stop selling and just hoard ore, the sell-pressure design (tool wear) isn't doing its job, and the wear rate needs revisiting.
+- **Persists across resets, and newcomer path:** nothing resets by design — accumulation is meant to last, that is the point. A newcomer still matters immediately in the quarry, where the boom-town bonus pays out regardless of anyone's accumulated wealth.
+- **A player behaviour that would change what gets built next:** if players stop selling and just hoard ore, the sell-pressure design (tool wear, warehouse cap) isn't doing its job, and those dials need revisiting.
 
 **Three cuts, in the order they'd go:**
 

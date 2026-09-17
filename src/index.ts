@@ -12,6 +12,7 @@ import { setupUi } from './ui'
 import { setupMineProximity } from './mining/mine-proximity'
 import { setupBank } from './bank/bank'
 import { setupShop } from './shop/shop'
+import { setupMule } from './mule/mule'
 import { setupMusic } from './world/music'
 import { setupIsometricCamera } from './world/isometric-camera'
 import { setupServerLink } from './net/server-link'
@@ -36,5 +37,6 @@ export async function main() {
     setupMineProximity()
     setupBank()
     setupShop()
+    setupMule()
     setupUi()
 }

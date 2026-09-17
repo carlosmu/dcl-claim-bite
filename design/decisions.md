@@ -2,6 +2,28 @@
 
 Append-only, newest first. `date · decision · why`. Standing non-goals live here too.
 
+- 2026-09-17 · **Progression doc adopted as the final word** — balance.md rewritten from it; anything below that contradicts it is superseded · owner call
+- 2026-09-17 · Everything is one object upgraded in place (one pick, one M.U.L.E., one warehouse, one house), with costs doubling per tier (150/300/600 first pass) · owner call: a rising curve keeps the last jump a real decision
+- 2026-09-17 · Mining is auto-swing on proximity with a per-player progress bar on a public rock (12/10/8/6 hits per ore for pick tiers 0–3); the timing bar is removed · owner call. Invalidates H1-01 and H1-04 (they tested timing-tap); no new toy test — build directly. Supersedes the 2026-09-03 and 2026-09-02 hit/miss payout calls
+- 2026-09-17 · Pick tier 0 is free from the mayor, as often as needed · owner call: anti-soft-lock — no pick and no coins must never mean no way to earn
+- 2026-09-17 · Picks wear by use only; the one-week expiry is removed at every tier · owner call. Supersedes the 2026-09-02 weekly-backstop call
+- 2026-09-17 · Boom-town bonus triggers on being active on the **same rock**, not on proximity · owner call: a deliberate social choice reads better than a positional accident
+- 2026-09-17 · A completed rock pays 5 ore; the boom-town bonus adds +1 per other player active on the same rock (5 / 6 / 7 / 8…) · owner call: +1 on a base of 1 tripled output at 3 players, too much. Ore amounts and coin prices re-scaled around it (pick 75–100/300/600, fuel ~8); pockets stay 100 (~20 rocks); the market step stays 500 ore per 1% because storage bounds it. Supersedes the +10%/+20% sizing
+- 2026-09-17 · M.U.L.E. tier 1 yields 10 ore/hour, so a 500 warehouse fills in ~50h: the daily hook moves to fuel (24h), the cap becomes the two-day hook · owner call
+- 2026-09-17 · Claim rent is gone; operating cost is fuel bought at the M.U.L.E. (~5 coins / 24h at tier 1), burning faster at higher tiers. Renting the claim plants the tier-1 M.U.L.E. automatically · owner call: fuel scaling by tier brakes multi-claim abuse. Supersedes the 2026-08-31 rent calls
+- 2026-09-17 · A M.U.L.E. out of fuel stops without losing produced ore; a full warehouse pauses it without burning fuel · owner call
+- 2026-09-17 · Before any warehouse, a player stores ~100 ore "in their pockets" for free (warehouse tier 0) · owner call: manual mining must work from the first swing
+- 2026-09-17 · One warehouse storage shared by manual mining and the M.U.L.E. replaces the carry bag, the wheelbarrow and the rig's own cap; collection at the rig is gone · owner call. Supersedes the 2026-09-16 partial-collection call
+- 2026-09-17 · No central Market: every purchase happens at the object's location (pick at the mayor, M.U.L.E./fuel at the claim, warehouse at its building, house at its lot) · owner call. Supersedes the 2026-09-03 Market zone
+- 2026-09-17 · Houses: limited permanent lots on the street, first come first choose, priced by distance to the center; tiers Lot → Ranchito → Mansión priced at ~2 / 4 / 8 days of average play, purely cosmetic, wear is visual and repaired free · owner call
+- 2026-09-17 · Market: base 10 ore/coin, worst 12, every 500 ore sold worsens it 1% of base (by amount, not per transaction, so splitting sales changes nothing) up to +20% — reaching the cap should take a whale, recovers 1% of base per hour (~20h full) · owner call. Supersedes the macro + slippage model and the 40 cap
+- 2026-09-17 · Warehouse caps ~500 / 2,000 / 5,000 for tiers 1–3 · owner call: 150 ore was only ~10 coins, too small to feel like storage
+- 2026-09-17 · A read-only status panel shows current tiers on demand; it buys nothing · owner call
+
+- 2026-09-16 · The M.U.L.E. settles from a stored wall-clock timestamp, not from an accumulating tick · forced by what an idle rig is for. There are no frames while the player is away, and the server scene restarts often, so a counter would lose exactly the hours the rig exists to pay for. Trusting the clock is safe only because the timestamp is written and read by the server and never travels through a client
+
+- 2026-09-16 · Collection is a deliberate act at the rig, and is partial when the bag cannot take it all · owner-approved design (balance.md §4). Ore appearing in the bag on login would remove the arrival that the rig exists to create; what does not fit stays in the rig rather than being lost, so a full load is never punished for arriving with a small bag
+
 - 2026-09-16 · The client announces itself with `hello` and retries until answered, rather than the server pushing a wallet when it guesses the player has arrived · forced by a bug: the purse was restored correctly but the message carrying it was sent before the client's channel could receive, so the HUD sat at 0 until the first swing produced a second wallet message. A client asking is reliable where a server guessing is not, and the retry also covers a server that restarted under a client that never disconnected
 
 - 2026-09-16 · Purses persist per player in server Storage, and the ore price persists scene-wide · agent call on the price, pending owner review. Restoring the price rather than resetting it to base keeps a restart from quietly handing the town a fresh market, and keeps balance playtests honest — a floored price stays floored instead of being washed away by a reload. One line to flip if that proves annoying while tuning

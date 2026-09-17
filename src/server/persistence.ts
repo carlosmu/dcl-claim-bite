@@ -20,6 +20,15 @@ export type StoredPurse = {
   ore: number
   coins: number
   owned: Record<string, number>
+  /**
+   * The idle rig: what it holds, and the wall-clock moment it was last settled.
+   *
+   * The timestamp is the part that has to survive a restart. Without it the rig would only
+   * ever pay for time the server happened to be up, which is the opposite of what an idle
+   * rig is for — it is meant to pay for the hours nobody was there.
+   */
+  muleOre?: number
+  muleAt?: number
 }
 
 /**
