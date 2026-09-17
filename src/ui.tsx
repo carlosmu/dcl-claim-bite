@@ -118,25 +118,31 @@ const hudDivider = () => (
     />
 )
 
-/** Icon, caption, value. The caption is omitted for the tool, which reads as its own label. */
-const hudSegment = (uvs: number[], caption: string | null, value: string, color: Color4) => (
-    <UiEntity uiTransform={{ height: '100%', flexDirection: 'row', alignItems: 'center' }}>
+/**
+ * Icon, caption, value.
+ *
+ * Labels wrap by default, so on a narrow screen "15 / 150" broke onto two lines once the column
+ * squeezed the pill. The text never wraps and the segment never shrinks: the pill grows to fit
+ * its contents instead.
+ */
+const hudSegment = (uvs: number[], caption: string, value: string, color: Color4) => (
+    <UiEntity uiTransform={{ height: '100%', flexDirection: 'row', alignItems: 'center', flexShrink: 0 }}>
         {hudIcon(uvs)}
         <UiEntity uiTransform={{ flexDirection: 'column', justifyContent: 'center' }}>
-            {caption !== null ? (
-                <Label
-                    value={caption}
-                    fontSize={HUD_CAPTION_SIZE}
-                    color={MUTED_COLOR}
-                    textAlign="middle-left"
-                    uiTransform={{ height: HUD_CAPTION_SIZE + 6 }}
-                />
-            ) : null}
+            <Label
+                value={caption}
+                fontSize={HUD_CAPTION_SIZE}
+                color={MUTED_COLOR}
+                textAlign="middle-left"
+                textWrap="nowrap"
+                uiTransform={{ height: HUD_CAPTION_SIZE + 6 }}
+            />
             <Label
                 value={value}
                 fontSize={HUD_VALUE_SIZE}
                 color={color}
                 textAlign="middle-left"
+                textWrap="nowrap"
                 uiTransform={{ height: HUD_VALUE_SIZE + 6 }}
             />
         </UiEntity>
@@ -171,7 +177,7 @@ const hud = () => {
             }}
             uiBackground={{ color: HUD_BACKGROUND }}
         >
-            {hudSegment(ICON_PICK, null, pick?.label ?? 'No pick', Color4.White())}
+            {hudSegment(ICON_PICK, 'Tool', pick?.label ?? 'No pick', Color4.White())}
             {hudDivider()}
             {hudSegment(ICON_ORE, 'Ore', capacity > 0 ? `${getOre()} / ${capacity}` : `${getOre()}`, ORE_COLOR)}
             {hudDivider()}
