@@ -24,6 +24,9 @@ export const Messages = {
   /** "Empty the rig into my bag." Takes what fits and leaves the rest in the rig. */
   collect: Schemas.Map({ ready: Schemas.Boolean }),
 
+  /** "Mayor, I have no pick." Granted only to a player who owns none. */
+  claimPick: Schemas.Map({ ready: Schemas.Boolean }),
+
   /** DEBUG: "give me coins." Refused by the server unless DEBUG_ADD_COINS is on (shared/debug-flags.ts). */
   debugCoins: Schemas.Map({ amount: Schemas.Number }),
 

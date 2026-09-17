@@ -21961,6 +21961,27 @@
             "parent": 0
           }
         },
+        "1558": {
+          "json": {
+            "position": {
+              "x": -7,
+              "y": 0,
+              "z": 11.25
+            },
+            "scale": {
+              "x": 2.5,
+              "y": 2.5,
+              "z": 2.5
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "w": 1
+            },
+            "parent": 0
+          }
+        },
         "1562": {
           "json": {
             "position": {
@@ -22085,6 +22106,47 @@
               "w": 1
             },
             "parent": 1555
+          }
+        }
+      }
+    },
+    {
+      "name": "core::Animator",
+      "jsonSchema": {
+        "type": "object",
+        "properties": {},
+        "serializationType": "protocol-buffer",
+        "protocolBuffer": "PBAnimator"
+      },
+      "data": {
+        "1558": {
+          "json": {
+            "states": [
+              {
+                "clip": "look_around",
+                "playing": false,
+                "weight": 1,
+                "speed": 1,
+                "loop": false,
+                "shouldReset": false
+              },
+              {
+                "clip": "idle",
+                "playing": true,
+                "weight": 1,
+                "speed": 1,
+                "loop": true,
+                "shouldReset": false
+              },
+              {
+                "clip": "chop",
+                "playing": false,
+                "weight": 1,
+                "speed": 1,
+                "loop": false,
+                "shouldReset": false
+              }
+            ]
           }
         }
       }
@@ -29378,6 +29440,13 @@
             "invisibleMeshesCollisionMask": 2
           }
         },
+        "1558": {
+          "json": {
+            "src": "assets/animations/town-mayor.glb",
+            "visibleMeshesCollisionMask": 0,
+            "invisibleMeshesCollisionMask": 3
+          }
+        },
         "1562": {
           "json": {
             "src": "assets/asset-packs/big_rock/RockLarge_01/RockLarge_01.glb",
@@ -34650,6 +34719,11 @@
             "value": "Mining_Place"
           }
         },
+        "1558": {
+          "json": {
+            "value": "town-mayor.glb"
+          }
+        },
         "1562": {
           "json": {
             "value": "Big Rock"
@@ -34771,7 +34845,8 @@
                   528,
                   529,
                   67090,
-                  1555
+                  1555,
+                  1558
                 ]
               },
               {
@@ -40017,6 +40092,10 @@
               {
                 "entity": 67095,
                 "children": []
+              },
+              {
+                "entity": 1558,
+                "children": []
               }
             ]
           }
@@ -40095,6 +40174,9 @@
           "json": {}
         },
         "1555": {
+          "json": {}
+        },
+        "1558": {
           "json": {}
         },
         "1562": {

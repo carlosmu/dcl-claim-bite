@@ -1054,4 +1054,5 @@ export enum EntityNames {
   Tile_999 = "Tile 999",
   Train_Track_6_M_Old_V01 = "Train Track 6 M Old V01",
   Train_Track_6_M_Old_V01_2 = "Train Track 6 M Old V01_2",
+  town_mayor_glb = "town-mayor.glb",
 } 

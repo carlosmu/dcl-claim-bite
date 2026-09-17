@@ -80,6 +80,12 @@ export function sendBuy(itemId: string): void {
   room.send('buy', { itemId })
 }
 
+/** Asks the mayor's free pick. The server only grants it to a player with none. */
+export function sendClaimPick(): void {
+  if (!isStateSyncronized()) return
+  room.send('claimPick', { ready: true })
+}
+
 /** DEBUG: asks the server for free coins. */
 export function sendDebugCoins(amount: number): void {
   if (!isStateSyncronized()) return
@@ -145,7 +151,7 @@ export function setupEconomyLink(): void {
     }
 
     if (data.action === 'sell') playSfx(BANK_SOUND_CLIP, SOUND_VOLUME)
-    if (data.action === 'buy') playSfx(BUY_SOUND_CLIP, SOUND_VOLUME)
+    if (data.action === 'buy' || data.action === 'claimPick') playSfx(BUY_SOUND_CLIP, SOUND_VOLUME)
     if (data.action === 'collect') playSfx(BANK_SOUND_CLIP, SOUND_VOLUME)
     console.log(`[economy] ${data.action}: ${data.detail}`)
   })

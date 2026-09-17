@@ -13,6 +13,7 @@ import { setupRocks } from './mining/rocks'
 import { setupBank } from './bank/bank'
 import { setupShop } from './shop/shop'
 import { setupMule } from './mule/mule'
+import { setupMayor } from './mayor/mayor'
 import { setupMusic } from './world/music'
 import { setupIsometricCamera } from './world/isometric-camera'
 import { setupServerLink } from './net/server-link'
@@ -38,5 +39,6 @@ export async function main() {
     setupBank()
     setupShop()
     setupMule()
+    setupMayor()
     setupUi()
 }

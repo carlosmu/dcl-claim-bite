@@ -255,6 +255,28 @@ function handleBuy(address: string, itemId: string): void {
   console.log(`[Server] ${address} bought ${item.label} for ${item.price} · balance ${purse.coins}`)
 }
 
+// The mayor's pick: free, and only for someone who has none — so it can be asked for again after
+// losing one, but never stacked. The anti-soft-lock of design/balance.md §2.
+function handleClaimPick(address: string): void {
+  const purse = purseOf(address)
+  if (purse === null) {
+    sendResult(address, 'claimPick', false, 'still loading')
+    return
+  }
+
+  const owned = (id: ShopItemId) => purse.owned[id] ?? 0
+  if (bestHitsPerRock(owned) > 0) {
+    sendResult(address, 'claimPick', false, 'already has a pick')
+    return
+  }
+
+  purse.owned['pick'] = 1
+  dirty.add(address)
+  sendWallet(address)
+  sendResult(address, 'claimPick', true, 'pick')
+  console.log(`[Server] the mayor handed a pick to ${address}`)
+}
+
 // DEBUG: coins out of nothing, for testing purchases without playing up to them. They skip the
 // bank, so the market never hears about them — but nothing else in the economy is protected.
 function handleDebugCoins(address: string, requested: number): void {
@@ -459,6 +481,11 @@ export function setupEconomy(): void {
     // purseOf starts the read if it has not happened yet; the load's own completion sends the
     // wallet in that case, so this only sends when there is already something true to send.
     if (purseOf(context.from) !== null) sendWallet(context.from)
+  })
+
+  room.onMessage('claimPick', (_data, context) => {
+    if (!context) return
+    handleClaimPick(context.from)
   })
 
   room.onMessage('debugCoins', (data, context) => {
