@@ -138,7 +138,7 @@ function update(dt: number): void {
     }
   }
 
-  showHeadProgress(hits, needed, `${hits}/${needed}`)
+  showHeadProgress(hits, needed, '')
 }
 
 export function setupRocks(): void {
