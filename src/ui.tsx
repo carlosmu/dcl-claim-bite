@@ -17,10 +17,12 @@ import { getOwned } from './shared/state/inventory'
 import { getServerTick, isServerOnline } from './net/server-link'
 import { getMiningStatus } from './mining/rocks'
 import { setupRollingCounters, shownCoins, shownOre } from './ui/rolling-counter'
+import { getOrePopup, RISE_SHARE, setupOrePopup } from './ui/ore-popup'
 import { DEBUG_ADD_COINS, DEBUG_SERVER_STATUS } from './shared/debug-flags'
 
 export function setupUi() {
     setupRollingCounters()
+    setupOrePopup()
 
     // No screen inset: the SDK's default ('device') pulls the whole UI in by the phone's safe
     // margins. The game is landscape and everything sits in the centred column, where no notch
@@ -525,7 +527,11 @@ const miningBar = () => {
     if (status === null) return null
 
     const progress = status.needed > 0 ? Math.min(1, status.hits / status.needed) : 0
-    const caption = status.blocked !== '' ? status.blocked : `Mining... ${status.hits}/${status.needed}`
+    const left = Math.max(0, status.needed - status.hits)
+    const caption =
+        status.blocked !== ''
+            ? status.blocked
+            : `Keep mining — ${left} ${left === 1 ? 'hit' : 'hits'} to go`
 
     return (
         <UiEntity
@@ -552,7 +558,7 @@ const miningBar = () => {
                     color={status.blocked !== '' ? MUTED_COLOR : Color4.White()}
                     textAlign="middle-center"
                     textWrap="nowrap"
-                    uiTransform={{ height: 26 }}
+                    uiTransform={{ height: 26, margin: { bottom: 8 } }}
                 />
                 {/* The bar is the payout: it has to be visibly unfinished for the caption below
                     to mean anything. */}
@@ -571,15 +577,52 @@ const miningBar = () => {
                         uiBackground={{ color: MINING_FILL_COLOR }}
                     />
                 </UiEntity>
-                <Label
-                    value="Ore lands when the bar fills"
-                    fontSize={14}
-                    color={MUTED_COLOR}
-                    textAlign="middle-center"
-                    textWrap="nowrap"
-                    uiTransform={{ height: 22, margin: { top: 4 } }}
-                />
             </UiEntity>
+        </UiEntity>
+    )
+}
+
+// --- The "+5 Ore" popup ------------------------------------------------------------------
+//
+// Big, centred, rising and fading: the payout of a finished rock, where the player is already
+// looking. UI text has no outline property, so the shadow is the same label drawn again in
+// black, a few pixels down and right, behind it. TBD: a custom typeface with the shadow already
+// baked in replaces both layers — react-ecs `Label` only offers sans-serif/serif/monospace, so
+// that means drawing the number from a texture rather than as text.
+
+const POPUP_FONT_SIZE = 64
+const POPUP_SHADOW_OFFSET = 4
+const POPUP_COLOR = Color4.create(1, 198 / 255, 0, 1)
+
+const orePopup = () => {
+    const popup = getOrePopup()
+    if (popup === null) return null
+
+    const text = `+${popup.amount} Ore`
+    // Fades over the second half only, so it is fully readable while it is rising.
+    const alpha = Math.min(1, (1 - popup.progress) * 2)
+    const risen = popup.progress * RISE_SHARE * 100
+
+    const layer = (color: Color4, offset: number) => (
+        <Label
+            value={text}
+            fontSize={POPUP_FONT_SIZE}
+            color={color}
+            textAlign="middle-center"
+            textWrap="nowrap"
+            uiTransform={{
+                positionType: 'absolute',
+                position: { top: `${40 - risen + (offset / 1080) * 100}%`, left: offset },
+                width: '100%',
+                height: POPUP_FONT_SIZE + 12
+            }}
+        />
+    )
+
+    return (
+        <UiEntity uiTransform={{ positionType: 'absolute', width: '100%', height: '100%' }}>
+            {layer(Color4.create(0, 0, 0, alpha), POPUP_SHADOW_OFFSET)}
+            {layer(Color4.create(POPUP_COLOR.r, POPUP_COLOR.g, POPUP_COLOR.b, alpha), 0)}
         </UiEntity>
     )
 }
@@ -666,6 +709,7 @@ export const uiMenu = () => (
         >
             {hud()}
             {miningBar()}
+            {orePopup()}
             {isPlayerAtBank() ? bankPanel() : null}
             {isPlayerAtShop() ? marketPanel() : null}
             {isPlayerAtMule() && getMuleCapacity() > 0 ? mulePanel() : null}

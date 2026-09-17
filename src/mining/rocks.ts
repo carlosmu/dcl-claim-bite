@@ -1,11 +1,12 @@
 import { Entity, engine, Transform } from '@dcl/sdk/ecs'
 import { Quaternion, Vector3 } from '@dcl/sdk/math'
 
-import { MINE_FACING_DEGREES, MINE_REACH_METERS, SWING_SECONDS } from '../shared/economy/constants'
+import { MINE_FACING_DEGREES, MINE_REACH_METERS, ORE_PER_ROCK, SWING_SECONDS } from '../shared/economy/constants'
 import { getCarryCapacity, getHitsPerRock, sendRockDone } from '../net/economy-link'
 import { getOre } from '../shared/state/wallet'
 import { playMineEmote } from '../player/mine-emote'
 import { playSfx } from '../world/sfx'
+import { showOrePopup } from '../ui/ore-popup'
 
 // Manual mining (design/balance.md §2, 2026-09-17). No timing bar: the rocks are the children
 // of `Mining_Place`, authored in the Creator Hub, and only one of them is shown at a time. Walk
@@ -140,6 +141,10 @@ function update(dt: number): void {
     if (hits >= needed) {
       sendRockDone()
       playSfx(ROCK_DONE_SOUND, 0.8)
+      // Shown immediately rather than when the wallet comes back: the swing earned it, and a
+      // popup a round trip late would not read as this rock's payout. The HUD is still the one
+      // that only moves once the server agrees.
+      showOrePopup(ORE_PER_ROCK)
       console.log(`[mine] rock done after ${hits} hits`)
       status = null
       showNextRock()
