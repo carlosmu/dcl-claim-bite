@@ -6,8 +6,20 @@
 // They are still hand-tuned rather than measured: the playtest that would justify them has
 // not happened, so treat every number here as a starting point (GDD §3).
 
-/** Ore granted by a swing that misses the sweet spot. Nothing: a bad swing is a wasted one. */
-export const ORE_PER_MISS = 0
+// --- Mining a rock ---------------------------------------------------------------------
+//
+// No timing bar (design/balance.md §2, 2026-09-17): standing at the active rock swings on its
+// own, one hit per swing, and a full progress bar pays the rock. The pick decides how many
+// hits that takes.
+
+/** Ore a completed rock pays. */
+export const ORE_PER_ROCK = 5
+
+/** One swing, from the start of the emote to the hit landing. */
+export const SWING_SECONDS = 1
+
+/** How close to the rock the player has to stand, measured flat on the ground. */
+export const MINE_REACH_METERS = 1.8
 
 // --- The rate -------------------------------------------------------------------------
 //
@@ -64,18 +76,11 @@ export const CARRY_WITH_WHEELBARROW = 500
 // --- Anti-abuse -----------------------------------------------------------------------
 
 /**
- * The shortest gap the server accepts between two swings from the same player. Anything
- * faster is dropped, not paid.
- *
- * The bar sweeps in 1.6s and the needle bounces, so the sweet spot passes about every 0.8s:
- * that is the fastest a player can legitimately score. This sits below that on purpose, so
- * network jitter or an eager tapper is never punished — it exists to cap an autoclicker at
- * two swings a second instead of twenty, not to police honest play.
- *
- * TBD: a real fix validates the swing's timing rather than its rate, which needs the sweep
- * to be server-driven (design/decisions.md, 2026-09-15).
+ * How much of a rock's honest duration (hits × SWING_SECONDS) the server insists on between
+ * two paid rocks from the same player. Below 1 so network jitter never costs an honest miner
+ * a rock; it exists to stop a modified client claiming rocks it never swung at.
  */
-export const MIN_SWING_INTERVAL_SECONDS = 0.5
+export const ROCK_TIME_TOLERANCE = 0.8
 
 // --- The M.U.L.E. ---------------------------------------------------------------------
 //

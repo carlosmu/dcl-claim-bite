@@ -9,7 +9,7 @@ import './shared/net/market-sync'
 import './shared/net/protocol'
 
 import { setupUi } from './ui'
-import { setupMineProximity } from './mining/mine-proximity'
+import { setupRocks } from './mining/rocks'
 import { setupBank } from './bank/bank'
 import { setupShop } from './shop/shop'
 import { setupMule } from './mule/mule'
@@ -34,7 +34,7 @@ export async function main() {
     setupEconomyLink()
     setupMusic()
     setupIsometricCamera()
-    setupMineProximity()
+    setupRocks()
     setupBank()
     setupShop()
     setupMule()

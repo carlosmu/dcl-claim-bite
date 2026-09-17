@@ -14,14 +14,14 @@ export type ShopItem = {
   id: ShopItemId
   label: string
   price: number
-  /** Ore per landed swing while this is the best pick owned. Only picks carry it. */
-  orePerHit?: number
+  /** Hits a rock takes while this is the best pick owned — fewer is better. Only picks carry it. */
+  hitsPerRock?: number
 }
 
 export const CATALOGUE: ShopItem[] = [
-  { id: 'pick', label: 'Pick', price: 10, orePerHit: 1 },
-  { id: 'steel-pick', label: 'Steel Pick', price: 40, orePerHit: 2 },
-  { id: 'miners-pick', label: "Miner's Pick", price: 120, orePerHit: 3 },
+  { id: 'pick', label: 'Pick', price: 10, hitsPerRock: 12 },
+  { id: 'steel-pick', label: 'Steel Pick', price: 40, hitsPerRock: 10 },
+  { id: 'miners-pick', label: "Miner's Pick", price: 120, hitsPerRock: 8 },
   { id: 'wheelbarrow', label: 'Wheelbarrow', price: 60 },
   { id: 'mule', label: 'M.U.L.E.', price: 100 },
   { id: 'house', label: 'House', price: 500 }
@@ -32,24 +32,25 @@ export function findItem(id: ShopItemId): ShopItem | null {
 }
 
 /** Every pick in the catalogue, worst first. */
-export const PICKS: ShopItem[] = CATALOGUE.filter((item) => item.orePerHit !== undefined)
+export const PICKS: ShopItem[] = CATALOGUE.filter((item) => item.hitsPerRock !== undefined)
 
 /**
- * Ore a landed swing pays, given what the player owns: the best pick they have.
+ * The best pick the player owns: the one that needs the fewest hits.
  *
- * Zero when they own no pick at all — the mayor's gift is what starts the loop, so having
+ * Null when they own no pick at all — the mayor's gift is what starts the loop, so having
  * nothing in hand should pay nothing rather than quietly paying as if bare hands were a tool.
  */
 export function bestPick(ownedCount: (id: ShopItemId) => number): ShopItem | null {
   let best: ShopItem | null = null
   for (const pick of PICKS) {
-    if (ownedCount(pick.id) > 0 && (best === null || pick.orePerHit! > best.orePerHit!)) best = pick
+    if (ownedCount(pick.id) > 0 && (best === null || pick.hitsPerRock! < best.hitsPerRock!)) best = pick
   }
   return best
 }
 
-export function bestOrePerHit(ownedCount: (id: ShopItemId) => number): number {
-  return bestPick(ownedCount)?.orePerHit ?? 0
+/** Hits a rock takes with the best pick owned. Zero means no pick: the player cannot mine. */
+export function bestHitsPerRock(ownedCount: (id: ShopItemId) => number): number {
+  return bestPick(ownedCount)?.hitsPerRock ?? 0
 }
 
 /** How much ore the bag holds, given what the player owns. */

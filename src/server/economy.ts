@@ -18,8 +18,8 @@ import { MARKET_ENTITY_ENUM_ID, OreMarket } from '../shared/net/market-sync'
 import { room } from '../shared/net/protocol'
 import { applySale, getMacroRate, getRate, oreForCoins, quoteSale, recoverRate, restoreMacroRate } from '../shared/state/market'
 import { loadMarketPrice, loadPurse, savePurse, saveMarketPrice } from './persistence'
-import { MIN_SWING_INTERVAL_SECONDS, ORE_PER_MISS } from '../shared/economy/constants'
-import { bestOrePerHit, carryCapacity, findItem, ShopItemId } from '../shared/economy/catalogue'
+import { ORE_PER_ROCK, ROCK_TIME_TOLERANCE, SWING_SECONDS } from '../shared/economy/constants'
+import { bestHitsPerRock, carryCapacity, findItem, ShopItemId } from '../shared/economy/catalogue'
 import { MULE_CAPACITY } from '../shared/economy/constants'
 import { collectableOre, settleMule } from './mule'
 
@@ -40,7 +40,7 @@ let lastPublishedPrice = -1
  * every player entity, so it has no business running at frame rate. */
 const PRESENCE_CHECK_PERIOD_SECONDS = 1
 
-/** How often the dropped-swing report is printed, so a spammer cannot flood the log too. */
+/** How often the dropped-rock report is printed, so a spammer cannot flood the log too. */
 const ABUSE_REPORT_PERIOD_SECONDS = 5
 
 /**
@@ -73,8 +73,8 @@ const dirty = new Set<string>()
 let marketDirty = false
 let sinceLastSave = 0
 
-const lastSwingAt = new Map<string, number>()
-const droppedSwings = new Map<string, number>()
+const lastRockAt = new Map<string, number>()
+const droppedRocks = new Map<string, number>()
 let sinceLastAbuseReport = 0
 
 /**
@@ -146,7 +146,7 @@ function sendWallet(address: string): void {
       coins: purse.coins,
       owned: encodeOwned(purse),
       capacity: carryCapacity(owned),
-      orePerHit: bestOrePerHit(owned),
+      hitsPerRock: bestHitsPerRock(owned),
       muleOre: collectableOre(purse),
       muleCapacity: owned('mule') > 0 ? MULE_CAPACITY : 0
     },
@@ -158,30 +158,31 @@ function sendResult(address: string, action: string, ok: boolean, detail: string
   room.send('actionResult', { action, ok, detail }, { to: [address] })
 }
 
-function handleSwing(address: string, hit: boolean): void {
-  // Dropped silently: an honest client never reaches this rate, and answering would hand a
-  // spammer a reply for every message they send.
-  const last = lastSwingAt.get(address)
-  if (last !== undefined && serverClock - last < MIN_SWING_INTERVAL_SECONDS) {
-    droppedSwings.set(address, (droppedSwings.get(address) ?? 0) + 1)
-    return
-  }
+function handleRockDone(address: string): void {
   const purse = purseOf(address)
-  // Still loading: the swing is dropped rather than paid into a purse that is about to be
+  // Still loading: the rock is dropped rather than paid into a purse that is about to be
   // replaced. The window is a fraction of a second, right after arriving.
   if (purse === null) return
 
-  lastSwingAt.set(address, serverClock)
-
-  // Yield comes from the best pick the player OWNS, which is server state — so the tier
-  // cannot be claimed by a client, only earned. No pick pays nothing.
+  // How many hits a rock takes comes from the best pick the player OWNS, which is server
+  // state — so the tier cannot be claimed by a client, only earned. No pick, no rock.
   const owned = (id: ShopItemId) => purse.owned[id] ?? 0
-  const gained = hit ? bestOrePerHit(owned) : ORE_PER_MISS
+  const hits = bestHitsPerRock(owned)
+  if (hits <= 0) return
 
-  // The bag is the ceiling. Overflow is refused rather than dropped silently or lost: the
-  // mining bar is disabled at capacity, so reaching this means a swing slipped through.
+  // Dropped silently: an honest client cannot finish a rock faster than its swings allow, and
+  // answering would hand a spammer a reply for every message they send.
+  const last = lastRockAt.get(address)
+  if (last !== undefined && serverClock - last < hits * SWING_SECONDS * ROCK_TIME_TOLERANCE) {
+    droppedRocks.set(address, (droppedRocks.get(address) ?? 0) + 1)
+    return
+  }
+  lastRockAt.set(address, serverClock)
+
+  // The bag is the ceiling. What does not fit is lost: the client stops swinging at capacity,
+  // so reaching this means a rock slipped through.
   const room = Math.max(0, carryCapacity(owned) - purse.ore)
-  purse.ore += Math.min(gained, room)
+  purse.ore += Math.min(ORE_PER_ROCK, room)
 
   dirty.add(address)
   sendWallet(address)
@@ -324,7 +325,7 @@ function checkPresence(dt: number) {
     present.delete(address)
     // The purse stays in `purses` — only the greeting is forgotten, so the next arrival is
     // treated as new and gets told what it holds.
-    lastSwingAt.delete(address)
+    lastRockAt.delete(address)
     // Written out now rather than at the next flush: leaving is exactly when a player is
     // most likely to not come back before the server stops.
     flushPurse(address)
@@ -388,12 +389,12 @@ function reportAbuse(dt: number) {
   sinceLastAbuseReport += dt
   if (sinceLastAbuseReport < ABUSE_REPORT_PERIOD_SECONDS) return
   sinceLastAbuseReport = 0
-  if (droppedSwings.size === 0) return
+  if (droppedRocks.size === 0) return
 
-  for (const [address, count] of droppedSwings) {
-    console.log(`[Server] dropped ${count} over-rate swing(s) from ${address}`)
+  for (const [address, count] of droppedRocks) {
+    console.log(`[Server] dropped ${count} too-fast rock(s) from ${address}`)
   }
-  droppedSwings.clear()
+  droppedRocks.clear()
 }
 
 function publishRate(dt: number) {
@@ -437,9 +438,9 @@ export function setupEconomy(): void {
     handleCollect(context.from)
   })
 
-  room.onMessage('swing', (data, context) => {
+  room.onMessage('rockDone', (_data, context) => {
     if (!context) return
-    handleSwing(context.from, data.hit)
+    handleRockDone(context.from)
   })
 
   room.onMessage('sell', (data, context) => {

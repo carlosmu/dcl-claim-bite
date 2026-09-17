@@ -29,7 +29,7 @@ let price = RATE_BASE
 const HELLO_RETRY_SECONDS = 1
 
 let capacity = 0
-let orePerHit = 0
+let hitsPerRock = 0
 let muleOre = 0
 let muleCapacity = 0
 let walletReceived = false
@@ -45,9 +45,9 @@ export function getCarryCapacity(): number {
   return capacity
 }
 
-/** Ore a landed swing pays with the player's best pick. Zero means they own none. */
-export function getOrePerHit(): number {
-  return orePerHit
+/** Hits a rock takes with the player's best pick. Zero means they own none. */
+export function getHitsPerRock(): number {
+  return hitsPerRock
 }
 
 /** Ore waiting in the player's rig. */
@@ -65,9 +65,9 @@ export function quoteSaleForDisplay(amount: number): number {
   return quoteSaleAt(price, amount)
 }
 
-export function sendSwing(hit: boolean): void {
+export function sendRockDone(): void {
   if (!isStateSyncronized()) return
-  room.send('swing', { hit })
+  room.send('rockDone', { ready: true })
 }
 
 export function sendSell(amount: number): void {
@@ -113,7 +113,7 @@ export function setupEconomyLink(): void {
   room.onMessage('wallet', (data) => {
     walletReceived = true
     capacity = data.capacity
-    orePerHit = data.orePerHit
+    hitsPerRock = data.hitsPerRock
     muleOre = data.muleOre
     muleCapacity = data.muleCapacity
     applyServerWallet(data.ore, data.coins)
@@ -122,11 +122,11 @@ export function setupEconomyLink(): void {
     // Gear follows what is OWNED, not the moment of purchase. After a reload the purchase is
     // history but the pick is still theirs, so it has to be put back in their hand here —
     // this is the only message that runs on arrival. equipPick() is idempotent.
-    if (orePerHit > 0) equipPick()
+    if (hitsPerRock > 0) equipPick()
 
     console.log(
       `[economy] wallet from server: ${data.ore}/${data.capacity} ore, ${data.coins} coins, ` +
-        `${data.orePerHit} per hit, owned "${data.owned}"`
+        `${data.hitsPerRock} hits per rock, owned "${data.owned}"`
     )
   })
 

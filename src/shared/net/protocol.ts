@@ -10,15 +10,14 @@ import { registerMessages } from '@dcl/sdk/network'
 export const Messages = {
   // Client -> Server.
   //
-  // TBD: `swing` is trusted for now — the server takes the client's word for whether the
-  // needle was in the sweet spot, so a modified client can mint ore. Closing that needs the
-  // sweep to become server-driven, which is its own step (design/decisions.md, 2026-09-15).
   // "I am connected and listening." The server cannot know when a client's channel is ready,
   // and a wallet sent a moment too early is simply lost — so the client asks instead of being
   // guessed at. Retried until answered, which also covers a server that restarted underneath.
   hello: Schemas.Map({ ready: Schemas.Boolean }),
 
-  swing: Schemas.Map({ hit: Schemas.Boolean }),
+  // "I finished my rock." Paid only if enough time has passed since the last one for the hits
+  // it takes. TBD: the player's distance to the rock is not validated.
+  rockDone: Schemas.Map({ ready: Schemas.Boolean }),
   sell: Schemas.Map({ amount: Schemas.Number }),
   buy: Schemas.Map({ itemId: Schemas.String }),
 
@@ -36,7 +35,8 @@ export const Messages = {
     // Derived server-side from `owned` rather than worked out by the client, so the HUD can
     // draw the bag and the yield without the client deciding what a player is entitled to.
     capacity: Schemas.Number,
-    orePerHit: Schemas.Number,
+    // Hits a rock takes with the best pick owned. Zero means no pick.
+    hitsPerRock: Schemas.Number,
     // What the rig is holding, and how much it can hold. Zero capacity means none is owned.
     muleOre: Schemas.Number,
     muleCapacity: Schemas.Number
