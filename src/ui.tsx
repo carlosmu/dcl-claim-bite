@@ -16,9 +16,12 @@ import { bestPick, CATALOGUE, ShopItem } from './shared/economy/catalogue'
 import { getOwned } from './shared/state/inventory'
 import { getServerTick, isServerOnline } from './net/server-link'
 import { getMiningStatus } from './mining/rocks'
+import { setupRollingCounters, shownCoins, shownOre } from './ui/rolling-counter'
 import { DEBUG_ADD_COINS, DEBUG_SERVER_STATUS } from './shared/debug-flags'
 
 export function setupUi() {
+    setupRollingCounters()
+
     // No screen inset: the SDK's default ('device') pulls the whole UI in by the phone's safe
     // margins. The game is landscape and everything sits in the centred column, where no notch
     // or corner reaches, so those margins only shrank the UI for nothing.
@@ -177,9 +180,9 @@ const hud = () => {
         >
             {hudSegment(ICON_PICK, 'Tool', pick?.label ?? 'No pick', Color4.White())}
             {hudDivider()}
-            {hudSegment(ICON_ORE, 'Ore', capacity > 0 ? `${getOre()} / ${capacity}` : `${getOre()}`, ORE_COLOR)}
+            {hudSegment(ICON_ORE, 'Ore', capacity > 0 ? `${shownOre()} / ${capacity}` : `${shownOre()}`, ORE_COLOR)}
             {hudDivider()}
-            {hudSegment(ICON_COINS, 'Coins', `${getCoins()}`, COIN_COLOR)}
+            {hudSegment(ICON_COINS, 'Coins', `${shownCoins()}`, COIN_COLOR)}
         </UiEntity>
         </UiEntity>
     )
