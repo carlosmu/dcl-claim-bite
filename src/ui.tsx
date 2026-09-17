@@ -21,7 +21,10 @@ import { DEBUG_ADD_COINS, DEBUG_SERVER_STATUS } from './shared/debug-flags'
 // (src/mining/rocks.ts). The HUD is the one permanent thing on screen (§6).
 
 export function setupUi() {
-    ReactEcsRenderer.setUiRenderer(uiMenu, { virtualWidth: 1920, virtualHeight: 1080 })
+    // No screen inset: the SDK's default ('device') pulls the whole UI in by the phone's safe
+    // margins. The game is landscape and everything sits in the centred column, where no notch
+    // or corner reaches, so those margins only shrank the UI for nothing.
+    ReactEcsRenderer.setUiRenderer(uiMenu, { virtualWidth: 1920, virtualHeight: 1080, screenInset: 'none' })
 }
 
 const PANEL_WIDTH = 500
