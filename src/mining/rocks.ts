@@ -1,7 +1,7 @@
 import { Entity, engine, Transform } from '@dcl/sdk/ecs'
 import { Quaternion, Vector3 } from '@dcl/sdk/math'
 
-import { MINE_REACH_METERS, SWING_SECONDS } from '../shared/economy/constants'
+import { MINE_FACING_DEGREES, MINE_REACH_METERS, SWING_SECONDS } from '../shared/economy/constants'
 import { getCarryCapacity, getHitsPerRock, sendRockDone } from '../net/economy-link'
 import { getOre } from '../shared/state/wallet'
 import { playMineEmote } from '../player/mine-emote'
@@ -74,9 +74,23 @@ function isPlayerAtRock(): boolean {
   if (player === null) return false
   const rock = rockWorldPosition(rocks[current].entity)
   // Flat on the ground: a tall rock's origin can sit well above or below the player's feet.
-  const dx = player.position.x - rock.x
-  const dz = player.position.z - rock.z
-  return dx * dx + dz * dz <= MINE_REACH_METERS * MINE_REACH_METERS
+  const dx = rock.x - player.position.x
+  const dz = rock.z - player.position.z
+  const distanceSquared = dx * dx + dz * dz
+  if (distanceSquared > MINE_REACH_METERS * MINE_REACH_METERS) return false
+
+  // Standing on the rock's origin leaves no direction to face; count it as facing.
+  if (distanceSquared < 0.0001) return true
+
+  // The avatar's forward, flattened, against the flat direction to the rock. Both are unit
+  // length after this, so their dot product is the cosine of the angle between them.
+  const forward = Vector3.rotate(Vector3.Forward(), player.rotation)
+  const forwardLength = Math.sqrt(forward.x * forward.x + forward.z * forward.z)
+  if (forwardLength < 0.0001) return false
+
+  const distance = Math.sqrt(distanceSquared)
+  const cosine = (forward.x * dx + forward.z * dz) / (forwardLength * distance)
+  return cosine >= Math.cos((MINE_FACING_DEGREES * Math.PI) / 180)
 }
 
 function update(dt: number): void {

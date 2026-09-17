@@ -21,6 +21,13 @@ export const SWING_SECONDS = 1
 /** How close to the rock the player has to stand, measured flat on the ground. */
 export const MINE_REACH_METERS = 1.8
 
+/**
+ * How far the player's facing may stray from the rock and still swing, either side. 60° is a
+ * generous cone: facing roughly toward it counts, standing sideways or with your back to it
+ * does not.
+ */
+export const MINE_FACING_DEGREES = 60
+
 // --- The rate -------------------------------------------------------------------------
 //
 // Quoted as ORE PER COIN, like a currency board: selling pushes it UP, and up is worse for
