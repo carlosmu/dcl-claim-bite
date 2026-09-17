@@ -24,6 +24,11 @@ const MINING_PLACE_NAME = 'Mining_Place'
 
 const ROCK_DONE_SOUND = 'assets/sounds/match.mp3'
 
+// The pick striking stone, one per hit. Played from here rather than baked into the emote: the
+// hit lands when the swing's timer runs out, which is the moment this code knows about and the
+// emote does not — and it keeps the volume and the clip tunable without re-exporting the GLB.
+const HIT_SOUND = 'assets/sounds/picking.mp3'
+
 type Rock = { entity: Entity; scale: Vector3 }
 
 /** What the HUD draws under itself while mining. Null while there is nothing to say. */
@@ -137,6 +142,7 @@ function update(dt: number): void {
   if (swingTimer <= 0) {
     hits += 1
     swingTimer = -1
+    playSfx(HIT_SOUND, 0.7)
 
     if (hits >= needed) {
       sendRockDone()
