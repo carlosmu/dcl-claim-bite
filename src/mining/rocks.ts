@@ -41,8 +41,19 @@ export function getMiningStatus(): MiningStatus | null {
   return status
 }
 
+/**
+ * Below this speed the player counts as standing still, in metres per second.
+ *
+ * Swings only start once they have stopped. An emote fired while the avatar is still walking is
+ * cut short by the locomotion it is competing with, which is what ate the first swing of every
+ * rock: ten hits, nine animations.
+ */
+const STANDING_SPEED = 0.3
+
 let rocks: Rock[] = []
 let place: Entity | null = null
+let lastPosition: Vector3 | null = null
+let standing = false
 let current = -1
 let hits = 0
 
@@ -108,7 +119,20 @@ function isPlayerAtRock(): boolean {
   return cosine >= Math.cos((MINE_FACING_DEGREES * Math.PI) / 180)
 }
 
+/** Whether the player has stopped, measured from how far they moved since the last frame. */
+function trackStanding(dt: number): void {
+  const player = Transform.getOrNull(engine.PlayerEntity)
+  if (player === null) return
+
+  if (lastPosition !== null && dt > 0) {
+    const moved = Vector3.distance(player.position, lastPosition)
+    standing = moved / dt < STANDING_SPEED
+  }
+  lastPosition = Vector3.clone(player.position)
+}
+
 function update(dt: number): void {
+  trackStanding(dt)
   if (rocks.length === 0) return
   if (current < 0) showNextRock()
 
@@ -130,6 +154,14 @@ function update(dt: number): void {
   if (capacity > 0 && getOre() >= capacity) {
     swingTimer = -1
     status = { hits, needed, blocked: 'Bag full — sell at the bank' }
+    return
+  }
+
+  // Walking cancels the swing in flight rather than letting it pay for a hit that was never
+  // animated; the hits already in stay on the rock.
+  if (!standing) {
+    swingTimer = -1
+    status = { hits, needed, blocked: 'Stand still to mine' }
     return
   }
 

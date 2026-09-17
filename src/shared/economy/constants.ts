@@ -15,7 +15,14 @@
 /** Ore a completed rock pays. */
 export const ORE_PER_ROCK = 5
 
-/** One swing, from the start of the emote to the hit landing. */
+/**
+ * One swing: the length of `assets/animations/mine_emote.glb` (1.083s, read off the clip).
+ *
+ * The hit lands when this runs out, so the bar gains its block as the animation finishes rather
+ * than mid-swing. Shorter than the clip and every swing cuts the previous one off before it
+ * ends — including the last one, whose follow-through never got drawn. Re-measure this if the
+ * emote is ever re-exported.
+ */
 export const SWING_SECONDS = 1
 
 /** How close to the rock the player has to stand, measured flat on the ground. */
