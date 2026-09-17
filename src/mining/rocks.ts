@@ -4,7 +4,7 @@ import { Quaternion, Vector3 } from '@dcl/sdk/math'
 import { MINE_FACING_DEGREES, MINE_REACH_METERS, ORE_PER_ROCK, SWING_SECONDS } from '../shared/economy/constants'
 import { getCarryCapacity, getHitsPerRock, sendRockDone } from '../net/economy-link'
 import { getOre } from '../shared/state/wallet'
-import { playMineEmote } from '../player/mine-emote'
+import { startMineEmote, stopMineEmote } from '../player/mine-emote'
 import { playSfx } from '../world/sfx'
 import { showOrePopup } from '../ui/ore-popup'
 
@@ -119,6 +119,12 @@ function isPlayerAtRock(): boolean {
   return cosine >= Math.cos((MINE_FACING_DEGREES * Math.PI) / 180)
 }
 
+/** Ends the swing loop and forgets the swing in flight. The hits already on the rock stay. */
+function stopSwinging(): void {
+  swingTimer = -1
+  stopMineEmote()
+}
+
 /** Whether the player has stopped, measured from how far they moved since the last frame. */
 function trackStanding(dt: number): void {
   const player = Transform.getOrNull(engine.PlayerEntity)
@@ -138,21 +144,21 @@ function update(dt: number): void {
 
   if (!isPlayerAtRock()) {
     // Progress on the rock is kept; only the swing in flight is dropped.
-    swingTimer = -1
+    stopSwinging()
     status = null
     return
   }
 
   const needed = getHitsPerRock()
   if (needed <= 0) {
-    swingTimer = -1
+    stopSwinging()
     status = { hits: 0, needed: 1, blocked: 'You need a pick — the mayor has one for you' }
     return
   }
 
   const capacity = getCarryCapacity()
   if (capacity > 0 && getOre() >= capacity) {
-    swingTimer = -1
+    stopSwinging()
     status = { hits, needed, blocked: 'Bag full — sell at the bank' }
     return
   }
@@ -160,21 +166,25 @@ function update(dt: number): void {
   // Walking cancels the swing in flight rather than letting it pay for a hit that was never
   // animated; the hits already in stay on the rock.
   if (!standing) {
-    swingTimer = -1
+    stopSwinging()
     status = { hits, needed, blocked: 'Stand still to mine' }
     return
   }
 
+  // The emote runs as one loop for as long as the player keeps mining; the timer only decides
+  // when each hit lands inside it.
   if (swingTimer < 0) {
-    playMineEmote()
+    startMineEmote()
     swingTimer = SWING_SECONDS
   }
 
   swingTimer -= dt
   if (swingTimer <= 0) {
     hits += 1
-    swingTimer = -1
-    playSfx(HIT_SOUND, 0.7)
+    // Carried over rather than reset to the full swing, so the hits stay in step with a loop
+    // that never restarts.
+    swingTimer += SWING_SECONDS
+    playSfx(HIT_SOUND, 1)
 
     if (hits >= needed) {
       sendRockDone()
@@ -184,6 +194,7 @@ function update(dt: number): void {
       // that only moves once the server agrees.
       showOrePopup(ORE_PER_ROCK)
       console.log(`[mine] rock done after ${hits} hits`)
+      stopSwinging()
       status = null
       showNextRock()
       return
