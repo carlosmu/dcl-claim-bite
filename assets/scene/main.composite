@@ -29449,7 +29449,7 @@
         },
         "1562": {
           "json": {
-            "src": "assets/asset-packs/big_rock/RockLarge_01/RockLarge_01.glb",
+            "src": "assets/models/mining-rocks.glb",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
@@ -29463,28 +29463,28 @@
         },
         "67092": {
           "json": {
-            "src": "assets/asset-packs/big_rock/RockLarge_01/RockLarge_01.glb",
+            "src": "assets/models/mining-rocks.glb",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "67093": {
           "json": {
-            "src": "assets/asset-packs/big_rock/RockLarge_01/RockLarge_01.glb",
+            "src": "assets/models/mining-rocks.glb",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "67095": {
           "json": {
-            "src": "assets/asset-packs/big_rock/RockLarge_01/RockLarge_01.glb",
+            "src": "assets/models/mining-rocks.glb",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "67097": {
           "json": {
-            "src": "assets/asset-packs/big_rock/RockLarge_01/RockLarge_01.glb",
+            "src": "assets/models/mining-rocks.glb",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
