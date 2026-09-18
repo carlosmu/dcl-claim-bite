@@ -70,9 +70,9 @@ const DISABLED_COLOR = Color4.create(0.25, 0.25, 0.26, 1)
 // explorer's own interface. Tool, ore and coins, three segments split by hair lines, each an
 // icon beside a caption and its value.
 //
-// TBD: the icons are placeholders taken from atlas_01.png — the first three cells of a 4x4
-// grid. Swap ATLAS_* below when the real art lands; nothing else needs to change.
-const ATLAS = 'assets/images/atlas_01.png'
+// Icons come from UI_01.png, a 4x4 grid. Rows are lettered A–D from the top, columns 1–4 from
+// the left, so A2 is row A, column 2. Many cells are not used yet; they are mapped below anyway.
+const ATLAS = 'assets/images/UI_01.png'
 const ATLAS_COLUMNS = 4
 const ATLAS_ROWS = 4
 
@@ -99,9 +99,29 @@ function atlasCell(column: number, row: number): number[] {
     return [u0, v0, u0, v0 + h, u0 + w, v0 + h, u0 + w, v0]
 }
 
-const ICON_PICK = atlasCell(1, 1)
-const ICON_ORE = atlasCell(2, 1)
-const ICON_COINS = atlasCell(3, 1)
+const ICON_ORE = atlasCell(1, 1) // A1
+const ICON_PICK_IRON = atlasCell(2, 1) // A2 — pick tier 0
+const ICON_PICK_STEEL = atlasCell(3, 1) // A3 — pick tier 1
+const ICON_PICK_DIAMOND = atlasCell(4, 1) // A4 — pick tier 2
+const ICON_COINS = atlasCell(1, 2) // B1
+const ICON_MULE = atlasCell(2, 2) // B2
+const ICON_FUEL = atlasCell(3, 2) // B3
+const ICON_WAREHOUSE = atlasCell(4, 2) // B4
+const ICON_BANK = atlasCell(1, 3) // C1
+const ICON_HOUSE = atlasCell(2, 3) // C2
+const ICON_LOCK = atlasCell(3, 3) // C3
+const ICON_TIMER = atlasCell(4, 3) // C4
+const ICON_FORBIDDEN = atlasCell(1, 4) // D1 — skull / prohibited
+const ICON_SHERIFF = atlasCell(2, 4) // D2
+const ICON_MAP = atlasCell(3, 4) // D3
+const ICON_NOTIFICATION = atlasCell(4, 4) // D4 — bell
+
+// Pick icon by catalogue id. No pick shows the iron one.
+const PICK_ICONS: Record<string, number[]> = {
+    pick: ICON_PICK_IRON,
+    'steel-pick': ICON_PICK_STEEL,
+    'miners-pick': ICON_PICK_DIAMOND
+}
 
 const SERVER_ONLINE_COLOR = Color4.create(0.3, 0.9, 0.4, 1)
 const SERVER_OFFLINE_COLOR = Color4.create(1, 0.3, 0.3, 1)
@@ -180,7 +200,7 @@ const hud = () => {
             }}
             uiBackground={{ color: HUD_BACKGROUND }}
         >
-            {hudSegment(ICON_PICK, 'Tool', pick?.label ?? 'No pick', Color4.White())}
+            {hudSegment((pick && PICK_ICONS[pick.id]) ?? ICON_PICK_IRON,'Tool', pick?.label ?? 'No pick', Color4.White())}
             {hudDivider()}
             {hudSegment(ICON_ORE, 'Ore', capacity > 0 ? `${shownOre()} / ${capacity}` : `${shownOre()}`, ORE_COLOR)}
             {hudDivider()}
