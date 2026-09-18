@@ -68,33 +68,29 @@ export function BitmapText(props: BitmapTextProps) {
     for (let i = 0; i < value.length; i++) {
         const glyph = glyphFor(value[i])
         const kerning = i > 0 ? KERNINGS.get(value.charCodeAt(i - 1) * 65536 + value.charCodeAt(i)) ?? 0 : 0
+        // One entity per character, not a cell plus a glyph inside it: the glyph's offsets and
+        // the rest of its advance go into its margins. Half the entities matters on mobile,
+        // where every UI entity the renderer has to update is felt.
         glyphs.push(
             <UiEntity
                 key={i}
                 uiTransform={{
-                    width: glyph.advance * scale,
-                    height: fontSize,
+                    width: glyph.w * scale,
+                    height: glyph.h * scale,
                     flexShrink: 0,
-                    margin: { left: kerning * scale }
+                    alignSelf: 'flex-start',
+                    margin: {
+                        left: (kerning + glyph.x) * scale,
+                        right: (glyph.advance - glyph.x - glyph.w) * scale,
+                        top: glyph.y * scale
+                    }
                 }}
-            >
-                {glyph.w > 0 ? (
-                    <UiEntity
-                        uiTransform={{
-                            positionType: 'absolute',
-                            position: { left: glyph.x * scale, top: glyph.y * scale },
-                            width: glyph.w * scale,
-                            height: glyph.h * scale
-                        }}
-                        uiBackground={{
-                            texture: { src: WESTERN_TEXTURE },
-                            textureMode: 'stretch',
-                            uvs: glyph.u,
-                            color
-                        }}
-                    />
-                ) : null}
-            </UiEntity>
+                uiBackground={
+                    glyph.w > 0
+                        ? { texture: { src: WESTERN_TEXTURE }, textureMode: 'stretch', uvs: glyph.u, color }
+                        : undefined
+                }
+            />
         )
     }
 
@@ -103,7 +99,7 @@ export function BitmapText(props: BitmapTextProps) {
             uiTransform={{
                 height: fontSize,
                 flexDirection: 'row',
-                alignItems: 'center',
+                alignItems: 'flex-start',
                 justifyContent: align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start',
                 flexShrink: 0,
                 ...uiTransform

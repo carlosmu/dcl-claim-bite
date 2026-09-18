@@ -223,21 +223,33 @@ function update(dt: number): void {
     // Carried over rather than reset to the full swing, so the hits stay in step with a loop
     // that never restarts.
     swingTimer += SWING_SECONDS
+    // But never more than one swing's worth. A frame that stalls for seconds (mobile does) left
+    // the timer deep in debt, and paying it back one hit per frame finished the rock in a blink
+    // — whose popup stalled the next frame, and so on until the scene errored. A stall earns
+    // one hit, not several.
+    if (swingTimer <= 0) swingTimer = SWING_SECONDS
     playSfx(HIT_SOUND, 1)
+    // Where the swing is not a loop (mobile), each hit starts the next one; elsewhere this is
+    // a no-op while the loop runs.
+    if (hits < needed) startMineEmote()
 
     if (hits >= needed) {
+      // The rock's own state changes first, before anything that talks to the outside world:
+      // if one of those throws, the rock must already be finished, or every swing after it
+      // pays again.
+      const finishedAfter = hits
+      hideRock()
+      awaitingMove = AWAIT_MOVE_SECONDS
+      status = null
       sendRockDone(rocks.length)
       playSfx(ROCK_DONE_SOUND, 0.8)
       // Shown immediately rather than when the wallet comes back: the swing earned it, and a
       // popup a round trip late would not read as this rock's payout. The HUD is still the one
       // that only moves once the server agrees.
       showOrePopup(ORE_PER_ROCK)
-      console.log(`[mine] rock done after ${hits} hits`)
+      console.log(`[mine] rock done after ${finishedAfter} hits`)
+      // Hidden until the server moves the rock, for everybody at once (done above).
       stopSwinging()
-      status = null
-      // Hidden until the server moves the rock, for everybody at once.
-      hideRock()
-      awaitingMove = AWAIT_MOVE_SECONDS
       return
     }
   }

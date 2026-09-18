@@ -576,11 +576,10 @@ const miningBar = () => {
 // --- The "+5 Ore" popup ------------------------------------------------------------------
 //
 // Big, centred, rising and fading: the payout of a finished rock, where the player is already
-// looking. Drawn in the scene's bitmap typeface; the shadow is the same text drawn again in
-// black, a few pixels down and right, behind it.
+// looking. Drawn in the scene's bitmap typeface, whose shadow is baked into the glyphs.
 
 const POPUP_FONT_SIZE = 84
-const POPUP_SHADOW_OFFSET = 4
+const POPUP_FADE_STEPS = 4
 const POPUP_COLOR = Color4.create(1, 198 / 255, 0, 1)
 
 const orePopup = () => {
@@ -588,28 +587,21 @@ const orePopup = () => {
     if (popup === null) return null
 
     const text = `+${popup.amount} Ore`
-    // Fades over the second half only, so it is fully readable while it is rising.
-    const alpha = Math.min(1, (1 - popup.progress) * 2)
+    // Fades over the second half only, so it is fully readable while it is rising. In a few
+    // steps rather than every frame: the fade recolours every glyph, and doing that each frame
+    // stalled mobile until the scene errored.
+    const alpha = Math.ceil(Math.min(1, (1 - popup.progress) * 2) * POPUP_FADE_STEPS) / POPUP_FADE_STEPS
     const risen = popup.progress * RISE_SHARE * 100
-
-    const layer = (color: Color4, offset: number) => (
-        <BitmapText
-            value={text}
-            fontSize={POPUP_FONT_SIZE}
-            color={color}
-            align="center"
-            uiTransform={{
-                positionType: 'absolute',
-                position: { top: `${40 - risen + (offset / 1080) * 100}%`, left: offset },
-                width: '100%'
-            }}
-        />
-    )
 
     return (
         <UiEntity uiTransform={{ positionType: 'absolute', width: '100%', height: '100%' }}>
-            {layer(Color4.create(0, 0, 0, alpha), POPUP_SHADOW_OFFSET)}
-            {layer(Color4.create(POPUP_COLOR.r, POPUP_COLOR.g, POPUP_COLOR.b, alpha), 0)}
+            <BitmapText
+                value={text}
+                fontSize={POPUP_FONT_SIZE}
+                color={Color4.create(POPUP_COLOR.r, POPUP_COLOR.g, POPUP_COLOR.b, alpha)}
+                align="center"
+                uiTransform={{ positionType: 'absolute', position: { top: `${40 - risen}%` }, width: '100%' }}
+            />
         </UiEntity>
     )
 }
