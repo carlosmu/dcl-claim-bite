@@ -18,12 +18,18 @@ import { MARKET_ENTITY_ENUM_ID, OreMarket } from '../shared/net/market-sync'
 import { room } from '../shared/net/protocol'
 import { applySale, getMacroRate, getRate, oreForCoins, quoteSale, recoverRate, restoreMacroRate } from '../shared/state/market'
 import { loadMarketPrice, loadPurse, savePurse, saveMarketPrice } from './persistence'
-import { ORE_PER_ROCK, ROCK_TIME_TOLERANCE, SWING_SECONDS } from '../shared/economy/constants'
+import {
+  BOOM_TOWN_ACTIVE_SECONDS,
+  BOOM_TOWN_BONUS_PER_MINER,
+  ORE_PER_ROCK,
+  ROCK_TIME_TOLERANCE,
+  SWING_SECONDS
+} from '../shared/economy/constants'
 import { DEBUG_ADD_COINS, DEBUG_MAX_COINS } from '../shared/debug-flags'
 import { activePick, bestHitsPerRock, carryCapacity, findItem, ShopItemId } from '../shared/economy/catalogue'
 import { MULE_CAPACITY } from '../shared/economy/constants'
 import { collectableOre, settleMule } from './mule'
-import { advanceRock } from './rock'
+import { advanceRock, getRockSeq, hasFinishedRock, isRockStarted, markFinished, otherFinishers } from './rock'
 
 type Purse = {
   ore: number
@@ -78,6 +84,33 @@ let marketDirty = false
 let sinceLastSave = 0
 
 const lastRockAt = new Map<string, number>()
+
+/**
+ * Each player's last hit: when, and on which rock. The boom-town bonus counts the others whose
+ * last hit is recent and on the rock showing now. TBD: like rockDone, a client could report
+ * swings it never made.
+ */
+const lastSwing = new Map<string, { at: number; seq: number }>()
+
+/** Other players mining the current rock right now who have not finished it yet. */
+function otherMinersOnRock(address: string): number {
+  const seq = getRockSeq()
+  let count = 0
+  for (const [other, swing] of lastSwing) {
+    if (other === address || hasFinishedRock(other)) continue
+    if (swing.seq === seq && serverClock - swing.at <= BOOM_TOWN_ACTIVE_SECONDS) count += 1
+  }
+  return count
+}
+
+/**
+ * Moves the rock once it is spent: someone has finished it and nobody is still working on it.
+ * Runs every frame as well as on each finished bar, so a companion who walks off mid-bar does
+ * not leave the rock stuck for the ones already done.
+ */
+function moveSpentRock(): void {
+  if (isRockStarted() && otherMinersOnRock('') === 0) advanceRock()
+}
 const droppedRocks = new Map<string, number>()
 let sinceLastAbuseReport = 0
 
@@ -177,6 +210,10 @@ function handleRockDone(address: string, rockCount: number): void {
   const hits = activePick(owned, purse.equipped)?.hitsPerRock ?? 0
   if (hits <= 0) return
 
+  // Each rock pays each player once. The client hides a rock it has finished, so this is only
+  // reached by a modified client or a message racing a move.
+  if (hasFinishedRock(address)) return
+
   // Dropped silently: an honest client cannot finish a rock faster than its swings allow, and
   // answering would hand a spammer a reply for every message they send.
   const last = lastRockAt.get(address)
@@ -186,16 +223,26 @@ function handleRockDone(address: string, rockCount: number): void {
   }
   lastRockAt.set(address, serverClock)
 
-  // A paid rock moves the shared rock for everybody.
-  advanceRock(rockCount)
+  // The boom-town bonus: +1 per other player on this rock — still mining it, or already done
+  // with it. Counting the ones done is what gives the last of a group the same bonus as the
+  // first: three together pay 7 each, whoever finishes when.
+  const others = otherMinersOnRock(address) + otherFinishers(address)
+  markFinished(address, rockCount)
+  lastSwing.delete(address)
+
+  // Once everyone on it is done, the rock moves; until then it waits for the rest.
+  moveSpentRock()
 
   // The bag is the ceiling. What does not fit is lost: the client stops swinging at capacity,
   // so reaching this means a rock slipped through.
-  const room = Math.max(0, carryCapacity(owned) - purse.ore)
-  purse.ore += Math.min(ORE_PER_ROCK, room)
+  const space = Math.max(0, carryCapacity(owned) - purse.ore)
+  const bonus = others * BOOM_TOWN_BONUS_PER_MINER
+  const paid = Math.min(ORE_PER_ROCK + bonus, space)
+  purse.ore += paid
 
   dirty.add(address)
   sendWallet(address)
+  room.send('rockPaid', { ore: paid, bonus: Math.max(0, paid - ORE_PER_ROCK) }, { to: [address] })
 }
 
 function handleSell(address: string, requested: number): void {
@@ -538,6 +585,11 @@ export function setupEconomy(): void {
     handleRockDone(context.from, data.rocks)
   })
 
+  room.onMessage('swing', (data, context) => {
+    if (!context) return
+    lastSwing.set(context.from, { at: serverClock, seq: data.seq })
+  })
+
   room.onMessage('sell', (data, context) => {
     if (!context) return
     handleSell(context.from, data.amount)
@@ -560,4 +612,5 @@ export function setupEconomy(): void {
   engine.addSystem(flushSaves, undefined, 'server:save')
   engine.addSystem(settlePresentMules, undefined, 'server:mule-settle')
   engine.addSystem(checkPresence, undefined, 'server:presence')
+  engine.addSystem(moveSpentRock, undefined, 'server:rock-move')
 }

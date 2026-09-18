@@ -19,6 +19,9 @@ export const Messages = {
   // it takes. TBD: the player's distance to the rock is not validated. `rocks` is how many
   // rocks the client's scene has, so the server can pick the next shared one (server/rock.ts).
   rockDone: Schemas.Map({ rocks: Schemas.Number }),
+
+  /** "I just hit the rock with this seq." How the server knows who is mining which rock. */
+  swing: Schemas.Map({ seq: Schemas.Number }),
   sell: Schemas.Map({ amount: Schemas.Number }),
   buy: Schemas.Map({ itemId: Schemas.String }),
 
@@ -54,6 +57,10 @@ export const Messages = {
     muleOre: Schemas.Number,
     muleCapacity: Schemas.Number
   }),
+
+  // Server -> one client: what a finished rock paid. `bonus` is the boom-town part of `ore`,
+  // already capped by the bag like the rest.
+  rockPaid: Schemas.Map({ ore: Schemas.Number, bonus: Schemas.Number }),
 
   // Server -> one client: the outcome of something the player asked for, for the log and
   // for the sound. `ok` false means the request was refused.

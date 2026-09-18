@@ -16,6 +16,12 @@
 export const ORE_PER_ROCK = 5
 
 /**
+ * The boom-town bonus (balance.md §2): extra ore for each OTHER player active on the same rock
+ * when a bar completes. Alone 5, two players 6 each, three 7. No cap yet (open).
+ */
+export const BOOM_TOWN_BONUS_PER_MINER = 1
+
+/**
  * One swing: the length of `assets/animations/mine_emote.glb` (1.083s, read off the clip).
  *
  * The hit lands when this runs out, so the bar gains its block as the animation finishes rather
@@ -24,6 +30,12 @@ export const ORE_PER_ROCK = 5
  * emote is ever re-exported.
  */
 export const SWING_SECONDS = 1
+
+/**
+ * How recently another player must have landed a hit to count as active on the rock. A bit
+ * over two swings, so one late message does not drop a miner who is still there.
+ */
+export const BOOM_TOWN_ACTIVE_SECONDS = SWING_SECONDS * 2.5
 
 /** How close to the rock the player has to stand, measured flat on the ground. */
 export const MINE_REACH_METERS = 1.8

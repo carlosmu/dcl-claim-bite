@@ -581,6 +581,10 @@ const miningBar = () => {
 const POPUP_FONT_SIZE = 84
 const POPUP_FADE_STEPS = 4
 const POPUP_COLOR = Color4.create(1, 198 / 255, 0, 1)
+// The social bonus line under it: smaller, and magenta, the town's colour for what other
+// players bring (section 7).
+const POPUP_BONUS_FONT_SIZE = 52
+const POPUP_BONUS_COLOR = MAGENTA
 
 const orePopup = () => {
     const popup = getOrePopup()
@@ -602,6 +606,19 @@ const orePopup = () => {
                 align="center"
                 uiTransform={{ positionType: 'absolute', position: { top: `${40 - risen}%` }, width: '100%' }}
             />
+            {popup.bonus > 0 ? (
+                <BitmapText
+                    value={`+${popup.bonus} Social bonus`}
+                    fontSize={POPUP_BONUS_FONT_SIZE}
+                    color={Color4.create(POPUP_BONUS_COLOR.r, POPUP_BONUS_COLOR.g, POPUP_BONUS_COLOR.b, alpha)}
+                    align="center"
+                    uiTransform={{
+                        positionType: 'absolute',
+                        position: { top: `${40 - risen + (POPUP_FONT_SIZE / 1080) * 100}%` },
+                        width: '100%'
+                    }}
+                />
+            ) : null}
         </UiEntity>
     )
 }

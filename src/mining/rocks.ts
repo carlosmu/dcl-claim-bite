@@ -2,7 +2,7 @@ import { Entity, engine, Transform } from '@dcl/sdk/ecs'
 import { Quaternion, Vector3 } from '@dcl/sdk/math'
 
 import { MINE_FACING_DEGREES, MINE_REACH_METERS, ORE_PER_ROCK, SWING_SECONDS } from '../shared/economy/constants'
-import { getCarryCapacity, getHitsPerRock, sendRockDone } from '../net/economy-link'
+import { getCarryCapacity, getHitsPerRock, sendRockDone, sendSwing } from '../net/economy-link'
 import { getOre } from '../shared/state/wallet'
 import { startMineEmote, stopMineEmote } from '../player/mine-emote'
 import { playSfx } from '../world/sfx'
@@ -62,11 +62,18 @@ let hits = 0
 let shownSeq = -1
 
 /**
- * Seconds left waiting for the server to move the rock after finishing it. The rock is hidden
- * meanwhile; if the server never moves it (a refused rock, or no server), it comes back.
+ * The seq of the rock this player last finished. Each rock is mined once per player, so it
+ * stays hidden for them until the server moves it — which, with company, waits until everyone
+ * on it is done.
  */
-const AWAIT_MOVE_SECONDS = 3
-let awaitingMove = -1
+let finishedSeq = -2
+
+/**
+ * Seconds left before a finished rock comes back when there is no server to move it (shownSeq
+ * still -1). Offline only; online the rock waits for the move however long it takes.
+ */
+const OFFLINE_RESHOW_SECONDS = 3
+let offlineReshow = -1
 
 /** Seconds until the swing in progress lands. Negative while not swinging. */
 let swingTimer = -1
@@ -107,7 +114,7 @@ function followSharedRock(dt: number): void {
 
   if (active !== null && active.seq !== shownSeq) {
     shownSeq = active.seq
-    awaitingMove = -1
+    offlineReshow = -1
     stopSwinging()
     showRock(active.index % rocks.length)
     return
@@ -115,9 +122,12 @@ function followSharedRock(dt: number): void {
 
   if (current < 0) showRock(0)
 
-  if (awaitingMove >= 0) {
-    awaitingMove -= dt
-    if (awaitingMove < 0) showRock(current)
+  if (offlineReshow >= 0) {
+    offlineReshow -= dt
+    if (offlineReshow < 0) {
+      finishedSeq = -2
+      showRock(current)
+    }
   }
 }
 
@@ -176,7 +186,8 @@ function update(dt: number): void {
   if (rocks.length === 0) return
   followSharedRock(dt)
 
-  if (awaitingMove >= 0) {
+  // Already mined by this player: nothing to do here until the rock moves.
+  if (finishedSeq === shownSeq) {
     status = null
     return
   }
@@ -229,6 +240,8 @@ function update(dt: number): void {
     // one hit, not several.
     if (swingTimer <= 0) swingTimer = SWING_SECONDS
     playSfx(HIT_SOUND, 1)
+    // Tells the server this player is on this rock, for the boom-town bonus.
+    sendSwing(shownSeq)
     // Where the swing is not a loop (mobile), each hit starts the next one; elsewhere this is
     // a no-op while the loop runs.
     if (hits < needed) startMineEmote()
@@ -239,7 +252,8 @@ function update(dt: number): void {
       // pays again.
       const finishedAfter = hits
       hideRock()
-      awaitingMove = AWAIT_MOVE_SECONDS
+      finishedSeq = shownSeq
+      if (shownSeq < 0) offlineReshow = OFFLINE_RESHOW_SECONDS
       status = null
       sendRockDone(rocks.length)
       playSfx(ROCK_DONE_SOUND, 0.8)

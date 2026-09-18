@@ -10,6 +10,7 @@ import { isStateSyncronized } from '@dcl/sdk/network'
 
 import { room } from '../shared/net/protocol'
 import { OreMarket } from '../shared/net/market-sync'
+import { showSocialBonus } from '../ui/ore-popup'
 import { applyServerWallet } from '../shared/state/wallet'
 import { applyServerEquipped, applyServerOwned } from '../shared/state/inventory'
 import { RATE_BASE } from '../shared/economy/constants'
@@ -68,6 +69,11 @@ export function quoteSaleForDisplay(amount: number): number {
 export function sendRockDone(rocks: number): void {
   if (!isStateSyncronized()) return
   room.send('rockDone', { rocks })
+}
+
+export function sendSwing(seq: number): void {
+  if (!isStateSyncronized()) return
+  room.send('swing', { seq })
 }
 
 export function sendSell(amount: number): void {
@@ -148,6 +154,11 @@ export function setupEconomyLink(): void {
       `[economy] wallet from server: ${data.ore}/${data.capacity} ore, ${data.coins} coins, ` +
         `${data.hitsPerRock} hits per rock, owned "${data.owned}"`
     )
+  })
+
+  // The payout's boom-town part, added under the "+5 Ore" that went up when the bar filled.
+  room.onMessage('rockPaid', (data) => {
+    if (data.bonus > 0) showSocialBonus(data.bonus)
   })
 
   // The feedback for an action fires here rather than at the button, because only now is it
