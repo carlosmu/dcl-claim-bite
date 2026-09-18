@@ -21,6 +21,9 @@ export const Messages = {
   sell: Schemas.Map({ amount: Schemas.Number }),
   buy: Schemas.Map({ itemId: Schemas.String }),
 
+  /** "Use this pick." Only a pick the player already owns can be equipped. */
+  equip: Schemas.Map({ itemId: Schemas.String }),
+
   /** "Empty the rig into my bag." Takes what fits and leaves the rest in the rig. */
   collect: Schemas.Map({ ready: Schemas.Boolean }),
 
@@ -41,8 +44,11 @@ export const Messages = {
     // Derived server-side from `owned` rather than worked out by the client, so the HUD can
     // draw the bag and the yield without the client deciding what a player is entitled to.
     capacity: Schemas.Number,
-    // Hits a rock takes with the best pick owned. Zero means no pick.
+    // Hits a rock takes with the pick in use. Zero means no pick.
     hitsPerRock: Schemas.Number,
+    // The id of the pick in use — the one chosen in the inventory, or the best owned. Empty
+    // means no pick.
+    equipped: Schemas.String,
     // What the rig is holding, and how much it can hold. Zero capacity means none is owned.
     muleOre: Schemas.Number,
     muleCapacity: Schemas.Number

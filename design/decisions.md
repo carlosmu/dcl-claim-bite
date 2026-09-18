@@ -2,6 +2,7 @@
 
 Append-only, newest first. `date · decision · why`. Standing non-goals live here too.
 
+- 2026-09-18 · Inventory screen added (button at the bottom-right of the column): lists what the player owns and lets them switch between owned picks. The server stores the chosen pick (`equipped`) and uses it for hits per rock; a pick just bought is equipped automatically. Overrides balance.md §0's "no inventory/toolbar" · owner call
 - 2026-09-18 · Wheelbarrow removed from the Market; the Warehouse replaces it as the only storage (pockets 100, tier-1 warehouse 500, per balance.md §4). Price kept at 60 as a placeholder until warehouse T1 cost is set; tiers 2–3 and buying it at its own building are still to build · owner call
 - 2026-09-18 · Three picks — Iron, Steel, Diamond — at 12/9/6 hits per ore, each with its own held model (pick-0/1/2.glb). Supersedes the 12/10/8/6 four-tier split · owner call
 - 2026-09-17 · Mining built: the children of `Mining_Place` show one at a time per player (client-local, hidden by scale 0 so a hidden rock doesn't collide); standing within 1.8m auto-swings the emote once per second, a "hits/needed" bar floats over the player's head, and a full bar sends `rockDone`, which the server pays (5 ore) only if hits × 1s × 0.8 has passed since that player's last rock · owner call on the flow, agent call on the numbers. The `swing` message, sweet spot and `Goldmine` zone are gone. TBD: the server does not check the player is at a rock

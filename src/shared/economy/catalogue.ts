@@ -48,6 +48,16 @@ export function bestPick(ownedCount: (id: ShopItemId) => number): ShopItem | nul
   return best
 }
 
+/**
+ * The pick the player is actually using: the one they chose in the inventory, if they still
+ * own it, otherwise the best they own. Choosing is only ever between picks already owned.
+ */
+export function activePick(ownedCount: (id: ShopItemId) => number, equipped: string): ShopItem | null {
+  const chosen = PICKS.find((pick) => pick.id === equipped)
+  if (chosen !== undefined && ownedCount(chosen.id) > 0) return chosen
+  return bestPick(ownedCount)
+}
+
 /** Hits a rock takes with the best pick owned. Zero means no pick: the player cannot mine. */
 export function bestHitsPerRock(ownedCount: (id: ShopItemId) => number): number {
   return bestPick(ownedCount)?.hitsPerRock ?? 0

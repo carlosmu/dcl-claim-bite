@@ -20,7 +20,7 @@ import { applySale, getMacroRate, getRate, oreForCoins, quoteSale, recoverRate, 
 import { loadMarketPrice, loadPurse, savePurse, saveMarketPrice } from './persistence'
 import { ORE_PER_ROCK, ROCK_TIME_TOLERANCE, SWING_SECONDS } from '../shared/economy/constants'
 import { DEBUG_ADD_COINS, DEBUG_MAX_COINS } from '../shared/debug-flags'
-import { bestHitsPerRock, carryCapacity, findItem, ShopItemId } from '../shared/economy/catalogue'
+import { activePick, bestHitsPerRock, carryCapacity, findItem, ShopItemId } from '../shared/economy/catalogue'
 import { MULE_CAPACITY } from '../shared/economy/constants'
 import { collectableOre, settleMule } from './mule'
 
@@ -31,6 +31,8 @@ type Purse = {
   /** Ore sitting in the player's M.U.L.E., and when it was last settled. */
   muleOre: number
   muleAt: number
+  /** The pick chosen in the inventory; see activePick for what happens when it is not owned. */
+  equipped: string
 }
 
 const purses = new Map<string, Purse>()
@@ -97,7 +99,8 @@ function beginLoad(address: string): void {
         coins: stored?.coins ?? 0,
         owned: stored?.owned ?? {},
         muleOre: stored?.muleOre ?? 0,
-        muleAt: stored?.muleAt ?? 0
+        muleAt: stored?.muleAt ?? 0,
+        equipped: stored?.equipped ?? ''
       }
 
       // Settled the moment it is read, so the wallet the player is about to be shown already
@@ -147,7 +150,8 @@ function sendWallet(address: string): void {
       coins: purse.coins,
       owned: encodeOwned(purse),
       capacity: carryCapacity(owned),
-      hitsPerRock: bestHitsPerRock(owned),
+      hitsPerRock: activePick(owned, purse.equipped)?.hitsPerRock ?? 0,
+      equipped: activePick(owned, purse.equipped)?.id ?? '',
       muleOre: collectableOre(purse),
       muleCapacity: owned('mule') > 0 ? MULE_CAPACITY : 0
     },
@@ -165,10 +169,11 @@ function handleRockDone(address: string): void {
   // replaced. The window is a fraction of a second, right after arriving.
   if (purse === null) return
 
-  // How many hits a rock takes comes from the best pick the player OWNS, which is server
-  // state — so the tier cannot be claimed by a client, only earned. No pick, no rock.
+  // How many hits a rock takes comes from the pick in use, chosen only among picks the player
+  // OWNS, which is server state — so the tier cannot be claimed by a client, only earned.
+  // No pick, no rock.
   const owned = (id: ShopItemId) => purse.owned[id] ?? 0
-  const hits = bestHitsPerRock(owned)
+  const hits = activePick(owned, purse.equipped)?.hitsPerRock ?? 0
   if (hits <= 0) return
 
   // Dropped silently: an honest client cannot finish a rock faster than its swings allow, and
@@ -248,11 +253,36 @@ function handleBuy(address: string, itemId: string): void {
 
   purse.coins -= item.price
   purse.owned[item.id] = (purse.owned[item.id] ?? 0) + 1
+  // A pick just bought goes straight into the hand; the inventory can swap it back.
+  if (item.hitsPerRock !== undefined) purse.equipped = item.id
   dirty.add(address)
 
   sendWallet(address)
   sendResult(address, 'buy', true, item.id)
   console.log(`[Server] ${address} bought ${item.label} for ${item.price} · balance ${purse.coins}`)
+}
+
+function handleEquip(address: string, itemId: string): void {
+  const purse = purseOf(address)
+  if (purse === null) {
+    sendResult(address, 'equip', false, 'still loading')
+    return
+  }
+
+  const item = findItem(itemId as ShopItemId)
+  if (item === null || item.hitsPerRock === undefined) {
+    sendResult(address, 'equip', false, 'not a pick')
+    return
+  }
+  if ((purse.owned[item.id] ?? 0) <= 0) {
+    sendResult(address, 'equip', false, 'not owned')
+    return
+  }
+
+  purse.equipped = item.id
+  dirty.add(address)
+  sendWallet(address)
+  sendResult(address, 'equip', true, item.id)
 }
 
 // The mayor's pick: free, and only for someone who has none — so it can be asked for again after
@@ -392,7 +422,8 @@ function flushPurse(address: string): void {
     coins: purse.coins,
     owned: purse.owned,
     muleOre: purse.muleOre,
-    muleAt: purse.muleAt
+    muleAt: purse.muleAt,
+    equipped: purse.equipped
   })
 }
 
@@ -511,6 +542,11 @@ export function setupEconomy(): void {
   room.onMessage('buy', (data, context) => {
     if (!context) return
     handleBuy(context.from, data.itemId)
+  })
+
+  room.onMessage('equip', (data, context) => {
+    if (!context) return
+    handleEquip(context.from, data.itemId)
   })
 
   // The clock goes first so everything scheduled after it reads the current frame's time.

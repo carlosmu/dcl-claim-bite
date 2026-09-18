@@ -11,12 +11,11 @@ import { isStateSyncronized } from '@dcl/sdk/network'
 import { room } from '../shared/net/protocol'
 import { OreMarket } from '../shared/net/market-sync'
 import { applyServerWallet } from '../shared/state/wallet'
-import { applyServerOwned, getOwned } from '../shared/state/inventory'
+import { applyServerEquipped, applyServerOwned } from '../shared/state/inventory'
 import { RATE_BASE } from '../shared/economy/constants'
 import { quoteSaleAt } from '../shared/state/market'
 import { playSfx } from '../world/sfx'
 import { equipPick } from '../player/held-pick'
-import { bestPick } from '../shared/economy/catalogue'
 
 const BANK_SOUND_CLIP = 'assets/sounds/bank.mp3'
 const BUY_SOUND_CLIP = 'assets/sounds/buy.mp3'
@@ -46,7 +45,7 @@ export function getCarryCapacity(): number {
   return capacity
 }
 
-/** Hits a rock takes with the player's best pick. Zero means they own none. */
+/** Hits a rock takes with the player's pick in use. Zero means they own none. */
 export function getHitsPerRock(): number {
   return hitsPerRock
 }
@@ -79,6 +78,12 @@ export function sendSell(amount: number): void {
 export function sendBuy(itemId: string): void {
   if (!isStateSyncronized()) return
   room.send('buy', { itemId })
+}
+
+/** Asks to use a pick the player already owns. */
+export function sendEquip(itemId: string): void {
+  if (!isStateSyncronized()) return
+  room.send('equip', { itemId })
 }
 
 /** Asks the mayor's free pick. The server only grants it to a player with none. */
@@ -131,13 +136,13 @@ export function setupEconomyLink(): void {
     muleCapacity = data.muleCapacity
     applyServerWallet(data.ore, data.coins)
     applyServerOwned(data.owned)
+    applyServerEquipped(data.equipped)
 
     // Gear follows what is OWNED, not the moment of purchase. After a reload the purchase is
     // history but the pick is still theirs, so it has to be put back in their hand here —
     // this is the only message that runs on arrival. equipPick() is idempotent, and swaps the
-    // model when a better pick is bought.
-    const pick = bestPick((id) => getOwned(id))
-    if (hitsPerRock > 0 && pick) equipPick(pick.id)
+    // model when another pick is bought or chosen in the inventory.
+    if (data.equipped !== '') equipPick(data.equipped)
 
     console.log(
       `[economy] wallet from server: ${data.ore}/${data.capacity} ore, ${data.coins} coins, ` +
@@ -154,7 +159,7 @@ export function setupEconomyLink(): void {
     }
 
     if (data.action === 'sell') playSfx(BANK_SOUND_CLIP, SOUND_VOLUME)
-    if (data.action === 'buy' || data.action === 'claimPick') playSfx(BUY_SOUND_CLIP, SOUND_VOLUME)
+    if (data.action === 'buy' || data.action === 'claimPick' || data.action === 'equip') playSfx(BUY_SOUND_CLIP, SOUND_VOLUME)
     if (data.action === 'collect') playSfx(BANK_SOUND_CLIP, SOUND_VOLUME)
     console.log(`[economy] ${data.action}: ${data.detail}`)
   })

@@ -10,9 +10,19 @@
 import { ShopItemId } from '../economy/catalogue'
 
 const owned: Partial<Record<ShopItemId, number>> = {}
+let equipped = ''
 
 export function getOwned(id: ShopItemId): number {
   return owned[id] ?? 0
+}
+
+/** The id of the pick in use, as the server last said. Empty means no pick. */
+export function getEquipped(): string {
+  return equipped
+}
+
+export function applyServerEquipped(id: string): void {
+  equipped = id
 }
 
 /** Replaces the inventory from the `id:count` pairs the server sends. */

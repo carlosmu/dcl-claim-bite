@@ -29,6 +29,8 @@ export type StoredPurse = {
    */
   muleOre?: number
   muleAt?: number
+  /** The pick chosen in the inventory. Missing or not owned means the best one owned. */
+  equipped?: string
 }
 
 /**

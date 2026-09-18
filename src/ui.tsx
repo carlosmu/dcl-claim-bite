@@ -8,12 +8,13 @@ import {
     getMuleOre,
     getSyncedRate,
     quoteSaleForDisplay,
-    sendDebugCoins
+    sendDebugCoins,
+    sendEquip
 } from './net/economy-link'
 import { buySelected, getSelectedItem, getSelectedItemId, isPlayerAtShop, selectItem } from './shop/shop'
 import { collectMule, isPlayerAtMule } from './mule/mule'
-import { bestPick, CATALOGUE, ShopItem } from './shared/economy/catalogue'
-import { getOwned } from './shared/state/inventory'
+import { activePick, CATALOGUE, PICKS, ShopItem, ShopItemId } from './shared/economy/catalogue'
+import { getEquipped, getOwned } from './shared/state/inventory'
 import { getServerTick, isServerOnline } from './net/server-link'
 import { getMiningStatus } from './mining/rocks'
 import { setupRollingCounters, shownCoins, shownOre } from './ui/rolling-counter'
@@ -173,7 +174,7 @@ const hudSegment = (uvs: number[], caption: string, value: string, color: Color4
 )
 
 const hud = () => {
-    const pick = bestPick((id) => getOwned(id))
+    const pick = activePick((id) => getOwned(id), getEquipped())
     const capacity = getCarryCapacity()
 
     return (
@@ -707,6 +708,148 @@ const mulePanel = () => {
     )
 }
 
+// --- Inventory ----------------------------------------------------------------------------
+//
+// Opened by a button at the bottom-right of the column; closes itself with its own button. Lists
+// what the player owns. Picks can be switched between — a request, answered by the wallet — and
+// everything else is shown for reference only.
+
+let inventoryOpen = false
+
+const INVENTORY_ICON_SIZE = 72
+const INVENTORY_ROW_HEIGHT = 88
+
+// Icons for the non-pick items. The house and the rest have their own cells in the atlas.
+const ITEM_ICONS: Partial<Record<ShopItemId, number[]>> = {
+    warehouse: ICON_WAREHOUSE,
+    mule: ICON_MULE,
+    house: ICON_HOUSE
+}
+
+const inventoryRow = (item: ShopItem) => {
+    const isPick = item.hitsPerRock !== undefined
+    const inUse = isPick && getEquipped() === item.id
+    const icon = isPick ? PICK_ICONS[item.id] : ITEM_ICONS[item.id]
+    const detail = isPick ? `${item.hitsPerRock} hits per rock` : `owned ${getOwned(item.id)}`
+
+    return (
+        <UiEntity
+            uiTransform={{
+                width: '100%',
+                height: INVENTORY_ROW_HEIGHT,
+                flexDirection: 'row',
+                alignItems: 'center',
+                padding: { left: 12, right: 12 },
+                margin: { bottom: 8 },
+                borderRadius: 10,
+                borderWidth: 2,
+                borderColor: inUse ? MAGENTA : TILE_BORDER_COLOR
+            }}
+            uiBackground={{ color: inUse ? TILE_SELECTED_COLOR : TILE_COLOR }}
+        >
+            {icon !== undefined ? (
+                <UiEntity
+                    uiTransform={{ width: INVENTORY_ICON_SIZE, height: INVENTORY_ICON_SIZE, margin: { right: 14 }, flexShrink: 0 }}
+                    uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: icon }}
+                />
+            ) : null}
+            <UiEntity uiTransform={{ flexGrow: 1, flexDirection: 'column', justifyContent: 'center' }}>
+                <Label
+                    value={item.label}
+                    fontSize={22}
+                    color={Color4.White()}
+                    textAlign="middle-left"
+                    textWrap="nowrap"
+                    uiTransform={{ height: 30 }}
+                />
+                <Label
+                    value={detail}
+                    fontSize={16}
+                    color={MUTED_COLOR}
+                    textAlign="middle-left"
+                    textWrap="nowrap"
+                    uiTransform={{ height: 22 }}
+                />
+            </UiEntity>
+            {isPick ? (
+                <Button
+                    value={inUse ? 'In use' : 'Use'}
+                    fontSize={20}
+                    color={Color4.White()}
+                    disabled={inUse}
+                    uiTransform={{ width: 110, height: 46, borderRadius: 8, flexShrink: 0 }}
+                    uiBackground={{ color: inUse ? DISABLED_COLOR : MAGENTA }}
+                    onMouseDown={() => sendEquip(item.id)}
+                />
+            ) : null}
+        </UiEntity>
+    )
+}
+
+const inventoryPanel = () => {
+    // Picks first, best last, then everything else — only what the player owns.
+    const items = [...PICKS, ...CATALOGUE.filter((item) => item.hitsPerRock === undefined)].filter(
+        (item) => getOwned(item.id) > 0
+    )
+
+    return (
+        <UiEntity
+            uiTransform={{
+                width: '100%',
+                flexDirection: 'column',
+                alignItems: 'center',
+                padding: 20,
+                borderRadius: PANEL_RADIUS
+            }}
+            uiBackground={{ color: PANEL_BACKGROUND }}
+        >
+            <Label
+                value="Inventory"
+                fontSize={30}
+                color={Color4.White()}
+                textAlign="middle-center"
+                uiTransform={{ width: '100%', height: 42, margin: { bottom: 8 } }}
+            />
+            {items.length === 0 ? (
+                <Label
+                    value="Nothing yet — the mayor has a pick for you"
+                    fontSize={20}
+                    color={MUTED_COLOR}
+                    textAlign="middle-center"
+                    uiTransform={{ width: '100%', height: 40 }}
+                />
+            ) : (
+                items.map(inventoryRow)
+            )}
+            <Button
+                value="Close"
+                fontSize={20}
+                color={Color4.White()}
+                uiTransform={{ width: '100%', height: 46, margin: { top: 8 }, borderRadius: 10 }}
+                uiBackground={{ color: STEP_BUTTON_COLOR }}
+                onMouseDown={() => {
+                    inventoryOpen = false
+                }}
+            />
+        </UiEntity>
+    )
+}
+
+const inventoryButton = () => (
+    <UiEntity uiTransform={{ positionType: 'absolute', position: { bottom: 56, right: 0 } }}>
+        <Button
+            value={inventoryOpen ? 'Close' : 'Inventory'}
+            fontSize={18}
+            color={Color4.White()}
+            uiTransform={{ width: 150, height: 44, borderRadius: 8 }}
+            uiBackground={{ color: STEP_BUTTON_COLOR }}
+            onMouseDown={() => {
+                inventoryOpen = !inventoryOpen
+            }}
+        />
+    </UiEntity>
+)
+
 export const uiMenu = () => (
     <UiEntity
         uiTransform={{
@@ -731,9 +874,11 @@ export const uiMenu = () => (
             {hud()}
             {miningBar()}
             {orePopup()}
-            {isPlayerAtBank() ? bankPanel() : null}
-            {isPlayerAtShop() ? marketPanel() : null}
-            {isPlayerAtMule() && getMuleCapacity() > 0 ? mulePanel() : null}
+            {inventoryOpen ? inventoryPanel() : null}
+            {!inventoryOpen && isPlayerAtBank() ? bankPanel() : null}
+            {!inventoryOpen && isPlayerAtShop() ? marketPanel() : null}
+            {!inventoryOpen && isPlayerAtMule() && getMuleCapacity() > 0 ? mulePanel() : null}
+            {inventoryButton()}
             {DEBUG_SERVER_STATUS ? serverStatus() : null}
             {DEBUG_ADD_COINS ? debugCoinsTool() : null}
         </UiEntity>
