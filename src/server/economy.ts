@@ -23,6 +23,7 @@ import { DEBUG_ADD_COINS, DEBUG_MAX_COINS } from '../shared/debug-flags'
 import { activePick, bestHitsPerRock, carryCapacity, findItem, ShopItemId } from '../shared/economy/catalogue'
 import { MULE_CAPACITY } from '../shared/economy/constants'
 import { collectableOre, settleMule } from './mule'
+import { advanceRock } from './rock'
 
 type Purse = {
   ore: number
@@ -163,7 +164,7 @@ function sendResult(address: string, action: string, ok: boolean, detail: string
   room.send('actionResult', { action, ok, detail }, { to: [address] })
 }
 
-function handleRockDone(address: string): void {
+function handleRockDone(address: string, rockCount: number): void {
   const purse = purseOf(address)
   // Still loading: the rock is dropped rather than paid into a purse that is about to be
   // replaced. The window is a fraction of a second, right after arriving.
@@ -184,6 +185,9 @@ function handleRockDone(address: string): void {
     return
   }
   lastRockAt.set(address, serverClock)
+
+  // A paid rock moves the shared rock for everybody.
+  advanceRock(rockCount)
 
   // The bag is the ceiling. What does not fit is lost: the client stops swinging at capacity,
   // so reaching this means a rock slipped through.
@@ -529,9 +533,9 @@ export function setupEconomy(): void {
     handleCollect(context.from)
   })
 
-  room.onMessage('rockDone', (_data, context) => {
+  room.onMessage('rockDone', (data, context) => {
     if (!context) return
-    handleRockDone(context.from)
+    handleRockDone(context.from, data.rocks)
   })
 
   room.onMessage('sell', (data, context) => {

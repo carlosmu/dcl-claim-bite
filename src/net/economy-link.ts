@@ -65,9 +65,9 @@ export function quoteSaleForDisplay(amount: number): number {
   return quoteSaleAt(price, amount)
 }
 
-export function sendRockDone(): void {
+export function sendRockDone(rocks: number): void {
   if (!isStateSyncronized()) return
-  room.send('rockDone', { ready: true })
+  room.send('rockDone', { rocks })
 }
 
 export function sendSell(amount: number): void {

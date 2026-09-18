@@ -11,6 +11,7 @@ import { engine, PlayerIdentityData, Transform } from '@dcl/sdk/ecs'
 
 import { setupHeartbeat } from './heartbeat'
 import { setupEconomy } from './economy'
+import { setupRock } from './rock'
 
 /** How often the roll call runs. Once a second is plenty for a log line. */
 const ROLL_CALL_PERIOD_SECONDS = 1
@@ -42,5 +43,6 @@ export function server(): void {
   console.log('[Server] Claim Bite authoritative server up')
   setupHeartbeat()
   setupEconomy()
+  setupRock()
   engine.addSystem(rollCall, undefined, 'server:roll-call')
 }

@@ -16,8 +16,9 @@ export const Messages = {
   hello: Schemas.Map({ ready: Schemas.Boolean }),
 
   // "I finished my rock." Paid only if enough time has passed since the last one for the hits
-  // it takes. TBD: the player's distance to the rock is not validated.
-  rockDone: Schemas.Map({ ready: Schemas.Boolean }),
+  // it takes. TBD: the player's distance to the rock is not validated. `rocks` is how many
+  // rocks the client's scene has, so the server can pick the next shared one (server/rock.ts).
+  rockDone: Schemas.Map({ rocks: Schemas.Number }),
   sell: Schemas.Map({ amount: Schemas.Number }),
   buy: Schemas.Map({ itemId: Schemas.String }),
 

@@ -7,15 +7,16 @@ import { getOre } from '../shared/state/wallet'
 import { startMineEmote, stopMineEmote } from '../player/mine-emote'
 import { playSfx } from '../world/sfx'
 import { showOrePopup } from '../ui/ore-popup'
+import { ActiveRock } from '../shared/net/rock-sync'
 
 // Manual mining (design/balance.md §2, 2026-09-17). No timing bar: the rocks are the children
 // of `Mining_Place`, authored in the Creator Hub, and only one of them is shown at a time. Walk
 // up to it and the swings start on their own; every swing is one hit, and when the hits the
 // pick needs are in, the rock pays and the next one appears somewhere else.
 //
-// All of this is local. Which rock is showing is the player's own business, so nothing here is
-// synced — other players see their own rock. The payout is the server's: finishing a rock only
-// asks for it.
+// Which rock is showing is the town's, not the player's: the server names it (ActiveRock), so
+// everybody is at the same one, and a paid rock moves it for everybody. The hits are still each
+// player's own. The payout is the server's too: finishing a rock only asks for it.
 //
 // Hiding is done by scaling to zero rather than with VisibilityComponent: an invisible model
 // still collides, and a rock you cannot see should not block you.
@@ -57,6 +58,16 @@ let standing = false
 let current = -1
 let hits = 0
 
+/** The ActiveRock seq on screen. -1 until the server's rock has been seen. */
+let shownSeq = -1
+
+/**
+ * Seconds left waiting for the server to move the rock after finishing it. The rock is hidden
+ * meanwhile; if the server never moves it (a refused rock, or no server), it comes back.
+ */
+const AWAIT_MOVE_SECONDS = 3
+let awaitingMove = -1
+
 /** Seconds until the swing in progress lands. Negative while not swinging. */
 let swingTimer = -1
 
@@ -75,16 +86,39 @@ function findRocks(): void {
   console.log(`[mine] ${rocks.length} rock(s) under "${MINING_PLACE_NAME}"`)
 }
 
-function showNextRock(): void {
+function hideRock(): void {
   if (current >= 0) Transform.getMutable(rocks[current].entity).scale = Vector3.Zero()
+}
 
-  // Never the same one twice in a row, so finishing a rock always means walking.
-  let next = Math.floor(Math.random() * rocks.length)
-  if (rocks.length > 1 && next === current) next = (next + 1) % rocks.length
-
-  current = next
+function showRock(index: number): void {
+  hideRock()
+  current = index
   hits = 0
   Transform.getMutable(rocks[current].entity).scale = Vector3.clone(rocks[current].scale)
+}
+
+/**
+ * Follows the server's rock. Before the server has said anything, the first rock stands in —
+ * the same one for everybody, so even offline two players agree.
+ */
+function followSharedRock(dt: number): void {
+  let active: { index: number; seq: number } | null = null
+  for (const [, rock] of engine.getEntitiesWith(ActiveRock)) active = rock
+
+  if (active !== null && active.seq !== shownSeq) {
+    shownSeq = active.seq
+    awaitingMove = -1
+    stopSwinging()
+    showRock(active.index % rocks.length)
+    return
+  }
+
+  if (current < 0) showRock(0)
+
+  if (awaitingMove >= 0) {
+    awaitingMove -= dt
+    if (awaitingMove < 0) showRock(current)
+  }
 }
 
 /** The rock's position in world space: its local offset carried through `Mining_Place`. */
@@ -140,7 +174,12 @@ function trackStanding(dt: number): void {
 function update(dt: number): void {
   trackStanding(dt)
   if (rocks.length === 0) return
-  if (current < 0) showNextRock()
+  followSharedRock(dt)
+
+  if (awaitingMove >= 0) {
+    status = null
+    return
+  }
 
   if (!isPlayerAtRock()) {
     // Progress on the rock is kept; only the swing in flight is dropped.
@@ -187,7 +226,7 @@ function update(dt: number): void {
     playSfx(HIT_SOUND, 1)
 
     if (hits >= needed) {
-      sendRockDone()
+      sendRockDone(rocks.length)
       playSfx(ROCK_DONE_SOUND, 0.8)
       // Shown immediately rather than when the wallet comes back: the swing earned it, and a
       // popup a round trip late would not read as this rock's payout. The HUD is still the one
@@ -196,7 +235,9 @@ function update(dt: number): void {
       console.log(`[mine] rock done after ${hits} hits`)
       stopSwinging()
       status = null
-      showNextRock()
+      // Hidden until the server moves the rock, for everybody at once.
+      hideRock()
+      awaitingMove = AWAIT_MOVE_SECONDS
       return
     }
   }
