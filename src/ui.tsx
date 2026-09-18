@@ -20,6 +20,7 @@ import { getMiningStatus } from './mining/rocks'
 import { setupRollingCounters, shownCoins, shownOre } from './ui/rolling-counter'
 import { getOrePopup, RISE_SHARE, setupOrePopup } from './ui/ore-popup'
 import { DEBUG_ADD_COINS, DEBUG_SERVER_STATUS } from './shared/debug-flags'
+import { BitmapText } from './ui/bitmap-text'
 
 export function setupUi() {
     setupRollingCounters()
@@ -80,8 +81,8 @@ const ATLAS_ROWS = 4
 const HUD_MARGIN = 16
 const HUD_HEIGHT = 64
 const HUD_ICON_SIZE = HUD_HEIGHT - 8
-const HUD_CAPTION_SIZE = 15
-const HUD_VALUE_SIZE = 24
+const HUD_CAPTION_SIZE = 18
+const HUD_VALUE_SIZE = 28
 const HUD_BACKGROUND = Color4.create(0.07, 0.08, 0.1, 0.92)
 const HUD_DIVIDER = Color4.create(1, 1, 1, 0.14)
 
@@ -153,22 +154,8 @@ const hudSegment = (uvs: number[], caption: string, value: string, color: Color4
     <UiEntity uiTransform={{ height: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexGrow: 1, flexShrink: 0 }}>
         {hudIcon(uvs)}
         <UiEntity uiTransform={{ flexDirection: 'column', justifyContent: 'center' }}>
-            <Label
-                value={caption}
-                fontSize={HUD_CAPTION_SIZE}
-                color={MUTED_COLOR}
-                textAlign="middle-left"
-                textWrap="nowrap"
-                uiTransform={{ height: HUD_CAPTION_SIZE + 6 }}
-            />
-            <Label
-                value={value}
-                fontSize={HUD_VALUE_SIZE}
-                color={color}
-                textAlign="middle-left"
-                textWrap="nowrap"
-                uiTransform={{ height: HUD_VALUE_SIZE + 6 }}
-            />
+            <BitmapText value={caption} fontSize={HUD_CAPTION_SIZE} color={MUTED_COLOR} />
+            <BitmapText value={value} fontSize={HUD_VALUE_SIZE} color={color} />
         </UiEntity>
     </UiEntity>
 )
@@ -273,13 +260,7 @@ const bankPanel = () => {
             }}
             uiBackground={{ color: PANEL_BACKGROUND }}
         >
-            <Label
-                value="The Bank"
-                fontSize={30}
-                color={Color4.White()}
-                textAlign="middle-center"
-                uiTransform={{ width: '100%', height: 42 }}
-            />
+            <BitmapText value="The Bank" fontSize={42} align="center" uiTransform={{ width: '100%' }} />
             {infoRow('Town rate', `${getSyncedRate().toFixed(1)} ore = 1 coin`, ORE_COLOR)}
             {infoRow('Your ore', `${ore}`, ORE_COLOR)}
 
@@ -365,13 +346,7 @@ const shopTile = (item: ShopItem) => {
             uiBackground={{ color: selected ? TILE_SELECTED_COLOR : TILE_COLOR }}
             onMouseDown={() => selectItem(item.id)}
         >
-            <Label
-                value={item.label}
-                fontSize={22}
-                color={Color4.White()}
-                textAlign="middle-center"
-                uiTransform={{ width: '100%', height: 30 }}
-            />
+            <BitmapText value={item.label} fontSize={28} align="center" uiTransform={{ width: '100%' }} />
             <Label
                 value={`${item.price} coins`}
                 fontSize={18}
@@ -424,13 +399,7 @@ const marketPanel = () => {
             }}
             uiBackground={{ color: PANEL_BACKGROUND }}
         >
-            <Label
-                value="Market"
-                fontSize={30}
-                color={Color4.White()}
-                textAlign="middle-center"
-                uiTransform={{ width: '100%', height: 42 }}
-            />
+            <BitmapText value="Market" fontSize={42} align="center" uiTransform={{ width: '100%' }} />
 
             {shopRow(CATALOGUE.slice(0, 3))}
             {shopRow(CATALOGUE.slice(3))}
@@ -607,12 +576,10 @@ const miningBar = () => {
 // --- The "+5 Ore" popup ------------------------------------------------------------------
 //
 // Big, centred, rising and fading: the payout of a finished rock, where the player is already
-// looking. UI text has no outline property, so the shadow is the same label drawn again in
-// black, a few pixels down and right, behind it. TBD: a custom typeface with the shadow already
-// baked in replaces both layers — react-ecs `Label` only offers sans-serif/serif/monospace, so
-// that means drawing the number from a texture rather than as text.
+// looking. Drawn in the scene's bitmap typeface; the shadow is the same text drawn again in
+// black, a few pixels down and right, behind it.
 
-const POPUP_FONT_SIZE = 64
+const POPUP_FONT_SIZE = 84
 const POPUP_SHADOW_OFFSET = 4
 const POPUP_COLOR = Color4.create(1, 198 / 255, 0, 1)
 
@@ -626,17 +593,15 @@ const orePopup = () => {
     const risen = popup.progress * RISE_SHARE * 100
 
     const layer = (color: Color4, offset: number) => (
-        <Label
+        <BitmapText
             value={text}
             fontSize={POPUP_FONT_SIZE}
             color={color}
-            textAlign="middle-center"
-            textWrap="nowrap"
+            align="center"
             uiTransform={{
                 positionType: 'absolute',
                 position: { top: `${40 - risen + (offset / 1080) * 100}%`, left: offset },
-                width: '100%',
-                height: POPUP_FONT_SIZE + 12
+                width: '100%'
             }}
         />
     )
@@ -754,14 +719,7 @@ const inventoryRow = (item: ShopItem) => {
                 />
             ) : null}
             <UiEntity uiTransform={{ flexGrow: 1, flexDirection: 'column', justifyContent: 'center' }}>
-                <Label
-                    value={item.label}
-                    fontSize={22}
-                    color={Color4.White()}
-                    textAlign="middle-left"
-                    textWrap="nowrap"
-                    uiTransform={{ height: 30 }}
-                />
+                <BitmapText value={item.label} fontSize={28} />
                 <Label
                     value={detail}
                     fontSize={16}
@@ -803,13 +761,7 @@ const inventoryPanel = () => {
             }}
             uiBackground={{ color: PANEL_BACKGROUND }}
         >
-            <Label
-                value="Inventory"
-                fontSize={30}
-                color={Color4.White()}
-                textAlign="middle-center"
-                uiTransform={{ width: '100%', height: 42, margin: { bottom: 8 } }}
-            />
+            <BitmapText value="Inventory" fontSize={42} align="center" uiTransform={{ width: '100%', margin: { bottom: 8 } }} />
             {items.length === 0 ? (
                 <Label
                     value="Nothing yet — the mayor has a pick for you"
