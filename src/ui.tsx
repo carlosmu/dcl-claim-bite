@@ -65,8 +65,8 @@ const DISABLED_COLOR = Color4.create(0.25, 0.25, 0.26, 1)
 // the authoritative server is answering. Green with a rising number means it is.
 // --- HUD -------------------------------------------------------------------------------
 //
-// One horizontal pill at the top of the centred column, centred in X and sized to whatever it
-// holds. It stays inside the column rather than the screen, so it never lands on top of the
+// One horizontal pill at the top of the centred column, spanning its full width; the three
+// segments share that width equally. It stays inside the column rather than the screen, so it never lands on top of the
 // explorer's own interface. Tool, ore and coins, three segments split by hair lines, each an
 // icon beside a caption and its value.
 //
@@ -78,7 +78,7 @@ const ATLAS_ROWS = 4
 
 const HUD_MARGIN = 16
 const HUD_HEIGHT = 64
-const HUD_ICON_SIZE = 34
+const HUD_ICON_SIZE = HUD_HEIGHT - 8
 const HUD_CAPTION_SIZE = 15
 const HUD_VALUE_SIZE = 24
 const HUD_BACKGROUND = Color4.create(0.07, 0.08, 0.1, 0.92)
@@ -149,7 +149,7 @@ const hudDivider = () => (
  * its contents instead.
  */
 const hudSegment = (uvs: number[], caption: string, value: string, color: Color4) => (
-    <UiEntity uiTransform={{ height: '100%', flexDirection: 'row', alignItems: 'center', flexShrink: 0 }}>
+    <UiEntity uiTransform={{ height: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexGrow: 1, flexShrink: 0 }}>
         {hudIcon(uvs)}
         <UiEntity uiTransform={{ flexDirection: 'column', justifyContent: 'center' }}>
             <Label
@@ -192,6 +192,7 @@ const hud = () => {
         >
         <UiEntity
             uiTransform={{
+                width: '100%',
                 height: HUD_HEIGHT,
                 flexDirection: 'row',
                 alignItems: 'center',
