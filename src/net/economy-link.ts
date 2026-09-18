@@ -16,6 +16,7 @@ import { RATE_BASE } from '../shared/economy/constants'
 import { quoteSaleAt } from '../shared/state/market'
 import { playSfx } from '../world/sfx'
 import { equipPick } from '../player/held-pick'
+import { bestPick } from '../shared/economy/catalogue'
 
 const BANK_SOUND_CLIP = 'assets/sounds/bank.mp3'
 const BUY_SOUND_CLIP = 'assets/sounds/buy.mp3'
@@ -133,8 +134,10 @@ export function setupEconomyLink(): void {
 
     // Gear follows what is OWNED, not the moment of purchase. After a reload the purchase is
     // history but the pick is still theirs, so it has to be put back in their hand here —
-    // this is the only message that runs on arrival. equipPick() is idempotent.
-    if (hitsPerRock > 0) equipPick()
+    // this is the only message that runs on arrival. equipPick() is idempotent, and swaps the
+    // model when a better pick is bought.
+    const pick = bestPick((id) => getOwned(id))
+    if (hitsPerRock > 0 && pick) equipPick(pick.id)
 
     console.log(
       `[economy] wallet from server: ${data.ore}/${data.capacity} ore, ${data.coins} coins, ` +

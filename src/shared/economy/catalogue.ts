@@ -19,9 +19,9 @@ export type ShopItem = {
 }
 
 export const CATALOGUE: ShopItem[] = [
-  { id: 'pick', label: 'Pick', price: 10, hitsPerRock: 12 },
-  { id: 'steel-pick', label: 'Steel Pick', price: 40, hitsPerRock: 10 },
-  { id: 'miners-pick', label: "Miner's Pick", price: 120, hitsPerRock: 8 },
+  { id: 'pick', label: 'Iron Pick', price: 10, hitsPerRock: 12 },
+  { id: 'steel-pick', label: 'Steel Pick', price: 40, hitsPerRock: 9 },
+  { id: 'miners-pick', label: 'Diamond Pick', price: 120, hitsPerRock: 6 },
   { id: 'wheelbarrow', label: 'Wheelbarrow', price: 60 },
   { id: 'mule', label: 'M.U.L.E.', price: 100 },
   { id: 'house', label: 'House', price: 500 }

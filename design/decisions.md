@@ -2,6 +2,7 @@
 
 Append-only, newest first. `date · decision · why`. Standing non-goals live here too.
 
+- 2026-09-18 · Three picks — Iron, Steel, Diamond — at 12/9/6 hits per ore, each with its own held model (pick-0/1/2.glb). Supersedes the 12/10/8/6 four-tier split · owner call
 - 2026-09-17 · Mining built: the children of `Mining_Place` show one at a time per player (client-local, hidden by scale 0 so a hidden rock doesn't collide); standing within 1.8m auto-swings the emote once per second, a "hits/needed" bar floats over the player's head, and a full bar sends `rockDone`, which the server pays (5 ore) only if hits × 1s × 0.8 has passed since that player's last rock · owner call on the flow, agent call on the numbers. The `swing` message, sweet spot and `Goldmine` zone are gone. TBD: the server does not check the player is at a rock
 - 2026-09-17 · **Progression doc adopted as the final word** — balance.md rewritten from it; anything below that contradicts it is superseded · owner call
 - 2026-09-17 · Everything is one object upgraded in place (one pick, one M.U.L.E., one warehouse, one house), with costs doubling per tier (150/300/600 first pass) · owner call: a rising curve keeps the last jump a real decision

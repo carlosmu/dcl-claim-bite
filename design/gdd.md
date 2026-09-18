@@ -63,7 +63,7 @@ I want players to see themselves in this. We all chase shiny things, but real ha
 
 | # | Step (verb) | What the player does (Player input → what they see or hear → what changes) | Why do it again? |
 |---|---|---|---|
-| 1 | **Mine** | Walk up to a rock → you swing automatically, hit by hit, filling your own progress bar on it (12/10/8/6 hits per ore by pick tier) → one ore lands in your warehouse, the rock vanishes for you and the next one is assigned; your pick wears a little | A better pick needs fewer hits; sharing a rock with another player pays the boom-town bonus |
+| 1 | **Mine** | Walk up to a rock → you swing automatically, hit by hit, filling your own progress bar on it (12/9/6 hits per ore by pick tier) → one ore lands in your warehouse, the rock vanishes for you and the next one is assigned; your pick wears a little | A better pick needs fewer hits; sharing a rock with another player pays the boom-town bonus |
 | 2 | **Sell** | Tap at the bank when you judge the price is right → the town price ticks down where everyone can see it → your raw ore becomes coins | Ore buys nothing. Coins are the only legal tender, and the bank is the only way across |
 | 3 — slower rhythm | **Spend** | Upgrade the one object in front of you — pick at the mayor, M.U.L.E. and fuel at your claim, warehouse at its building, house at its lot → fewer hits per ore, more idle yield, more storage, or a bigger house on the street | Every system is one object climbing tiers at a doubling cost; a claim (which plants a M.U.L.E.) is what makes idle production possible at all |
 
