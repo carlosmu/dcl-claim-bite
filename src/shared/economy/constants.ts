@@ -75,17 +75,17 @@ export const MACRO_RECOVERY_SECONDS_PER_PLAYER = 3 * 60 * 60
 
 // --- Carrying -------------------------------------------------------------------------
 
-/** What fits in the bag with no wheelbarrow: about two minutes of digging at the base pick. */
-export const CARRY_BASE = 150
+/**
+ * Pockets: what a player holds before owning a warehouse (balance.md §4, tier 0) — about 20
+ * completed rocks, enough that manual mining works from the first swing.
+ */
+export const CARRY_BASE = 100
 
 /**
- * What fits with one.
- *
- * The base sits below the 200 ore needed to move the slippage a full point, and this sits
- * well above it — so the wheelbarrow is what promotes a player from a seller the market
- * ignores to one it notices, and only then does choosing a sale amount start to matter.
+ * With a tier-1 warehouse (balance.md §4). One storage for all ore: manual mining fills it and
+ * selling draws from it. Replaces the carry bag and the wheelbarrow.
  */
-export const CARRY_WITH_WHEELBARROW = 500
+export const CARRY_WITH_WAREHOUSE = 500
 
 // --- Anti-abuse -----------------------------------------------------------------------
 
@@ -105,7 +105,7 @@ export const ROCK_TIME_TOLERANCE = 0.8
 export const MULE_ORE_PER_HOUR = 60
 
 /**
- * How much it holds before it stops. Matched to the wheelbarrow on purpose, so a full load is
+ * How much it holds before it stops. Matched to the warehouse on purpose, so a full load is
  * always one trip and never strands ore the player cannot carry.
  */
 export const MULE_CAPACITY = 500
