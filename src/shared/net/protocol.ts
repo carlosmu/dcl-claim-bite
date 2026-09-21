@@ -15,9 +15,9 @@ export const Messages = {
   // guessed at. Retried until answered, which also covers a server that restarted underneath.
   hello: Schemas.Map({ ready: Schemas.Boolean }),
 
-  // "I finished my rock." Paid only if enough time has passed since the last one for the hits
-  // it takes. TBD: the player's distance to the rock is not validated.
-  rockDone: Schemas.Map({}),
+  // "I finished the rock with this seq." Paid only if enough time has passed since the last one
+  // for the hits it takes. TBD: the player's distance to the rock is not validated.
+  rockDone: Schemas.Map({ seq: Schemas.Number }),
 
   /** "I just hit the rock with this seq." How the server knows who is mining which rock. */
   swing: Schemas.Map({ seq: Schemas.Number }),

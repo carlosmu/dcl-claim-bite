@@ -37,7 +37,7 @@ import {
   ShopItemId
 } from '../shared/economy/catalogue'
 import { addFuelTank, collectableOre, fuelHoursLeft, settleMule } from './mule'
-import { advanceRock, getRockSeq, hasFinishedRock, isRockStarted, markFinished, otherFinishers } from './rock'
+import { advanceRock, getRockSeqs, hasFinishedRock, isRock, isRockStarted, markFinished, otherFinishers } from './rock'
 
 type Purse = {
   ore: number
@@ -97,29 +97,30 @@ const lastRockAt = new Map<string, number>()
 
 /**
  * Each player's last hit: when, and on which rock. The boom-town bonus counts the others whose
- * last hit is recent and on the rock showing now. TBD: like rockDone, a client could report
+ * last hit is recent and on the same rock. TBD: like rockDone, a client could report
  * swings it never made.
  */
 const lastSwing = new Map<string, { at: number; seq: number }>()
 
-/** Other players mining the current rock right now who have not finished it yet. */
-function otherMinersOnRock(address: string): number {
-  const seq = getRockSeq()
+/** Other players mining the rock `seq` right now who have not finished it yet. */
+function otherMinersOnRock(address: string, seq: number): number {
   let count = 0
   for (const [other, swing] of lastSwing) {
-    if (other === address || hasFinishedRock(other)) continue
+    if (other === address || hasFinishedRock(other, seq)) continue
     if (swing.seq === seq && serverClock - swing.at <= BOOM_TOWN_ACTIVE_SECONDS) count += 1
   }
   return count
 }
 
 /**
- * Moves the rock once it is spent: someone has finished it and nobody is still working on it.
+ * Moves each rock once it is spent: someone has finished it and nobody is still working on it.
  * Runs every frame as well as on each finished bar, so a companion who walks off mid-bar does
- * not leave the rock stuck for the ones already done.
+ * not leave a rock stuck for the ones already done.
  */
-function moveSpentRock(): void {
-  if (isRockStarted() && otherMinersOnRock('') === 0) advanceRock()
+function moveSpentRocks(): void {
+  for (const seq of getRockSeqs()) {
+    if (isRockStarted(seq) && otherMinersOnRock('', seq) === 0) advanceRock(seq)
+  }
 }
 const droppedRocks = new Map<string, number>()
 let sinceLastAbuseReport = 0
@@ -214,7 +215,7 @@ function sendResult(address: string, action: string, ok: boolean, detail: string
   room.send('actionResult', { action, ok, detail }, { to: [address] })
 }
 
-function handleRockDone(address: string): void {
+function handleRockDone(address: string, seq: number): void {
   const purse = purseOf(address)
   // Still loading: the rock is dropped rather than paid into a purse that is about to be
   // replaced. The window is a fraction of a second, right after arriving.
@@ -228,8 +229,8 @@ function handleRockDone(address: string): void {
   if (hits <= 0) return
 
   // Each rock pays each player once. The client hides a rock it has finished, so this is only
-  // reached by a modified client or a message racing a move.
-  if (hasFinishedRock(address)) return
+  // reached by a modified client or a message racing a move — as is a rock that is not there.
+  if (!isRock(seq) || hasFinishedRock(address, seq)) return
 
   // Dropped silently: an honest client cannot finish a rock faster than its swings allow, and
   // answering would hand a spammer a reply for every message they send.
@@ -243,12 +244,12 @@ function handleRockDone(address: string): void {
   // The boom-town bonus: +1 per other player on this rock — still mining it, or already done
   // with it. Counting the ones done is what gives the last of a group the same bonus as the
   // first: three together pay 7 each, whoever finishes when.
-  const others = otherMinersOnRock(address) + otherFinishers(address)
-  markFinished(address)
+  const others = otherMinersOnRock(address, seq) + otherFinishers(address, seq)
+  markFinished(address, seq)
   lastSwing.delete(address)
 
   // Once everyone on it is done, the rock moves; until then it waits for the rest.
-  moveSpentRock()
+  moveSpentRocks()
 
   // The bag is the ceiling. What does not fit is lost: the client stops swinging at capacity,
   // so reaching this means a rock slipped through.
@@ -624,9 +625,9 @@ export function setupEconomy(): void {
     handleCollect(context.from)
   })
 
-  room.onMessage('rockDone', (_data, context) => {
+  room.onMessage('rockDone', (data, context) => {
     if (!context) return
-    handleRockDone(context.from)
+    handleRockDone(context.from, data.seq)
   })
 
   room.onMessage('swing', (data, context) => {
@@ -656,5 +657,5 @@ export function setupEconomy(): void {
   engine.addSystem(flushSaves, undefined, 'server:save')
   engine.addSystem(settlePresentMules, undefined, 'server:mule-settle')
   engine.addSystem(checkPresence, undefined, 'server:presence')
-  engine.addSystem(moveSpentRock, undefined, 'server:rock-move')
+  engine.addSystem(moveSpentRocks, undefined, 'server:rock-move')
 }

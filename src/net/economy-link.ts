@@ -72,9 +72,9 @@ export function quoteSaleForDisplay(amount: number): number {
   return quoteSaleAt(price, amount)
 }
 
-export function sendRockDone(): void {
+export function sendRockDone(seq: number): void {
   if (!isStateSyncronized()) return
-  room.send('rockDone', {})
+  room.send('rockDone', { seq })
 }
 
 export function sendSwing(seq: number): void {
