@@ -1,4 +1,4 @@
-import { Entity, engine, Transform } from '@dcl/sdk/ecs'
+import { Entity, engine, GltfContainer, MeshCollider, MeshRenderer, Transform } from '@dcl/sdk/ecs'
 import { Quaternion, Vector3 } from '@dcl/sdk/math'
 
 import { MINE_FACING_DEGREES, MINE_REACH_METERS, ORE_PER_ROCK, SWING_SECONDS } from '../shared/economy/constants'
@@ -9,10 +9,11 @@ import { playSfx } from '../world/sfx'
 import { showOrePopup } from '../ui/ore-popup'
 import { ActiveRock } from '../shared/net/rock-sync'
 
-// Manual mining (design/balance.md §2, 2026-09-17). No timing bar: the rocks are the children
-// of `Mining_Place`, authored in the Creator Hub, and only one of them is shown at a time. Walk
-// up to it and the swings start on their own; every swing is one hit, and when the hits the
-// pick needs are in, the rock pays and the next one appears somewhere else.
+// Manual mining (design/balance.md §2, 2026-09-17). No timing bar: there is one rock, and it
+// shows up at a random spot inside `Mining_Area` — a box or plane mesh authored in the Creator
+// Hub, stretched over the ground where rocks may appear, and hidden at load. Walk up to the
+// rock and the swings start on their own; every swing is one hit, and when the hits the pick
+// needs are in, the rock pays and moves somewhere else in the area.
 //
 // Which rock is showing is the town's, not the player's: the server names it (ActiveRock), so
 // everybody is at the same one, and a paid rock moves it for everybody. The hits are still each
@@ -21,7 +22,9 @@ import { ActiveRock } from '../shared/net/rock-sync'
 // Hiding is done by scaling to zero rather than with VisibilityComponent: an invisible model
 // still collides, and a rock you cannot see should not block you.
 
-const MINING_PLACE_NAME = 'Mining_Place'
+const MINING_AREA_NAME = 'Mining_Area'
+
+const ROCK_MODEL = 'assets/models/mining-rocks.glb'
 
 const ROCK_DONE_SOUND = 'assets/sounds/match.mp3'
 
@@ -30,7 +33,8 @@ const ROCK_DONE_SOUND = 'assets/sounds/match.mp3'
 // emote does not — and it keeps the volume and the clip tunable without re-exporting the GLB.
 const HIT_SOUND = 'assets/sounds/picking.mp3'
 
-type Rock = { entity: Entity; scale: Vector3 }
+/** The area's world transform, read once at load. The rock is placed on its bottom face. */
+type Area = { position: Vector3; rotation: Quaternion; scale: Vector3; isPlane: boolean }
 
 /** What the HUD draws under itself while mining. Null while there is nothing to say. */
 export type MiningStatus = { hits: number; needed: number; blocked: string }
@@ -51,12 +55,15 @@ export function getMiningStatus(): MiningStatus | null {
  */
 const STANDING_SPEED = 0.3
 
-let rocks: Rock[] = []
-let place: Entity | null = null
+let area: Area | null = null
+let rock: Entity | null = null
+let rockSpot: Vector3 = Vector3.Zero()
 let lastPosition: Vector3 | null = null
 let standing = false
-let current = -1
 let hits = 0
+
+/** Whether the rock has been put anywhere yet. */
+let placed = false
 
 /** The ActiveRock seq on screen. -1 until the server's rock has been seen. */
 let shownSeq = -1
@@ -78,74 +85,102 @@ let offlineReshow = -1
 /** Seconds until the swing in progress lands. Negative while not swinging. */
 let swingTimer = -1
 
-function findRocks(): void {
-  place = engine.getEntityOrNullByName(MINING_PLACE_NAME)
-  if (place === null) {
-    console.error(`[mine] no entity named "${MINING_PLACE_NAME}" in the scene — nothing to mine`)
+/** An entity's transform in world space, through however many parents it has. */
+function worldTransform(entity: Entity): { position: Vector3; rotation: Quaternion; scale: Vector3 } {
+  const t = Transform.get(entity)
+  let position = Vector3.clone(t.position)
+  let rotation = Quaternion.create(t.rotation.x, t.rotation.y, t.rotation.z, t.rotation.w)
+  let scale = Vector3.clone(t.scale)
+  let parent = t.parent
+  while (parent !== undefined && parent !== engine.RootEntity) {
+    const p = Transform.getOrNull(parent)
+    if (p === null) break
+    const pr = p.rotation ?? Quaternion.Identity()
+    position = Vector3.add(p.position, Vector3.rotate(Vector3.multiply(position, p.scale), pr))
+    rotation = Quaternion.multiply(pr, rotation)
+    scale = Vector3.multiply(scale, p.scale)
+    parent = p.parent
+  }
+  return { position, rotation, scale }
+}
+
+function findArea(): void {
+  const entity = engine.getEntityOrNullByName(MINING_AREA_NAME)
+  if (entity === null) {
+    console.error(`[mine] no entity named "${MINING_AREA_NAME}" in the scene — nothing to mine`)
     return
   }
 
-  for (const [entity, transform] of engine.getEntitiesWith(Transform)) {
-    if (transform.parent !== place) continue
-    rocks.push({ entity, scale: Vector3.clone(transform.scale) })
-    Transform.getMutable(entity).scale = Vector3.Zero()
-  }
-  console.log(`[mine] ${rocks.length} rock(s) under "${MINING_PLACE_NAME}"`)
+  // A plane primitive lies in its local X/Y (turned flat in the editor); a box spans X/Z.
+  const mesh = MeshRenderer.getOrNull(entity)
+  const isPlane = mesh?.mesh?.$case === 'plane'
+  area = { ...worldTransform(entity), isPlane }
+
+  // The area is only a marker: nothing of it is seen or collides at runtime.
+  Transform.getMutable(entity).scale = Vector3.Zero()
+  MeshCollider.deleteFrom(entity)
+
+  rock = engine.addEntity()
+  Transform.create(rock, { scale: Vector3.Zero() })
+  GltfContainer.create(rock, { src: ROCK_MODEL, visibleMeshesCollisionMask: 0, invisibleMeshesCollisionMask: 3 })
+}
+
+/** A point of the area from its 0..1 fractions, on the area's bottom (the ground under it). */
+function areaPoint(u: number, v: number): Vector3 {
+  const a = area!
+  const local = a.isPlane ? Vector3.create(u - 0.5, v - 0.5, 0) : Vector3.create(u - 0.5, -0.5, v - 0.5)
+  return Vector3.add(a.position, Vector3.rotate(Vector3.multiply(local, a.scale), a.rotation))
 }
 
 function hideRock(): void {
-  if (current >= 0) Transform.getMutable(rocks[current].entity).scale = Vector3.Zero()
+  if (rock !== null) Transform.getMutable(rock).scale = Vector3.Zero()
 }
 
-function showRock(index: number): void {
-  hideRock()
-  current = index
+function showRock(u: number, v: number, yaw: number): void {
   hits = 0
-  Transform.getMutable(rocks[current].entity).scale = Vector3.clone(rocks[current].scale)
+  rockSpot = areaPoint(u, v)
+  const t = Transform.getMutable(rock!)
+  t.position = rockSpot
+  t.rotation = Quaternion.fromEulerDegrees(0, yaw, 0)
+  t.scale = Vector3.One()
 }
 
 /**
- * Follows the server's rock. Before the server has said anything, the first rock stands in —
- * the same one for everybody, so even offline two players agree.
+ * Follows the server's rock. Before the server has said anything, the middle of the area
+ * stands in — the same spot for everybody, so even offline two players agree.
  */
 function followSharedRock(dt: number): void {
-  let active: { index: number; seq: number } | null = null
-  for (const [, rock] of engine.getEntitiesWith(ActiveRock)) active = rock
+  let active: { u: number; v: number; yaw: number; seq: number } | null = null
+  for (const [, shared] of engine.getEntitiesWith(ActiveRock)) active = shared
 
   if (active !== null && active.seq !== shownSeq) {
     shownSeq = active.seq
     offlineReshow = -1
     stopSwinging()
-    showRock(active.index % rocks.length)
+    showRock(active.u, active.v, active.yaw)
     return
   }
 
-  if (current < 0) showRock(0)
+  if (!placed) {
+    placed = true
+    showRock(0.5, 0.5, 0)
+  }
 
   if (offlineReshow >= 0) {
     offlineReshow -= dt
     if (offlineReshow < 0) {
       finishedSeq = -2
-      showRock(current)
+      showRock(Math.random(), Math.random(), Math.random() * 360)
     }
   }
-}
-
-/** The rock's position in world space: its local offset carried through `Mining_Place`. */
-function rockWorldPosition(rock: Entity): Vector3 {
-  const local = Transform.get(rock).position
-  const parent = Transform.get(place!)
-  const scaled = Vector3.create(local.x * parent.scale.x, local.y * parent.scale.y, local.z * parent.scale.z)
-  return Vector3.add(parent.position, Vector3.rotate(scaled, parent.rotation ?? Quaternion.Identity()))
 }
 
 function isPlayerAtRock(): boolean {
   const player = Transform.getOrNull(engine.PlayerEntity)
   if (player === null) return false
-  const rock = rockWorldPosition(rocks[current].entity)
   // Flat on the ground: a tall rock's origin can sit well above or below the player's feet.
-  const dx = rock.x - player.position.x
-  const dz = rock.z - player.position.z
+  const dx = rockSpot.x - player.position.x
+  const dz = rockSpot.z - player.position.z
   const distanceSquared = dx * dx + dz * dz
   if (distanceSquared > MINE_REACH_METERS * MINE_REACH_METERS) return false
 
@@ -183,7 +218,7 @@ function trackStanding(dt: number): void {
 
 function update(dt: number): void {
   trackStanding(dt)
-  if (rocks.length === 0) return
+  if (rock === null) return
   followSharedRock(dt)
 
   // Already mined by this player: nothing to do here until the rock moves.
@@ -255,7 +290,7 @@ function update(dt: number): void {
       finishedSeq = shownSeq
       if (shownSeq < 0) offlineReshow = OFFLINE_RESHOW_SECONDS
       status = null
-      sendRockDone(rocks.length)
+      sendRockDone()
       playSfx(ROCK_DONE_SOUND, 0.8)
       // Shown immediately rather than when the wallet comes back: the swing earned it, and a
       // popup a round trip late would not read as this rock's payout. The HUD is still the one
@@ -272,6 +307,6 @@ function update(dt: number): void {
 }
 
 export function setupRocks(): void {
-  findRocks()
+  findArea()
   engine.addSystem(update, undefined, 'client:rocks')
 }

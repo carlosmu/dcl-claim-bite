@@ -1,20 +1,21 @@
-// The shared rock: which one is showing, and moving it on when it pays.
+// The shared rock: where it is, and moving it on when it pays.
 //
-// The server has no scene to count the rocks in, so it takes the count from the clients that
-// finish them. Every client loads the same composite, so they all report the same number; it is
-// clamped anyway, since it arrives in a message.
+// The server has no scene, so it picks the spot as a fraction of `Mining_Area` (0..1 on each
+// side) and every client maps it onto the area's mesh.
 
 import { engine } from '@dcl/sdk/ecs'
 import { syncEntity } from '@dcl/sdk/network'
 
 import { ActiveRock, ROCK_ENTITY_ENUM_ID } from '../shared/net/rock-sync'
 
-const MAX_ROCKS = 64
+/**
+ * How far the next spot must be from the last one, as a fraction of the area. Keeps a move
+ * from landing on top of the rock just mined. Tries a few times, then takes what it got.
+ */
+const MIN_MOVE = 0.3
+const MOVE_TRIES = 8
 
 let rockEntity = engine.RootEntity
-
-/** Rocks in the scene, as last reported by a client. Kept for moves the server starts itself. */
-let knownCount = 1
 
 /**
  * Who has already finished the rock showing now. Each player mines each rock once: with
@@ -24,7 +25,7 @@ const finishers = new Set<string>()
 
 export function setupRock(): void {
   rockEntity = engine.addEntity()
-  ActiveRock.create(rockEntity, { index: 0, seq: 0 })
+  ActiveRock.create(rockEntity, { u: Math.random(), v: Math.random(), yaw: Math.random() * 360, seq: 0 })
   syncEntity(rockEntity, [ActiveRock.componentId], ROCK_ENTITY_ENUM_ID)
 }
 
@@ -37,10 +38,9 @@ export function hasFinishedRock(address: string): boolean {
   return finishers.has(address)
 }
 
-/** Records a finished bar, and the rock count the finisher's scene reported. */
-export function markFinished(address: string, reportedCount: number): void {
+/** Records a finished bar. */
+export function markFinished(address: string): void {
   finishers.add(address)
-  knownCount = Math.max(1, Math.min(MAX_ROCKS, Math.floor(reportedCount) || 1))
 }
 
 /** How many players have finished the rock showing now, `address` left out. */
@@ -53,16 +53,20 @@ export function isRockStarted(): boolean {
   return finishers.size > 0
 }
 
-/** Moves the rock to another one, never the same one twice in a row. */
+/** Moves the rock to a new random spot in the area, away from the one it leaves. */
 export function advanceRock(): void {
   finishers.clear()
-  const count = knownCount
   const rock = ActiveRock.getMutable(rockEntity)
 
-  const current = rock.index % count
-  let next = Math.floor(Math.random() * count)
-  if (count > 1 && next === current) next = (next + 1) % count
+  let u = Math.random()
+  let v = Math.random()
+  for (let i = 1; i < MOVE_TRIES && Math.hypot(u - rock.u, v - rock.v) < MIN_MOVE; i++) {
+    u = Math.random()
+    v = Math.random()
+  }
 
-  rock.index = next
+  rock.u = u
+  rock.v = v
+  rock.yaw = Math.random() * 360
   rock.seq += 1
 }

@@ -415,6 +415,48 @@
             "parent": 0
           }
         },
+        "530": {
+          "json": {
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "w": 1
+            },
+            "parent": 0
+          }
+        },
+        "531": {
+          "json": {
+            "position": {
+              "x": -30,
+              "y": 0,
+              "z": -48
+            },
+            "rotation": {
+              "x": 0.7071067690849304,
+              "y": 0,
+              "z": 0,
+              "w": 0.7071067690849304
+            },
+            "scale": {
+              "x": 30,
+              "y": 20,
+              "z": 1
+            },
+            "parent": 0
+          }
+        },
         "1555": {
           "json": {
             "position": {
@@ -441,7 +483,7 @@
             "position": {
               "x": -7,
               "y": 0,
-              "z": 11.25
+              "z": -39.25
             },
             "scale": {
               "x": 2.5,
@@ -450,30 +492,9 @@
             },
             "rotation": {
               "x": 0,
-              "y": 0,
+              "y": 0.9914448857307434,
               "z": 0,
-              "w": 1
-            },
-            "parent": 0
-          }
-        },
-        "1560": {
-          "json": {
-            "position": {
-              "x": 0,
-              "y": 0,
-              "z": 0
-            },
-            "scale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
-            },
-            "rotation": {
-              "x": 0,
-              "y": 0,
-              "z": 0,
-              "w": 1
+              "w": 0.13052618503570557
             },
             "parent": 0
           }
@@ -768,16 +789,16 @@
             "invisibleMeshesCollisionMask": 3
           }
         },
-        "1558": {
+        "530": {
           "json": {
-            "src": "assets/animations/town-mayor.glb",
+            "src": "assets/models/rocks-limits.glb",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
-        "1560": {
+        "1558": {
           "json": {
-            "src": "assets/models/rocks-limits.glb",
+            "src": "assets/animations/town-mayor.glb",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
@@ -822,6 +843,27 @@
             "src": "assets/models/mining-rocks.glb",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
+          }
+        }
+      }
+    },
+    {
+      "name": "core::MeshRenderer",
+      "jsonSchema": {
+        "type": "object",
+        "properties": {},
+        "serializationType": "protocol-buffer",
+        "protocolBuffer": "PBMeshRenderer"
+      },
+      "data": {
+        "531": {
+          "json": {
+            "mesh": {
+              "$case": "plane",
+              "plane": {
+                "uvs": []
+              }
+            }
           }
         }
       }
@@ -924,6 +966,16 @@
             "value": "MULE"
           }
         },
+        "530": {
+          "json": {
+            "value": "rocks-limits.glb"
+          }
+        },
+        "531": {
+          "json": {
+            "value": "Mining_Area"
+          }
+        },
         "1555": {
           "json": {
             "value": "Mining_Place"
@@ -932,11 +984,6 @@
         "1558": {
           "json": {
             "value": "town-mayor.glb"
-          }
-        },
-        "1560": {
-          "json": {
-            "value": "rocks-limits.glb"
           }
         },
         "1562": {
@@ -967,6 +1014,22 @@
         "67097": {
           "json": {
             "value": "Big Rock_2"
+          }
+        }
+      }
+    },
+    {
+      "name": "core::VisibilityComponent",
+      "jsonSchema": {
+        "type": "object",
+        "properties": {},
+        "serializationType": "protocol-buffer",
+        "protocolBuffer": "PBVisibilityComponent"
+      },
+      "data": {
+        "531": {
+          "json": {
+            "visible": false
           }
         }
       }
@@ -1061,7 +1124,8 @@
                   67090,
                   1555,
                   1558,
-                  1560
+                  530,
+                  531
                 ]
               },
               {
@@ -1187,7 +1251,11 @@
                 "children": []
               },
               {
-                "entity": 1560,
+                "entity": 530,
+                "children": []
+              },
+              {
+                "entity": 531,
                 "children": []
               }
             ]
@@ -1263,13 +1331,16 @@
         "528": {
           "json": {}
         },
+        "530": {
+          "json": {}
+        },
+        "531": {
+          "json": {}
+        },
         "1555": {
           "json": {}
         },
         "1558": {
-          "json": {}
-        },
-        "1560": {
           "json": {}
         },
         "1562": {
@@ -1637,12 +1708,9 @@
             "ageRating": "A",
             "categories": [],
             "author": "SDK",
+            "email": "",
             "tags": [],
             "layout": {
-              "base": {
-                "x": 16,
-                "y": 16
-              },
               "parcels": [
                 {
                   "x": 0,
@@ -5740,8 +5808,14 @@
                   "x": 31,
                   "y": 0
                 }
-              ]
+              ],
+              "base": {
+                "x": 16,
+                "y": 16
+              }
             },
+            "silenceVoiceChat": false,
+            "disablePortableExperiences": false,
             "spawnPoints": [
               {
                 "name": "SpawnArea1",
@@ -5779,6 +5853,8 @@
             "skyboxConfig": {
               "fixedTime": 62100
             },
+            "creator": "",
+            "disableNearbyVoiceChat": false,
             "hideLandscapeTerrain": true
           }
         }

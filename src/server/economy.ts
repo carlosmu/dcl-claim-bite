@@ -214,7 +214,7 @@ function sendResult(address: string, action: string, ok: boolean, detail: string
   room.send('actionResult', { action, ok, detail }, { to: [address] })
 }
 
-function handleRockDone(address: string, rockCount: number): void {
+function handleRockDone(address: string): void {
   const purse = purseOf(address)
   // Still loading: the rock is dropped rather than paid into a purse that is about to be
   // replaced. The window is a fraction of a second, right after arriving.
@@ -244,7 +244,7 @@ function handleRockDone(address: string, rockCount: number): void {
   // with it. Counting the ones done is what gives the last of a group the same bonus as the
   // first: three together pay 7 each, whoever finishes when.
   const others = otherMinersOnRock(address) + otherFinishers(address)
-  markFinished(address, rockCount)
+  markFinished(address)
   lastSwing.delete(address)
 
   // Once everyone on it is done, the rock moves; until then it waits for the rest.
@@ -624,9 +624,9 @@ export function setupEconomy(): void {
     handleCollect(context.from)
   })
 
-  room.onMessage('rockDone', (data, context) => {
+  room.onMessage('rockDone', (_data, context) => {
     if (!context) return
-    handleRockDone(context.from, data.rocks)
+    handleRockDone(context.from)
   })
 
   room.onMessage('swing', (data, context) => {
