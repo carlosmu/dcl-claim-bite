@@ -33,6 +33,7 @@ let capacity = 0
 let hitsPerRock = 0
 let muleOre = 0
 let muleCapacity = 0
+let muleFuelHours = 0
 let walletReceived = false
 let sinceLastHello = HELLO_RETRY_SECONDS
 
@@ -59,6 +60,11 @@ export function getMuleOre(): number {
 /** What the rig holds when full. Zero means the player owns none. */
 export function getMuleCapacity(): number {
   return muleCapacity
+}
+
+/** Hours the rig keeps running on its tank. Zero means it has stopped. */
+export function getMuleFuelHours(): number {
+  return muleFuelHours
 }
 
 /** What selling `amount` would pay at the synced price — for display only. */
@@ -140,6 +146,7 @@ export function setupEconomyLink(): void {
     hitsPerRock = data.hitsPerRock
     muleOre = data.muleOre
     muleCapacity = data.muleCapacity
+    muleFuelHours = data.muleFuelHours
     applyServerWallet(data.ore, data.coins)
     applyServerOwned(data.owned)
     applyServerEquipped(data.equipped)

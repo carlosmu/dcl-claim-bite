@@ -6,9 +6,16 @@
 //
 // The Shovel was removed on 2026-09-16: it had no answer to "what is this for".
 
-import { CARRY_BASE, CARRY_WITH_WAREHOUSE } from './constants'
+import {
+  CARRY_BASE,
+  CARRY_WITH_WAREHOUSE,
+  FUEL_PRICE_PER_LEVEL,
+  MULE_CAPACITY,
+  MULE_MAX_LEVEL,
+  MULE_PRICE_GROWTH
+} from './constants'
 
-export type ShopItemId = 'pick' | 'steel-pick' | 'miners-pick' | 'warehouse' | 'mule' | 'house'
+export type ShopItemId = 'pick' | 'steel-pick' | 'miners-pick' | 'warehouse' | 'mule' | 'fuel' | 'house' | 'horse' | 'revolver'
 
 export type ShopItem = {
   id: ShopItemId
@@ -16,6 +23,8 @@ export type ShopItem = {
   price: number
   /** Hits a rock takes while this is the best pick owned — fewer is better. Only picks carry it. */
   hitsPerRock?: number
+  /** Shown in the Market but not for sale yet. */
+  comingSoon?: boolean
 }
 
 export const CATALOGUE: ShopItem[] = [
@@ -24,7 +33,11 @@ export const CATALOGUE: ShopItem[] = [
   { id: 'miners-pick', label: 'Diamond Pick', price: 120, hitsPerRock: 6 },
   { id: 'warehouse', label: 'Warehouse', price: 60 },
   { id: 'mule', label: 'M.U.L.E.', price: 100 },
-  { id: 'house', label: 'House', price: 500 }
+  // One tank; the price shown is per level of the rig (see priceOf). Needs a rig to go in.
+  { id: 'fuel', label: 'Fuel', price: FUEL_PRICE_PER_LEVEL },
+  { id: 'house', label: 'House', price: 500 },
+  { id: 'horse', label: 'Horse', price: 0, comingSoon: true },
+  { id: 'revolver', label: 'Revolver', price: 0, comingSoon: true }
 ]
 
 export function findItem(id: ShopItemId): ShopItem | null {
@@ -66,4 +79,32 @@ export function bestHitsPerRock(ownedCount: (id: ShopItemId) => number): number 
 /** How much ore the player can hold — pockets, or a warehouse once they own one. */
 export function carryCapacity(ownedCount: (id: ShopItemId) => number): number {
   return ownedCount('warehouse') > 0 ? CARRY_WITH_WAREHOUSE : CARRY_BASE
+}
+
+/**
+ * What the next purchase of this item costs, or null when it cannot be bought again.
+ *
+ * The M.U.L.E. varies: buying it again is levelling it up, and each level costs
+ * MULE_PRICE_GROWTH times the one before. Fuel costs more per tank the higher the rig. `item.price` is the price of level 1.
+ */
+export function priceOf(item: ShopItem, ownedCount: (id: ShopItemId) => number): number | null {
+  if (item.comingSoon === true) return null
+  const level = muleLevel(ownedCount)
+  if (item.id === 'fuel') return level > 0 ? item.price * level : null
+  if (item.id !== 'mule') return item.price
+  if (level >= MULE_MAX_LEVEL) return null
+  return Math.round(item.price * Math.pow(MULE_PRICE_GROWTH, level))
+}
+
+/**
+ * The rig's level: how many times it was bought, capped. Saves from before the cap came down
+ * may hold more, and they simply run at the top level.
+ */
+export function muleLevel(ownedCount: (id: ShopItemId) => number): number {
+  return Math.min(ownedCount('mule'), MULE_MAX_LEVEL)
+}
+
+/** Ore the rig holds before it stops: about two days of its own output at every level. */
+export function muleCapacity(level: number): number {
+  return MULE_CAPACITY * level
 }

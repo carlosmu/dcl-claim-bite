@@ -55,7 +55,9 @@ export const Messages = {
     equipped: Schemas.String,
     // What the rig is holding, and how much it can hold. Zero capacity means none is owned.
     muleOre: Schemas.Number,
-    muleCapacity: Schemas.Number
+    muleCapacity: Schemas.Number,
+    // Hours the rig keeps running on its tank. Zero means it has stopped.
+    muleFuelHours: Schemas.Number
   }),
 
   // Server -> one client: what a finished rock paid. `bonus` is the boom-town part of `ore`,

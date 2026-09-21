@@ -29,6 +29,8 @@ export type StoredPurse = {
    */
   muleOre?: number
   muleAt?: number
+  /** Fuel left in level-hours. Missing means a save from before fuel existed. */
+  muleFuel?: number
   /** The pick chosen in the inventory. Missing or not owned means the best one owned. */
   equipped?: string
 }

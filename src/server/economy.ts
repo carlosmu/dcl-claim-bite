@@ -26,9 +26,17 @@ import {
   SWING_SECONDS
 } from '../shared/economy/constants'
 import { DEBUG_ADD_COINS, DEBUG_MAX_COINS } from '../shared/debug-flags'
-import { activePick, bestHitsPerRock, carryCapacity, findItem, ShopItemId } from '../shared/economy/catalogue'
-import { MULE_CAPACITY } from '../shared/economy/constants'
-import { collectableOre, settleMule } from './mule'
+import {
+  activePick,
+  bestHitsPerRock,
+  carryCapacity,
+  findItem,
+  muleCapacity,
+  muleLevel,
+  priceOf,
+  ShopItemId
+} from '../shared/economy/catalogue'
+import { addFuelTank, collectableOre, fuelHoursLeft, settleMule } from './mule'
 import { advanceRock, getRockSeq, hasFinishedRock, isRockStarted, markFinished, otherFinishers } from './rock'
 
 type Purse = {
@@ -38,6 +46,8 @@ type Purse = {
   /** Ore sitting in the player's M.U.L.E., and when it was last settled. */
   muleOre: number
   muleAt: number
+  /** Fuel left in the rig, in level-hours (see MuleState). */
+  muleFuel: number
   /** The pick chosen in the inventory; see activePick for what happens when it is not owned. */
   equipped: string
 }
@@ -134,12 +144,18 @@ function beginLoad(address: string): void {
         owned: stored?.owned ?? {},
         muleOre: stored?.muleOre ?? 0,
         muleAt: stored?.muleAt ?? 0,
+        muleFuel: stored?.muleFuel ?? 0,
         equipped: stored?.equipped ?? ''
       }
+      const level = muleLevel((id) => purse.owned[id] ?? 0)
+
+      // A rig bought before fuel existed has never been filled. It gets the tank every new
+      // rig comes with, so the update does not greet its owner with a stalled rig.
+      if (stored !== null && stored.muleFuel === undefined) addFuelTank(purse, level)
 
       // Settled the moment it is read, so the wallet the player is about to be shown already
       // includes everything the rig dug while they were away.
-      settleMule(purse, (purse.owned['mule'] ?? 0) > 0)
+      settleMule(purse, level)
       purses.set(address, purse)
       dirty.add(address)
       sendWallet(address)
@@ -187,7 +203,8 @@ function sendWallet(address: string): void {
       hitsPerRock: activePick(owned, purse.equipped)?.hitsPerRock ?? 0,
       equipped: activePick(owned, purse.equipped)?.id ?? '',
       muleOre: collectableOre(purse),
-      muleCapacity: owned('mule') > 0 ? MULE_CAPACITY : 0
+      muleCapacity: muleCapacity(muleLevel(owned)),
+      muleFuelHours: fuelHoursLeft(purse, muleLevel(owned))
     },
     { to: [address] }
   )
@@ -297,20 +314,44 @@ function handleBuy(address: string, itemId: string): void {
     return
   }
 
-  if (purse.coins < item.price) {
-    sendResult(address, 'buy', false, `needs ${item.price - purse.coins} more coins`)
+  const price = priceOf(item, (id) => purse.owned[id] ?? 0)
+  if (price === null) {
+    let reason = 'already at max level'
+    if (item.comingSoon === true) reason = 'coming soon'
+    else if (item.id === 'fuel') reason = 'no rig to fuel'
+    sendResult(address, 'buy', false, reason)
     return
   }
 
-  purse.coins -= item.price
-  purse.owned[item.id] = (purse.owned[item.id] ?? 0) + 1
+  if (purse.coins < price) {
+    sendResult(address, 'buy', false, `needs ${price - purse.coins} more coins`)
+    return
+  }
+
+  // Pay out the hours worked on the current level and tank before either changes.
+  const level = muleLevel((id) => purse.owned[id] ?? 0)
+  if (item.id === 'mule' || item.id === 'fuel') settleMule(purse, level)
+
+  if (item.id === 'fuel') {
+    // Fuel goes into the rig, not the inventory.
+    if (!addFuelTank(purse, level)) {
+      sendResult(address, 'buy', false, 'tank full')
+      return
+    }
+    purse.coins -= price
+  } else {
+    purse.coins -= price
+    purse.owned[item.id] = (purse.owned[item.id] ?? 0) + 1
+    // A new rig comes with one full tank; an upgrade keeps whatever is in it.
+    if (item.id === 'mule' && level === 0) addFuelTank(purse, 1)
+  }
   // A pick just bought goes straight into the hand; the inventory can swap it back.
   if (item.hitsPerRock !== undefined) purse.equipped = item.id
   dirty.add(address)
 
   sendWallet(address)
   sendResult(address, 'buy', true, item.id)
-  console.log(`[Server] ${address} bought ${item.label} for ${item.price} · balance ${purse.coins}`)
+  console.log(`[Server] ${address} bought ${item.label} for ${price} · balance ${purse.coins}`)
 }
 
 function handleEquip(address: string, itemId: string): void {
@@ -398,7 +439,7 @@ function handleCollect(address: string): void {
     return
   }
 
-  settleMule(purse, true)
+  settleMule(purse, muleLevel(owned))
 
   const waiting = collectableOre(purse)
   const room = Math.max(0, carryCapacity(owned) - purse.ore)
@@ -474,6 +515,7 @@ function flushPurse(address: string): void {
     owned: purse.owned,
     muleOre: purse.muleOre,
     muleAt: purse.muleAt,
+    muleFuel: purse.muleFuel,
     equipped: purse.equipped
   })
 }
@@ -502,9 +544,11 @@ function settlePresentMules(dt: number) {
     const purse = purses.get(address)
     if (purse === undefined || (purse.owned['mule'] ?? 0) <= 0) continue
 
+    const level = muleLevel((id) => purse.owned[id] ?? 0)
     const before = collectableOre(purse)
-    settleMule(purse, true)
-    if (collectableOre(purse) === before) continue
+    const hoursBefore = Math.ceil(fuelHoursLeft(purse, level))
+    settleMule(purse, level)
+    if (collectableOre(purse) === before && Math.ceil(fuelHoursLeft(purse, level)) === hoursBefore) continue
 
     dirty.add(address)
     sendWallet(address)

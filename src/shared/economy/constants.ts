@@ -113,11 +113,38 @@ export const ROCK_TIME_TOLERANCE = 0.8
 // The idle rig. It works while the player is away, which is the whole reason it justifies its
 // price — see design/balance.md §4.
 
-/** Ore the rig digs per hour, running or not, whether anyone is watching. */
-export const MULE_ORE_PER_HOUR = 60
+/** Ore the rig digs per hour at level 1, running or not, whether anyone is watching. Each
+ * level adds this much again: level N digs N times it. */
+export const MULE_ORE_PER_HOUR = 10
+
+/**
+ * The player owns one rig and levels it up rather than buying a second (balance.md §0). The
+ * level is the count stored in `owned`, so a save from before levels existed keeps its rigs as
+ * levels instead of losing them.
+ */
+export const MULE_MAX_LEVEL = 5
+
+/** Each level costs this much times the one before it. ×1.5 rather than balance.md §0's ×2:
+ * yield only grows linearly, and at ×2 the upgrade from level 4 takes 100 days to pay back. */
+export const MULE_PRICE_GROWTH = 1.5
 
 /**
  * How much it holds before it stops. Matched to the warehouse on purpose, so a full load is
  * always one trip and never strands ore the player cannot carry.
  */
 export const MULE_CAPACITY = 500
+
+// --- Fuel -----------------------------------------------------------------------------
+//
+// The rig's running cost (balance.md §3). One tank runs it for a day at any level: a higher
+// level burns faster and its tank costs more, so the daily return stays the same while the
+// margin grows with the level.
+
+/** Hours one tank runs the rig, whatever its level. */
+export const FUEL_TANK_HOURS = 24
+
+/** Tanks the rig can hold at once — a missed day is forgiven, a week away is not. */
+export const FUEL_MAX_TANKS = 2
+
+/** Coins per tank, times the rig's level. A third of a level-1 day's output at the base rate. */
+export const FUEL_PRICE_PER_LEVEL = 8

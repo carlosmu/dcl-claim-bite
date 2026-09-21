@@ -1,5 +1,6 @@
 import { createProximityZone, ProximityZone } from '../world/proximity-zone'
-import { CATALOGUE, findItem, ShopItem, ShopItemId } from '../shared/economy/catalogue'
+import { getOwned } from '../shared/state/inventory'
+import { CATALOGUE, findItem, priceOf, ShopItem, ShopItemId } from '../shared/economy/catalogue'
 import { getCoins } from '../shared/state/wallet'
 import { sendBuy } from '../net/economy-link'
 
@@ -29,7 +30,14 @@ export function selectItem(id: ShopItemId): void {
 
 export function canAffordSelected(): boolean {
   const item = getSelectedItem()
-  return item !== null && getCoins() >= item.price
+  if (item === null) return false
+  const price = currentPrice(item)
+  return price !== null && getCoins() >= price
+}
+
+/** What buying this costs right now — the M.U.L.E. gets dearer per level. Null when maxed. */
+export function currentPrice(item: ShopItem): number | null {
+  return priceOf(item, (id) => getOwned(id))
 }
 
 /**
