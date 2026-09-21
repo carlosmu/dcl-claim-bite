@@ -13,7 +13,7 @@ const MUSIC_VOLUME = 1
 
 // The title screen loops its own track; the town music replaces it once Start Game is tapped.
 const INTRO_CLIP = 'assets/sounds/intro.mp3'
-const INTRO_VOLUME = 0.7
+const INTRO_VOLUME = 1
 
 let introEntity: Entity | undefined
 let musicEntity: Entity | undefined
