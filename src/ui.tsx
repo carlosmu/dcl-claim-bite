@@ -1,3 +1,4 @@
+import { engine, UiCanvasInformation } from '@dcl/sdk/ecs'
 import ReactEcs, { ReactEcsRenderer, UiEntity, Label, Button, Input } from "@dcl/sdk/react-ecs"
 import { Color4 } from "@dcl/sdk/math"
 import { getCoins, getOre } from './shared/state/wallet'
@@ -854,12 +855,45 @@ const inventoryButton = () => (
             uiBackground={{ color: STEP_BUTTON_COLOR }}
             onMouseDown={() => {
                 inventoryOpen = !inventoryOpen
+                if (inventoryOpen) mapOpen = false
             }}
         />
     </UiEntity>
 )
 
-// No map screen yet: the button is here so the layout is settled before the map exists.
+// --- Map ----------------------------------------------------------------------------------
+
+const MAP_IMAGE = 'assets/images/map.jpg'
+/** Share of the screen's width the map takes. It is square, so the height follows the width. */
+const MAP_SCREEN_WIDTH = 0.4
+/** Used until the canvas reports its size, on the first frame or two. */
+const MAP_FALLBACK_SIZE = 560
+
+function mapSize(): number {
+    const canvas = UiCanvasInformation.getOrNull(engine.RootEntity)
+    return canvas !== null && canvas.width > 0 ? canvas.width * MAP_SCREEN_WIDTH : MAP_FALLBACK_SIZE
+}
+
+let mapOpen = false
+
+const mapPanel = () => (
+    <UiEntity
+        uiTransform={{ width: mapSize(), height: mapSize(), positionType: 'relative', borderRadius: PANEL_RADIUS }}
+        uiBackground={{ texture: { src: MAP_IMAGE }, textureMode: 'stretch' }}
+    >
+        <Button
+            value="X"
+            fontSize={22}
+            color={Color4.White()}
+            uiTransform={{ positionType: 'absolute', position: { top: 10, right: 10 }, width: 44, height: 44, borderRadius: 22 }}
+            uiBackground={{ color: STEP_BUTTON_COLOR }}
+            onMouseDown={() => {
+                mapOpen = false
+            }}
+        />
+    </UiEntity>
+)
+
 const mapButton = () => (
     <UiEntity
         uiTransform={{
@@ -873,7 +907,10 @@ const mapButton = () => (
             alignItems: 'center'
         }}
         uiBackground={{ color: STEP_BUTTON_COLOR }}
-        onMouseDown={() => console.log('[ui] map: not built yet')}
+        onMouseDown={() => {
+            mapOpen = !mapOpen
+            if (mapOpen) inventoryOpen = false
+        }}
     >
         <UiEntity
             uiTransform={{ width: 32, height: 32, margin: { right: 8 } }}
@@ -907,10 +944,11 @@ export const uiMenu = () => (
             {hud()}
             {miningBar()}
             {orePopup()}
+            {mapOpen ? mapPanel() : null}
             {inventoryOpen ? inventoryPanel() : null}
-            {!inventoryOpen && isPlayerAtBank() ? bankPanel() : null}
-            {!inventoryOpen && isPlayerAtShop() ? marketPanel() : null}
-            {!inventoryOpen && isPlayerAtMule() && getMuleCapacity() > 0 ? mulePanel() : null}
+            {!mapOpen && !inventoryOpen && isPlayerAtBank() ? bankPanel() : null}
+            {!mapOpen && !inventoryOpen && isPlayerAtShop() ? marketPanel() : null}
+            {!mapOpen && !inventoryOpen && isPlayerAtMule() && getMuleCapacity() > 0 ? mulePanel() : null}
             {mapButton()}
             {inventoryButton()}
             {DEBUG_SERVER_STATUS ? serverStatus() : null}
