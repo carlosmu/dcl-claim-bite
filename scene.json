@@ -1078,7 +1078,9 @@
     "nearbyVoiceChat": "enabled"
   },
   "creator": "",
-  "skyboxConfig": {},
+  "skyboxConfig": {
+    "fixedTime": 62100
+  },
   "landscapeTerrain": false,
   "source": {
     "origin": "creator-hub",
