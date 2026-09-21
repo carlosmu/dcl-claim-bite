@@ -24,6 +24,7 @@ import { setupRollingCounters, shownCoins, shownOre } from './ui/rolling-counter
 import { getOrePopup, RISE_SHARE, setupOrePopup } from './ui/ore-popup'
 import { DEBUG_ADD_COINS, DEBUG_SERVER_STATUS } from './shared/debug-flags'
 import { BitmapText } from './ui/bitmap-text'
+import { introScreen } from './ui/intro-screen'
 
 export function setupUi() {
     setupRollingCounters()
@@ -954,5 +955,6 @@ export const uiMenu = () => (
             {DEBUG_SERVER_STATUS ? serverStatus() : null}
             {DEBUG_ADD_COINS ? debugCoinsTool() : null}
         </UiEntity>
+        {introScreen()}
     </UiEntity>
 )
