@@ -83,7 +83,7 @@ export function introScreen() {
                     uiTransform={{
                         width: BUTTON_WIDTH * PULSE_MAX,
                         height: BUTTON_HEIGHT * PULSE_MAX,
-                        margin: { top: 24 },
+                        margin: { top: 0 },
                         justifyContent: 'center',
                         alignItems: 'center'
                     }}

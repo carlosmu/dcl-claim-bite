@@ -1,5 +1,6 @@
 import { Entity, engine, GltfContainer, MeshCollider, MeshRenderer, Transform } from '@dcl/sdk/ecs'
 import { Quaternion, Vector3 } from '@dcl/sdk/math'
+import { movePlayerTo } from '~system/RestrictedActions'
 
 import { MINE_FACING_DEGREES, MINE_REACH_METERS, ORE_PER_ROCK, SWING_SECONDS } from '../shared/economy/constants'
 import { getCarryCapacity, getHitsPerRock, sendRockDone, sendSwing } from '../net/economy-link'
@@ -261,6 +262,21 @@ function distanceIfFacing(spot: Vector3): number {
   return cosine >= Math.cos((MINE_FACING_DEGREES * Math.PI) / 180) ? distance : Infinity
 }
 
+/**
+ * Turns the avatar square to the rock, where it stands, as the swings start. The facing check
+ * lets a player in at an angle, and from there the pick would land beside the rock. The
+ * player's Transform cannot be written, so the turn goes through movePlayerTo; the camera is
+ * left where it is.
+ */
+function faceRock(rock: Rock): void {
+  const player = Transform.getOrNull(engine.PlayerEntity)
+  if (player === null) return
+  const target = Vector3.create(rock.spot.x, player.position.y, rock.spot.z)
+  movePlayerTo({ newRelativePosition: Vector3.clone(player.position), avatarTarget: target }).catch((error) => {
+    console.error(`[mine] could not turn to the rock: ${error}`)
+  })
+}
+
 /** Ends the swing loop and forgets the swing in flight. The hits already on the rock stay. */
 function stopSwinging(): void {
   swingTimer = -1
@@ -322,6 +338,7 @@ function update(dt: number): void {
   // The emote runs as one loop for as long as the player keeps mining; the timer only decides
   // when each hit lands inside it.
   if (swingTimer < 0) {
+    faceRock(rock)
     startMineEmote()
     swingTimer = SWING_SECONDS
   }
