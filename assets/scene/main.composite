@@ -401,16 +401,16 @@
               "y": 0,
               "z": 8.25
             },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
             "rotation": {
               "x": 0,
               "y": 0,
               "z": 0,
               "w": 1
-            },
-            "scale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
             },
             "parent": 0
           }
@@ -21982,6 +21982,27 @@
             "parent": 0
           }
         },
+        "1560": {
+          "json": {
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "w": 1
+            },
+            "parent": 0
+          }
+        },
         "1562": {
           "json": {
             "position": {
@@ -29447,6 +29468,13 @@
             "invisibleMeshesCollisionMask": 3
           }
         },
+        "1560": {
+          "json": {
+            "src": "assets/models/rocks-limits.glb",
+            "visibleMeshesCollisionMask": 0,
+            "invisibleMeshesCollisionMask": 3
+          }
+        },
         "1562": {
           "json": {
             "src": "assets/models/mining-rocks.glb",
@@ -34724,6 +34752,11 @@
             "value": "town-mayor.glb"
           }
         },
+        "1560": {
+          "json": {
+            "value": "rocks-limits.glb"
+          }
+        },
         "1562": {
           "json": {
             "value": "Big Rock"
@@ -34846,7 +34879,8 @@
                   529,
                   67090,
                   1555,
-                  1558
+                  1558,
+                  1560
                 ]
               },
               {
@@ -40096,6 +40130,10 @@
               {
                 "entity": 1558,
                 "children": []
+              },
+              {
+                "entity": 1560,
+                "children": []
               }
             ]
           }
@@ -40177,6 +40215,9 @@
           "json": {}
         },
         "1558": {
+          "json": {}
+        },
+        "1560": {
           "json": {}
         },
         "1562": {
@@ -48779,9 +48820,12 @@
             "ageRating": "A",
             "categories": [],
             "author": "SDK",
-            "email": "",
             "tags": [],
             "layout": {
+              "base": {
+                "x": 16,
+                "y": 16
+              },
               "parcels": [
                 {
                   "x": 0,
@@ -52879,14 +52923,8 @@
                   "x": 31,
                   "y": 0
                 }
-              ],
-              "base": {
-                "x": 16,
-                "y": 16
-              }
+              ]
             },
-            "silenceVoiceChat": false,
-            "disablePortableExperiences": false,
             "spawnPoints": [
               {
                 "name": "SpawnArea1",
@@ -52900,17 +52938,14 @@
                     ]
                   },
                   "y": {
-                    "$case": "range",
-                    "value": [
-                      0,
-                      0
-                    ]
+                    "$case": "single",
+                    "value": 0
                   },
                   "z": {
                     "$case": "range",
                     "value": [
-                      0,
-                      3
+                      -98.5,
+                      -95.5
                     ]
                   }
                 },
@@ -52922,8 +52957,6 @@
               }
             ],
             "skyboxConfig": {},
-            "creator": "",
-            "disableNearbyVoiceChat": false,
             "hideLandscapeTerrain": true
           }
         }
