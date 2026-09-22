@@ -9,7 +9,7 @@ import { AudioSource, Entity, engine, Transform } from '@dcl/sdk/ecs'
 // that report on an action still cut through it.
 
 const MUSIC_CLIP = 'assets/sounds/western_loop.mp3'
-const MUSIC_VOLUME = 1
+const MUSIC_VOLUME = 2
 
 // The title screen loops its own track; the town music replaces it once Start Game is tapped.
 const INTRO_CLIP = 'assets/sounds/intro.mp3'
