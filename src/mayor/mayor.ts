@@ -1,4 +1,4 @@
-import { AudioSource, engine, Entity, Transform } from '@dcl/sdk/ecs'
+import { AudioSource, EasingFunction, engine, Entity, Transform, Tween } from '@dcl/sdk/ecs'
 import { Quaternion, Vector3 } from '@dcl/sdk/math'
 
 import { createProximityZone, ProximityZone } from '../world/proximity-zone'
@@ -16,7 +16,7 @@ import { playSubtitles } from '../world/subtitles'
 // TBD: no hand-over animation yet, and the server does not check the player is at the mayor.
 
 export const MAYOR_ENTITY_NAME = 'Town Mayor'
-export const MAYOR_RADIUS_METERS = 2
+export const MAYOR_RADIUS_METERS = 3
 
 /** Seconds between asks while standing there pickless. Covers a purse still loading on arrival
  * and a lost message, without spamming the server every frame. */
@@ -36,11 +36,17 @@ const PRACTICE_ROCK_OFFSET = 3
 const SECOND_PRACTICE_ROCK_EXTRA = 5
 // Seconds after the pick lands, so the fist pump plays out first.
 const PRACTICE_ROCK_DELAY_SECONDS = 1.5
+// On the line that sends you to the rock, he turns this far to his right to face it.
+const TURN_TO_ROCK_DEGREES = 90
+const TURN_TO_ROCK_SECONDS = 0.6
 
 let zone: ProximityZone | null = null
 let practiceTimer = -1
 let line: Entity | null = null
 let sinceLastAsk = ASK_RETRY_SECONDS
+let turnTimer = -1
+/** How he stands in the scene, read once: the rocks go on THIS right, whichever way he faces now. */
+let homeRotation: Quaternion.MutableQuaternion | null = null
 
 function askForPick(dt: number): void {
   sinceLastAsk += dt
@@ -67,7 +73,8 @@ function showPracticeRock(dt: number): void {
   if (at === null) return
 
   // He stands at the scene root, so his transform is already world space.
-  const right = Vector3.rotate(Vector3.Right(), at.rotation ?? Quaternion.Identity())
+  if (homeRotation === null) homeRotation = Quaternion.create(at.rotation.x, at.rotation.y, at.rotation.z, at.rotation.w)
+  const right = Vector3.rotate(Vector3.Right(), homeRotation)
   const [firstSeq, secondSeq] = TUTORIAL_ROCK_SEQS
   const first = Vector3.add(at.position, Vector3.scale(right, PRACTICE_ROCK_OFFSET))
   const second = Vector3.add(first, Vector3.scale(right, SECOND_PRACTICE_ROCK_EXTRA))
@@ -80,10 +87,28 @@ function showPracticeRock(dt: number): void {
   Transform.create(line, { position: Vector3.add(at.position, Vector3.create(0, 1.6, 0)) })
   AudioSource.create(line, { audioClipUrl: MINING_LINE, playing: true, loop: false, volume: 1, global: true })
   playSubtitles(MINING_LINE_SUBTITLES, MINING_LINE_SECONDS)
+  turnTimer = MINING_LINE_SUBTITLES[1].at
+}
+
+// Timed to the second subtitle, the one that points at the rock.
+function turnToRock(dt: number): void {
+  if (turnTimer < 0) return
+  turnTimer -= dt
+  if (turnTimer >= 0) return
+
+  const mayor = engine.getEntityOrNullByName(MAYOR_ENTITY_NAME)
+  if (mayor === null || homeRotation === null) return
+  const facing = Quaternion.multiply(homeRotation, Quaternion.fromEulerDegrees(0, TURN_TO_ROCK_DEGREES, 0))
+  Tween.createOrReplace(mayor, {
+    mode: Tween.Mode.Rotate({ start: Transform.get(mayor).rotation, end: facing }),
+    duration: TURN_TO_ROCK_SECONDS * 1000,
+    easingFunction: EasingFunction.EF_EASESINE
+  })
 }
 
 export function setupMayor(): void {
   zone = createProximityZone({ entityName: MAYOR_ENTITY_NAME, radiusMeters: MAYOR_RADIUS_METERS })
   engine.addSystem(askForPick, undefined, 'client:mayor')
   engine.addSystem(showPracticeRock, undefined, 'client:mayor-practice')
+  engine.addSystem(turnToRock, undefined, 'client:mayor-turn')
 }
