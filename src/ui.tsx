@@ -922,6 +922,9 @@ function mapSize(): number {
 
 let mapOpen = false
 
+// The map's close button: red, pinned to the map's top-right corner.
+const MAP_CLOSE_COLOR = Color4.fromHexString('#d32f2f')
+
 const mapPanel = () => (
     <UiEntity
         uiTransform={{ width: mapSize(), height: mapSize(), positionType: 'relative', borderRadius: PANEL_RADIUS }}
@@ -929,10 +932,18 @@ const mapPanel = () => (
     >
         <Button
             value="X"
-            fontSize={22}
+            fontSize={30}
             color={Color4.White()}
-            uiTransform={{ positionType: 'absolute', position: { top: 10, right: 10 }, width: 44, height: 44, borderRadius: 22 }}
-            uiBackground={{ color: STEP_BUTTON_COLOR }}
+            uiTransform={{
+                positionType: 'absolute',
+                position: { top: 0, right: 0 },
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                borderWidth: 3,
+                borderColor: Color4.Black()
+            }}
+            uiBackground={{ color: MAP_CLOSE_COLOR }}
             onMouseDown={() => {
                 mapOpen = false
             }}

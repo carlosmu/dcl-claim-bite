@@ -7,6 +7,7 @@
 export enum EntityNames {
   Bank = "Bank",
   Cactus_4 = "Cactus 4",
+  Carreta = "Carreta",
   For_Code = "For_Code",
   House_5_M_Blue = "House 5 M Blue",
   House_7_M_Blue = "House 7 M Blue",
@@ -20,4 +21,5 @@ export enum EntityNames {
   Train_Track_6_M_Old_V01 = "Train Track 6 M Old V01",
   Train_Track_6_M_Old_V01_2 = "Train Track 6 M Old V01_2",
   Train_Track_6_M_Old_V01_3 = "Train Track 6 M Old V01_3",
+  monument_glb = "monument.glb",
 } 

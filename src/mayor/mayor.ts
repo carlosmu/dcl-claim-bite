@@ -5,6 +5,7 @@ import { createProximityZone, ProximityZone } from '../world/proximity-zone'
 import { getHitsPerRock, sendClaimPick } from '../net/economy-link'
 import { placeTutorialRock } from '../mining/rocks'
 import { TUTORIAL_ROCK_SEQS } from '../shared/net/rock-sync'
+import { playSubtitles } from '../world/subtitles'
 
 // The town mayor, standing at spawn. Walking up to him with no pick gets you one — free, and
 // as often as it takes (design/balance.md §2: pick tier 0 is the anti-soft-lock fallback).
@@ -23,6 +24,12 @@ const ASK_RETRY_SECONDS = 2
 
 // After the pick: the mayor sets a practice rock down beside himself and tells you to mine it.
 const MINING_LINE = 'assets/sounds/mayor_mining.mp3'
+const MINING_LINE_SUBTITLES = [
+  { at: 0, text: 'Well done, stranger!' },
+  { at: 2, text: 'Now head over to that rock\nand get your first gold nuggets!' }
+]
+// How long the subtitles stay up. Set to the clip's length once it is final.
+const MINING_LINE_SECONDS = 6
 // On his right, this far out.
 const PRACTICE_ROCK_OFFSET = 3
 // Once the first is mined, a second one this much further out on the same side.
@@ -72,6 +79,7 @@ function showPracticeRock(dt: number): void {
   line = engine.addEntity()
   Transform.create(line, { position: Vector3.add(at.position, Vector3.create(0, 1.6, 0)) })
   AudioSource.create(line, { audioClipUrl: MINING_LINE, playing: true, loop: false, volume: 1, global: true })
+  playSubtitles(MINING_LINE_SUBTITLES, MINING_LINE_SECONDS)
 }
 
 export function setupMayor(): void {
