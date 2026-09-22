@@ -476,12 +476,7 @@ engine.addSystem((dt: number) => {
 const debugResetTool = () => {
     const armed = uiClock < resetArmedUntil
     return (
-        <UiEntity
-            uiTransform={{
-                positionType: 'absolute',
-                position: { bottom: 104, left: 0 }
-            }}
-        >
+        <UiEntity uiTransform={{ margin: { top: 8 } }}>
             <Button
                 value={armed ? 'Tap again to wipe' : 'Reset progress'}
                 fontSize={16}
@@ -520,14 +515,13 @@ function submitDebugCoins() {
 const debugCoinsTool = () => (
     <UiEntity
         uiTransform={{
-            positionType: 'absolute',
-            position: { bottom: 56, left: 0 },
             flexDirection: 'row',
-            alignItems: 'center'
+            alignItems: 'center',
+            margin: { top: 8 }
         }}
     >
         <Button
-            value={debugOpen ? 'Close' : '+ Coins (debug)'}
+            value={debugOpen ? 'Close' : 'Free coins'}
             fontSize={16}
             color={Color4.White()}
             uiTransform={{ width: 150, height: 40, borderRadius: 8 }}
@@ -564,6 +558,29 @@ const debugCoinsTool = () => (
                 />
             </UiEntity>
         ) : null}
+    </UiEntity>
+)
+
+// --- Debug box --------------------------------------------------------------------------
+//
+// One labelled panel at the bottom-left that groups every debug tool, so they read as a set
+// and not as stray game buttons.
+
+const debugBox = () => (
+    <UiEntity
+        uiTransform={{
+            positionType: 'absolute',
+            position: { bottom: 56, left: 0 },
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            padding: 10,
+            borderRadius: 10
+        }}
+        uiBackground={{ color: PANEL_BACKGROUND }}
+    >
+        <Label value="DEBUG" fontSize={14} color={MUTED_COLOR} uiTransform={{ height: 18 }} />
+        {DEBUG_RESET_PROGRESS ? debugResetTool() : null}
+        {DEBUG_ADD_COINS ? debugCoinsTool() : null}
     </UiEntity>
 )
 
@@ -1009,8 +1026,7 @@ export const uiMenu = () => (
             {mapButton()}
             {inventoryButton()}
             {DEBUG_SERVER_STATUS ? serverStatus() : null}
-            {DEBUG_RESET_PROGRESS ? debugResetTool() : null}
-            {DEBUG_ADD_COINS ? debugCoinsTool() : null}
+            {DEBUG_RESET_PROGRESS || DEBUG_ADD_COINS ? debugBox() : null}
         </UiEntity>
         {welcomeOverlay()}
         {introScreen()}

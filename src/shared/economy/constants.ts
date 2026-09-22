@@ -146,5 +146,5 @@ export const FUEL_TANK_HOURS = 24
 /** Tanks the rig can hold at once — a missed day is forgiven, a week away is not. */
 export const FUEL_MAX_TANKS = 2
 
-/** Coins per tank, times the rig's level. A third of a level-1 day's output at the base rate. */
-export const FUEL_PRICE_PER_LEVEL = 8
+/** Coins per tank, times the rig's level. */
+export const FUEL_PRICE_PER_LEVEL = 10

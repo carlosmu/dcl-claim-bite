@@ -23,6 +23,9 @@ const BUTTON_FONT_SIZE = 40
 const PULSE_MIN = 1
 const PULSE_MAX = 1.2
 const PULSE_SECONDS = 2.4
+// "Skip intro" under the button: plain white text that starts the game without the welcome shot.
+const SKIP_FONT_SIZE = 24
+const SKIP_MARGIN_TOP = 16
 
 type Phase = 'title' | 'fading' | 'done'
 let phase: Phase = 'title'
@@ -42,7 +45,8 @@ function pulseScale() {
     return PULSE_MIN + (PULSE_MAX - PULSE_MIN) * wave
 }
 
-function startGame() {
+/** Fades the title card away; the welcome shot follows unless `withWelcome` is false. */
+function startGame(withWelcome: boolean) {
     if (phase !== 'title') return
     phase = 'fading'
     startGameMusic()
@@ -52,7 +56,7 @@ function startGame() {
         if (fadeElapsed >= FADE_SECONDS) {
             phase = 'done'
             engine.removeSystem(introFadeSystem)
-            playWelcomeCinematic()
+            if (withWelcome) playWelcomeCinematic()
         }
     })
 }
@@ -99,10 +103,15 @@ export function introScreen() {
                         alignItems: 'center'
                     }}
                     uiBackground={{ textureMode: 'stretch', texture: { src: BUTTON_GRADIENT } }}
-                    onMouseDown={startGame}
+                    onMouseDown={() => startGame(true)}
                 >
                     <BitmapText value="Start Game" fontSize={BUTTON_FONT_SIZE * pulseScale()} color={Color4.Black()} align="center" uiTransform={{ width: '100%' }} />
                 </UiEntity>
+                </UiEntity>
+            ) : null}
+            {phase === 'title' ? (
+                <UiEntity uiTransform={{ margin: { top: SKIP_MARGIN_TOP } }} onMouseDown={() => startGame(false)}>
+                    <BitmapText value="Skip intro" fontSize={SKIP_FONT_SIZE} color={Color4.White()} align="center" />
                 </UiEntity>
             ) : null}
         </UiEntity>

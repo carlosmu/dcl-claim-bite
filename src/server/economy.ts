@@ -289,8 +289,7 @@ function handleSell(address: string, requested: number): void {
   const payout = quoteSale(amount) // priced before the sale moves the market
 
   // A sale that rounds down to nothing is refused rather than served: the payout floors, so
-  // serving it would swallow the ore and hand back zero coins. The ladder means the first
-  // coin costs a shade over ten ore, not exactly ten.
+  // serving it would swallow the ore and hand back zero coins: less ore than the rate.
   if (payout <= 0) {
     sendResult(address, 'sell', false, 'too little ore to make a coin')
     return

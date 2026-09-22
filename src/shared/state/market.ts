@@ -37,27 +37,29 @@ export function getMacroRate(): number {
 }
 
 /**
+ * The rate a sale is priced at: the live rate to one decimal, as the bank shows it.
+ *
+ * The live rate eases back toward its base without ever quite landing on it, so it sits a
+ * hair above: 10.004 shown as "10.0". Priced unrounded, ten ore bought 0.9996 of a coin —
+ * nothing, once floored — and the bank refused a sale its own screen said would pay one.
+ * Pricing at the shown rate makes the screen and the sale agree, on the client and the server.
+ */
+export function quotedRate(rate: number): number {
+  return Math.round(rate * 10) / 10
+}
+
+/**
  * Coins that selling `oreAmount` would pay at `rate`, rounded down so a sale never invents a
  * fraction of a coin. Changes nothing.
  *
- * Priced ore by ore down a rising ladder rather than at one flat rate: the first unit is
- * charged today's rate and each following unit a notch more, so dumping a full bag pays less
- * per ore than selling it in batches with the rate easing in between. That is what makes
- * choosing an amount a decision instead of always tapping "all".
- *
- * Inverting the quote turned that ladder from a sum into a logarithm — the integral of 1/rate
- * as the rate climbs — which is also why the penalty for dumping bites harder here than it
- * did in coins-per-ore.
+ * The whole sale is priced at the rate it was offered at: the quote on the screen is the deal.
+ * The rate moves only afterwards (applySale), so dumping a full bag still costs — but the
+ * next sale, not this one. Pricing each ore a notch dearer inside the sale made the shown
+ * rate a promise the sale could not keep: ten ore at a rate of ten came to 0.9975 of a coin.
  */
-export function quoteSaleAt(rate: number, oreAmount: number): number {
+export function quoteSaleAt(rawRate: number, oreAmount: number): number {
   if (oreAmount <= 0) return 0
-
-  // Ore that can be sold before the rate hits its cap and stops getting worse.
-  const beforeCap = Math.max(0, Math.min(oreAmount, (RATE_CAP - rate) / SLIPPAGE_PER_ORE))
-  const climbing = beforeCap > 0 ? Math.log((rate + beforeCap * SLIPPAGE_PER_ORE) / rate) / SLIPPAGE_PER_ORE : 0
-  const atCap = (oreAmount - beforeCap) / RATE_CAP
-
-  return Math.floor(climbing + atCap)
+  return Math.floor(oreAmount / quotedRate(rawRate))
 }
 
 /** The same quote at the rate right now. */
@@ -66,24 +68,18 @@ export function quoteSale(oreAmount: number): number {
 }
 
 /**
- * The ore that exactly buys `coins` at `rate` — the ladder's inverse.
+ * The ore that buys `coins` at `rate` — the quote's inverse.
  *
  * This is what stops a sale from eating ore it did not pay for. A payout floors to whole
  * coins, and charging the player's whole offer for a floored payout silently burns the
  * remainder: selling 11 ore at a rate of 10 pays 1 coin and used to cost all 11, so a tenth
  * of a coin — about one ore — vanished. Selling the exact cost and leaving the rest in the
- * bag means the advertised rate is the rate the player actually gets.
+ * bag means the advertised rate is the rate the player actually gets. Rounded down, so a
+ * fractional rate never charges a part of an ore the player does not have.
  */
-export function oreForCoins(rate: number, coins: number): number {
+export function oreForCoins(rawRate: number, coins: number): number {
   if (coins <= 0) return 0
-
-  const oreToCap = Math.max(0, (RATE_CAP - rate) / SLIPPAGE_PER_ORE)
-  const coinsToCap = oreToCap > 0 ? Math.log((rate + oreToCap * SLIPPAGE_PER_ORE) / rate) / SLIPPAGE_PER_ORE : 0
-
-  // Past the cap the ladder stops climbing and the price is flat, so the inverse is linear.
-  if (coins > coinsToCap) return Math.floor(oreToCap + (coins - coinsToCap) * RATE_CAP)
-
-  return Math.floor((rate / SLIPPAGE_PER_ORE) * (Math.exp(SLIPPAGE_PER_ORE * coins) - 1))
+  return Math.floor(coins * quotedRate(rawRate))
 }
 
 /** Moves the rate for a sale that has just happened. */
