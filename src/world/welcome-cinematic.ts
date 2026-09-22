@@ -1,3 +1,4 @@
+import { startTownMusic } from './music'
 import { AudioSource, engine, Entity, InputModifier, MainCamera, Transform, VirtualCamera } from '@dcl/sdk/ecs'
 import { Vector3 } from '@dcl/sdk/math'
 import { movePlayerTo } from '~system/RestrictedActions'
@@ -79,6 +80,7 @@ function finish(): void {
   InputModifier.deleteFrom(engine.PlayerEntity)
   if (audio !== null) engine.removeEntity(audio)
   audio = null
+  startTownMusic()
 
   const leftover = camera
   const leftoverTarget = target
@@ -115,6 +117,7 @@ export function playWelcomeCinematic(): void {
   const mayorTransform = mayor === null ? null : Transform.getOrNull(mayor)
   if (mayorTransform === null) {
     console.error(`[welcome] no "${MAYOR_ENTITY_NAME}" in the scene — skipping the welcome`)
+    startTownMusic()
     return
   }
 

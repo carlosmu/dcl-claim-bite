@@ -6,6 +6,7 @@ import { isServer } from '@dcl/sdk/network'
 // component is declared here instead, at module load, where both runtimes reach it in time.
 import './shared/net/heartbeat'
 import './shared/net/market-sync'
+import './shared/net/mule-yard-sync'
 import './shared/net/protocol'
 
 import { setupUi } from './ui'

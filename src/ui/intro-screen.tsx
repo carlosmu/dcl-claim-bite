@@ -2,7 +2,7 @@ import { engine } from '@dcl/sdk/ecs'
 import ReactEcs, { UiEntity } from '@dcl/sdk/react-ecs'
 import { BitmapText } from './bitmap-text'
 import { Color4 } from '@dcl/sdk/math'
-import { startGameMusic } from '../world/music'
+import { startTownMusic, stopIntroMusic } from '../world/music'
 import { playWelcomeCinematic } from '../world/welcome-cinematic'
 
 // Title card shown when the game starts: black screen, logo, Start Game button. Tapping the
@@ -49,14 +49,17 @@ function pulseScale() {
 function startGame(withWelcome: boolean) {
     if (phase !== 'title') return
     phase = 'fading'
-    startGameMusic()
+    stopIntroMusic()
+    // The shot starts under the fade, so the title dissolves straight into it. It starts the
+    // town music itself once the mayor is done; without it, the music starts now.
+    if (withWelcome) playWelcomeCinematic()
+    else startTownMusic()
     fadeElapsed = 0
     engine.addSystem(function introFadeSystem(dt: number) {
         fadeElapsed += dt
         if (fadeElapsed >= FADE_SECONDS) {
             phase = 'done'
             engine.removeSystem(introFadeSystem)
-            if (withWelcome) playWelcomeCinematic()
         }
     })
 }

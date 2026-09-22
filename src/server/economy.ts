@@ -11,10 +11,11 @@
 // Purses are in memory only: a restart still wipes them. Persisting them is the next step
 // (design/gdd.md §9), and is what the M.U.L.E. has been waiting for.
 
-import { engine, PlayerIdentityData } from '@dcl/sdk/ecs'
+import { AvatarBase, engine, PlayerIdentityData } from '@dcl/sdk/ecs'
 import { syncEntity } from '@dcl/sdk/network'
 
 import { MARKET_ENTITY_ENUM_ID, OreMarket } from '../shared/net/market-sync'
+import { MULE_YARD_ENTITY_ENUM_ID, MULE_YARD_MAX_SLOTS, MuleYard } from '../shared/net/mule-yard-sync'
 import { room } from '../shared/net/protocol'
 import { applySale, getMacroRate, getRate, oreForCoins, quoteSale, recoverRate, restoreMacroRate } from '../shared/state/market'
 import { loadMarketPrice, loadPurse, savePurse, saveMarketPrice } from './persistence'
@@ -594,6 +595,63 @@ function settlePresentMules(dt: number) {
   }
 }
 
+// --- Mule yard ---------------------------------------------------------------------------
+//
+// Every rig owner who is here gets a spot in the yard grid. A spot is kept for the address
+// while the server runs, so someone who steps out and back finds their rig where they left it
+// (unless the yard filled up meanwhile).
+
+let yardEntity = engine.RootEntity
+const yardSlots = new Map<string, number>()
+let lastPublishedYard = ''
+let sinceLastYardPublish = 0
+
+/** The display name the player's avatar carries, or a short address while it has none. */
+function displayNameOf(address: string): string {
+  for (const [entity, identity] of engine.getEntitiesWith(PlayerIdentityData)) {
+    if (identity.address !== address) continue
+    const name = AvatarBase.getOrNull(entity)?.name ?? ''
+    if (name !== '') return name
+  }
+  return `${address.slice(0, 6)}…${address.slice(-4)}`
+}
+
+function slotFor(address: string): number {
+  const kept = yardSlots.get(address)
+  if (kept !== undefined) return kept
+  const taken = new Set(yardSlots.values())
+  for (let slot = 0; slot < MULE_YARD_MAX_SLOTS; slot++) {
+    if (taken.has(slot)) continue
+    yardSlots.set(address, slot)
+    return slot
+  }
+  return -1
+}
+
+function publishYard(dt: number) {
+  sinceLastYardPublish += dt
+  if (sinceLastYardPublish < PRESENCE_CHECK_PERIOD_SECONDS) return
+  sinceLastYardPublish = 0
+
+  const mules: { slot: number; address: string; name: string; level: number }[] = []
+  for (const address of present) {
+    const purse = purses.get(address)
+    if (purse === undefined) continue
+    const level = muleLevel((id) => purse.owned[id] ?? 0)
+    if (level <= 0) continue
+    const slot = slotFor(address)
+    if (slot < 0) continue
+    mules.push({ slot, address, name: displayNameOf(address), level })
+  }
+  mules.sort((a, b) => a.slot - b.slot)
+
+  // Only on a real change: this runs every second and the yard rarely moves.
+  const encoded = JSON.stringify(mules)
+  if (encoded === lastPublishedYard) return
+  lastPublishedYard = encoded
+  MuleYard.getMutable(yardEntity).mules = mules
+}
+
 function advanceClock(dt: number) {
   serverClock += dt
 }
@@ -640,6 +698,10 @@ export function setupEconomy(): void {
   marketEntity = engine.addEntity()
   OreMarket.create(marketEntity, { price: getRate() })
   syncEntity(marketEntity, [OreMarket.componentId], MARKET_ENTITY_ENUM_ID)
+
+  yardEntity = engine.addEntity()
+  MuleYard.create(yardEntity, { mules: [] })
+  syncEntity(yardEntity, [MuleYard.componentId], MULE_YARD_ENTITY_ENUM_ID)
 
   room.onMessage('hello', (_data, context) => {
     if (!context) return
@@ -700,5 +762,6 @@ export function setupEconomy(): void {
   engine.addSystem(flushSaves, undefined, 'server:save')
   engine.addSystem(settlePresentMules, undefined, 'server:mule-settle')
   engine.addSystem(checkPresence, undefined, 'server:presence')
+  engine.addSystem(publishYard, undefined, 'server:mule-yard')
   engine.addSystem(moveSpentRocks, undefined, 'server:rock-move')
 }

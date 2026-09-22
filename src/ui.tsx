@@ -578,7 +578,7 @@ const debugBox = () => (
         }}
         uiBackground={{ color: PANEL_BACKGROUND }}
     >
-        <Label value="DEBUG" fontSize={14} color={MUTED_COLOR} uiTransform={{ height: 18 }} />
+        <Label value="DEBUG PLANEL" fontSize={14} color={MUTED_COLOR} uiTransform={{ height: 18 }} />
         {DEBUG_RESET_PROGRESS ? debugResetTool() : null}
         {DEBUG_ADD_COINS ? debugCoinsTool() : null}
     </UiEntity>
@@ -769,6 +769,7 @@ const mulePanel = () => {
             }}
             uiBackground={{ color: PANEL_BACKGROUND }}
         >
+            <BitmapText value="Mining Utility Labor Engine" fontSize={28} align="center" uiTransform={{ width: '100%', margin: { bottom: 8 } }} />
             {infoRow('M.U.L.E.', `${waiting} / ${getMuleCapacity()} ore`, ORE_COLOR)}
             {infoRow('Fuel', fuelLeftText(), getMuleFuelHours() > 0 ? COIN_COLOR : MUTED_COLOR)}
             <Button

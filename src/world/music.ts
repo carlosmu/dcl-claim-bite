@@ -41,12 +41,15 @@ export function setupMusic(): void {
   })
 }
 
-// Called by the title screen's Start Game button: cut the intro, start the town loop.
-export function startGameMusic(): void {
-  if (introEntity !== undefined) {
-    AudioSource.getMutable(introEntity).playing = false
-    engine.removeEntity(introEntity)
-    introEntity = undefined
-  }
+// Called by the title screen's Start Game button. The town loop waits: over the welcome it
+// would talk across the mayor, so it starts once he is done (startTownMusic).
+export function stopIntroMusic(): void {
+  if (introEntity === undefined) return
+  AudioSource.getMutable(introEntity).playing = false
+  engine.removeEntity(introEntity)
+  introEntity = undefined
+}
+
+export function startTownMusic(): void {
   if (musicEntity !== undefined) AudioSource.getMutable(musicEntity).playing = true
 }
