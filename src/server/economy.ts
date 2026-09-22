@@ -25,7 +25,7 @@ import {
   ROCK_TIME_TOLERANCE,
   SWING_SECONDS
 } from '../shared/economy/constants'
-import { DEBUG_ADD_COINS, DEBUG_MAX_COINS } from '../shared/debug-flags'
+import { DEBUG_ADD_COINS, DEBUG_MAX_COINS, DEBUG_RESET_PROGRESS } from '../shared/debug-flags'
 import {
   activePick,
   bestHitsPerRock,
@@ -427,6 +427,36 @@ function handleDebugCoins(address: string, requested: number): void {
   console.log(`[Server] DEBUG granted ${amount} coins to ${address} · balance ${purse.coins}`)
 }
 
+// DEBUG: back to a first visit. The purse is emptied in place rather than replaced, so nothing
+// holding it sees a stale copy, and it is saved like any other change.
+function handleDebugReset(address: string): void {
+  if (!DEBUG_RESET_PROGRESS) {
+    sendResult(address, 'debugReset', false, 'debug tools are off')
+    return
+  }
+
+  const purse = purseOf(address)
+  if (purse === null) {
+    sendResult(address, 'debugReset', false, 'still loading')
+    return
+  }
+
+  purse.ore = 0
+  purse.coins = 0
+  purse.owned = {}
+  purse.muleOre = 0
+  purse.muleAt = 0
+  purse.muleFuel = 0
+  purse.equipped = ''
+  lastRockAt.delete(address)
+  lastSwing.delete(address)
+
+  dirty.add(address)
+  sendWallet(address)
+  sendResult(address, 'debugReset', true, 'progress wiped')
+  console.log(`[Server] DEBUG wiped the progress of ${address}`)
+}
+
 function handleCollect(address: string): void {
   const purse = purseOf(address)
   if (purse === null) {
@@ -618,6 +648,11 @@ export function setupEconomy(): void {
   room.onMessage('debugCoins', (data, context) => {
     if (!context) return
     handleDebugCoins(context.from, data.amount)
+  })
+
+  room.onMessage('debugReset', (_data, context) => {
+    if (!context) return
+    handleDebugReset(context.from)
   })
 
   room.onMessage('collect', (_data, context) => {

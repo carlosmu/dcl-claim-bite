@@ -11,6 +11,7 @@ import {
     getSyncedRate,
     quoteSaleForDisplay,
     sendDebugCoins,
+    sendDebugReset,
     sendEquip
 } from './net/economy-link'
 import { buySelected, getSelectedItem, getSelectedItemId, currentPrice, isPlayerAtShop, selectItem } from './shop/shop'
@@ -22,9 +23,10 @@ import { getServerTick, isServerOnline } from './net/server-link'
 import { getMiningStatus } from './mining/rocks'
 import { setupRollingCounters, shownCoins, shownOre } from './ui/rolling-counter'
 import { getOrePopup, RISE_SHARE, setupOrePopup } from './ui/ore-popup'
-import { DEBUG_ADD_COINS, DEBUG_SERVER_STATUS } from './shared/debug-flags'
+import { DEBUG_ADD_COINS, DEBUG_RESET_PROGRESS, DEBUG_SERVER_STATUS } from './shared/debug-flags'
 import { BitmapText } from './ui/bitmap-text'
 import { introScreen } from './ui/intro-screen'
+import { welcomeOverlay } from './ui/welcome-overlay'
 
 export function setupUi() {
     setupRollingCounters()
@@ -452,6 +454,49 @@ const marketPanel = () => {
                     onMouseDown={buySelected}
                 />
             )}
+        </UiEntity>
+    )
+}
+
+// --- Debug: reset progress --------------------------------------------------------------
+//
+// Sits just above the coins button. Takes two taps: the first arms it, the second wipes, so a
+// stray click does not throw away a session of testing. Only drawn while DEBUG_RESET_PROGRESS
+// is on; the server checks the same flag.
+
+/** Seconds the armed button waits for the second tap before it disarms. */
+const RESET_CONFIRM_SECONDS = 3
+let resetArmedUntil = 0
+let uiClock = 0
+
+engine.addSystem((dt: number) => {
+    uiClock += dt
+})
+
+const debugResetTool = () => {
+    const armed = uiClock < resetArmedUntil
+    return (
+        <UiEntity
+            uiTransform={{
+                positionType: 'absolute',
+                position: { bottom: 104, left: 0 }
+            }}
+        >
+            <Button
+                value={armed ? 'Tap again to wipe' : 'Reset progress'}
+                fontSize={16}
+                color={Color4.White()}
+                uiTransform={{ width: 150, height: 40, borderRadius: 8 }}
+                uiBackground={{ color: armed ? MAGENTA : STEP_BUTTON_COLOR }}
+                onMouseDown={() => {
+                    if (!armed) {
+                        resetArmedUntil = uiClock + RESET_CONFIRM_SECONDS
+                        return
+                    }
+                    resetArmedUntil = 0
+                    sendDebugReset()
+                }}
+            />
         </UiEntity>
     )
 }
@@ -953,8 +998,10 @@ export const uiMenu = () => (
             {mapButton()}
             {inventoryButton()}
             {DEBUG_SERVER_STATUS ? serverStatus() : null}
+            {DEBUG_RESET_PROGRESS ? debugResetTool() : null}
             {DEBUG_ADD_COINS ? debugCoinsTool() : null}
         </UiEntity>
+        {welcomeOverlay()}
         {introScreen()}
     </UiEntity>
 )

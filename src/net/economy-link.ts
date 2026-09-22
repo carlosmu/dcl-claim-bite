@@ -6,6 +6,7 @@
 // be edited by the player holding it.
 
 import { engine } from '@dcl/sdk/ecs'
+import { triggerEmote } from '~system/RestrictedActions'
 import { isStateSyncronized } from '@dcl/sdk/network'
 
 import { room } from '../shared/net/protocol'
@@ -16,7 +17,7 @@ import { applyServerEquipped, applyServerOwned } from '../shared/state/inventory
 import { RATE_BASE } from '../shared/economy/constants'
 import { quoteSaleAt } from '../shared/state/market'
 import { playSfx } from '../world/sfx'
-import { equipPick } from '../player/held-pick'
+import { equipPick, unequipPick } from '../player/held-pick'
 
 const BANK_SOUND_CLIP = 'assets/sounds/bank.mp3'
 const BUY_SOUND_CLIP = 'assets/sounds/buy.mp3'
@@ -110,6 +111,12 @@ export function sendDebugCoins(amount: number): void {
   room.send('debugCoins', { amount })
 }
 
+/** DEBUG: asks the server to wipe this player's progress. */
+export function sendDebugReset(): void {
+  if (!isStateSyncronized()) return
+  room.send('debugReset', { ready: true })
+}
+
 export function sendCollect(): void {
   if (!isStateSyncronized()) return
   room.send('collect', { ready: true })
@@ -156,6 +163,8 @@ export function setupEconomyLink(): void {
     // this is the only message that runs on arrival. equipPick() is idempotent, and swaps the
     // model when another pick is bought or chosen in the inventory.
     if (data.equipped !== '') equipPick(data.equipped)
+    // No pick left at all (a debug reset): nothing in the hand either.
+    else if (data.hitsPerRock <= 0) unequipPick()
 
     console.log(
       `[economy] wallet from server: ${data.ore}/${data.capacity} ore, ${data.coins} coins, ` +
@@ -170,6 +179,17 @@ export function setupEconomyLink(): void {
 
   // The feedback for an action fires here rather than at the button, because only now is it
   // known whether it actually happened. A refused purchase makes no sound.
+  /** The mayor's pick in hand: a fist pump. Needs ALLOW_TO_TRIGGER_AVATAR_EMOTE, as mining does. */
+  function celebratePick(): void {
+    try {
+      triggerEmote({ predefinedEmote: 'fistpump' }).catch((error) => {
+        console.error(`[player] could not play the fist pump: ${error}`)
+      })
+    } catch (error) {
+      console.error(`[player] could not play the fist pump: ${error}`)
+    }
+  }
+
   room.onMessage('actionResult', (data) => {
     if (!data.ok) {
       console.log(`[economy] ${data.action} refused: ${data.detail}`)
@@ -179,6 +199,7 @@ export function setupEconomyLink(): void {
     if (data.action === 'sell') playSfx(BANK_SOUND_CLIP, SOUND_VOLUME)
     if (data.action === 'buy' || data.action === 'claimPick' || data.action === 'equip') playSfx(BUY_SOUND_CLIP, SOUND_VOLUME)
     if (data.action === 'collect') playSfx(BANK_SOUND_CLIP, SOUND_VOLUME)
+    if (data.action === 'claimPick') celebratePick()
     console.log(`[economy] ${data.action}: ${data.detail}`)
   })
 

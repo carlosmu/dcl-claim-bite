@@ -9,6 +9,10 @@
  * market never moves. The server refuses the grant while this is false. */
 export const DEBUG_ADD_COINS = true
 
+/** A "Reset progress" button that wipes the player's purse back to a first visit: no ore, no
+ * coins, nothing owned, an empty M.U.L.E. The server refuses the wipe while this is false. */
+export const DEBUG_RESET_PROGRESS = true
+
 /** The most a single debug grant can add, so a typo cannot overflow a purse. */
 export const DEBUG_MAX_COINS = 1_000_000
 

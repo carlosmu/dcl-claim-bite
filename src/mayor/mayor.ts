@@ -11,8 +11,8 @@ import { getHitsPerRock, sendClaimPick } from '../net/economy-link'
 //
 // TBD: no hand-over animation yet, and the server does not check the player is at the mayor.
 
-export const MAYOR_ENTITY_NAME = 'town-mayor.glb'
-export const MAYOR_RADIUS_METERS = 4
+export const MAYOR_ENTITY_NAME = 'Town Mayor'
+export const MAYOR_RADIUS_METERS = 2
 
 /** Seconds between asks while standing there pickless. Covers a purse still loading on arrival
  * and a lost message, without spamming the server every frame. */

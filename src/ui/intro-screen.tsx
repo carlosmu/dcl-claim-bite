@@ -3,6 +3,7 @@ import ReactEcs, { UiEntity } from '@dcl/sdk/react-ecs'
 import { BitmapText } from './bitmap-text'
 import { Color4 } from '@dcl/sdk/math'
 import { startGameMusic } from '../world/music'
+import { playWelcomeCinematic } from '../world/welcome-cinematic'
 
 // Title card shown when the game starts: black screen, logo, Start Game button. Tapping the
 // button hides logo and button, then the black backdrop fades to nothing and goes away.
@@ -51,6 +52,7 @@ function startGame() {
         if (fadeElapsed >= FADE_SECONDS) {
             phase = 'done'
             engine.removeSystem(introFadeSystem)
+            playWelcomeCinematic()
         }
     })
 }

@@ -16,8 +16,8 @@ export enum EntityNames {
   Mining_Area = "Mining_Area",
   Railway = "Railway",
   Rustic_Wheelbarrow = "Rustic Wheelbarrow",
+  Town_Mayor = "Town Mayor",
   Train_Track_6_M_Old_V01 = "Train Track 6 M Old V01",
   Train_Track_6_M_Old_V01_2 = "Train Track 6 M Old V01_2",
   Train_Track_6_M_Old_V01_3 = "Train Track 6 M Old V01_3",
-  town_mayor_glb = "town-mayor.glb",
 } 

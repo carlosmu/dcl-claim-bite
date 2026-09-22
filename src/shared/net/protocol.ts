@@ -36,6 +36,9 @@ export const Messages = {
   /** DEBUG: "give me coins." Refused by the server unless DEBUG_ADD_COINS is on (shared/debug-flags.ts). */
   debugCoins: Schemas.Map({ amount: Schemas.Number }),
 
+  /** DEBUG: "wipe my progress." Refused by the server unless DEBUG_RESET_PROGRESS is on. */
+  debugReset: Schemas.Map({ ready: Schemas.Boolean }),
+
   // Server -> one client: that player's own purse, after anything that changed it.
   // Sent to the owner alone, not broadcast: another player's balance is nobody's business.
   wallet: Schemas.Map({

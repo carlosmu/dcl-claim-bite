@@ -26,6 +26,15 @@ let anchor: Entity | null = null
 let model: Entity | null = null
 let heldSrc = ''
 
+/** Takes the pick out of the player's hand, if there is one. */
+export function unequipPick(): void {
+  if (anchor !== null) engine.removeEntity(anchor)
+  if (model !== null) engine.removeEntity(model)
+  anchor = null
+  model = null
+  heldSrc = ''
+}
+
 /**
  * Puts the given pick in the player's right hand. Swaps the model if a different pick is
  * already there; does nothing if it is the same one.
