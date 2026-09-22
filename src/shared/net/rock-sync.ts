@@ -10,6 +10,13 @@ import { AUTH_SERVER_PEER_ID } from '@dcl/sdk/network/message-bus-sync'
 /** Pairs the server's rock entity with its client-side counterpart. */
 export const ROCK_ENTITY_ENUM_ID = 3
 
+/**
+ * The seqs of the practice rocks the mayor sets down beside himself after handing over the
+ * pick, one after the other. They are not shared rocks: each player gets their own, and each
+ * pays once per visit.
+ */
+export const TUTORIAL_ROCK_SEQS = [-999999, -999998]
+
 /** How many rocks stand in the area at once. */
 export const ROCKS_AT_ONCE = 5
 

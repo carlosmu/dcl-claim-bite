@@ -37,6 +37,7 @@ import {
   ShopItemId
 } from '../shared/economy/catalogue'
 import { addFuelTank, collectableOre, fuelHoursLeft, settleMule } from './mule'
+import { TUTORIAL_ROCK_SEQS } from '../shared/net/rock-sync'
 import { advanceRock, getRockSeqs, hasFinishedRock, isRock, isRockStarted, markFinished, otherFinishers } from './rock'
 
 type Purse = {
@@ -215,6 +216,10 @@ function sendResult(address: string, action: string, ok: boolean, detail: string
   room.send('actionResult', { action, ok, detail }, { to: [address] })
 }
 
+/** Which of the mayor's practice rocks each player has been paid for this visit. Cleared by a
+ * debug reset. */
+const tutorialPaid = new Map<string, Set<number>>()
+
 function handleRockDone(address: string, seq: number): void {
   const purse = purseOf(address)
   // Still loading: the rock is dropped rather than paid into a purse that is about to be
@@ -230,7 +235,9 @@ function handleRockDone(address: string, seq: number): void {
 
   // Each rock pays each player once. The client hides a rock it has finished, so this is only
   // reached by a modified client or a message racing a move — as is a rock that is not there.
-  if (!isRock(seq) || hasFinishedRock(address, seq)) return
+  // A practice rock is nobody else's, and pays once.
+  const tutorial = TUTORIAL_ROCK_SEQS.includes(seq)
+  if (tutorial ? tutorialPaid.get(address)?.has(seq) : !isRock(seq) || hasFinishedRock(address, seq)) return
 
   // Dropped silently: an honest client cannot finish a rock faster than its swings allow, and
   // answering would hand a spammer a reply for every message they send.
@@ -244,8 +251,9 @@ function handleRockDone(address: string, seq: number): void {
   // The boom-town bonus: +1 per other player on this rock — still mining it, or already done
   // with it. Counting the ones done is what gives the last of a group the same bonus as the
   // first: three together pay 7 each, whoever finishes when.
-  const others = otherMinersOnRock(address, seq) + otherFinishers(address, seq)
-  markFinished(address, seq)
+  const others = tutorial ? 0 : otherMinersOnRock(address, seq) + otherFinishers(address, seq)
+  if (tutorial) tutorialPaid.set(address, (tutorialPaid.get(address) ?? new Set<number>()).add(seq))
+  else markFinished(address, seq)
   lastSwing.delete(address)
 
   // Once everyone on it is done, the rock moves; until then it waits for the rest.
@@ -450,6 +458,7 @@ function handleDebugReset(address: string): void {
   purse.equipped = ''
   lastRockAt.delete(address)
   lastSwing.delete(address)
+  tutorialPaid.delete(address)
 
   dirty.add(address)
   sendWallet(address)

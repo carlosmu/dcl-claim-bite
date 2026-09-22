@@ -18,6 +18,7 @@ import { RATE_BASE } from '../shared/economy/constants'
 import { quoteSaleAt } from '../shared/state/market'
 import { playSfx } from '../world/sfx'
 import { equipPick, unequipPick } from '../player/held-pick'
+import { onMayorPickGiven } from '../mayor/mayor'
 
 const BANK_SOUND_CLIP = 'assets/sounds/bank.mp3'
 const BUY_SOUND_CLIP = 'assets/sounds/buy.mp3'
@@ -199,7 +200,10 @@ export function setupEconomyLink(): void {
     if (data.action === 'sell') playSfx(BANK_SOUND_CLIP, SOUND_VOLUME)
     if (data.action === 'buy' || data.action === 'claimPick' || data.action === 'equip') playSfx(BUY_SOUND_CLIP, SOUND_VOLUME)
     if (data.action === 'collect') playSfx(BANK_SOUND_CLIP, SOUND_VOLUME)
-    if (data.action === 'claimPick') celebratePick()
+    if (data.action === 'claimPick') {
+      celebratePick()
+      onMayorPickGiven()
+    }
     console.log(`[economy] ${data.action}: ${data.detail}`)
   })
 

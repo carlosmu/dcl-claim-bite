@@ -1,4 +1,4 @@
-import { Entity, engine, GltfContainer, MeshCollider, MeshRenderer, Transform } from '@dcl/sdk/ecs'
+import { Entity, engine, GltfContainer, MeshCollider, MeshRenderer, Transform, Tween } from '@dcl/sdk/ecs'
 import { Quaternion, Vector3 } from '@dcl/sdk/math'
 import { movePlayerTo } from '~system/RestrictedActions'
 
@@ -8,7 +8,7 @@ import { getOre } from '../shared/state/wallet'
 import { startMineEmote, stopMineEmote } from '../player/mine-emote'
 import { playSfx } from '../world/sfx'
 import { showOrePopup } from '../ui/ore-popup'
-import { ActiveRock, pickRockSpot, ROCKS_AT_ONCE } from '../shared/net/rock-sync'
+import { ActiveRock, pickRockSpot, ROCKS_AT_ONCE, } from '../shared/net/rock-sync'
 
 // Manual mining (design/balance.md §2, 2026-09-17). No timing bar: a handful of rocks stand at
 // random spots inside `Mining_Area` — a box or plane mesh authored in the Creator Hub,
@@ -26,6 +26,10 @@ import { ActiveRock, pickRockSpot, ROCKS_AT_ONCE } from '../shared/net/rock-sync
 const MINING_AREA_NAME = 'Mining_Area'
 
 const ROCK_MODEL = 'assets/models/mining-rocks.glb'
+
+// The ring on the ground around the practice rock, turning a full circle every few seconds.
+const INDICATOR_MODEL = 'assets/models/circle-indicator.glb'
+const INDICATOR_TURN_SECONDS = 6
 
 const ROCK_DONE_SOUND = 'assets/sounds/match.mp3'
 
@@ -77,6 +81,17 @@ const STANDING_SPEED = 0.3
 
 let area: Area | null = null
 let rocks: Rock[] = []
+
+/** The mayor's practice rock and its ring, while it stands. Mined like the others. */
+let tutorial: Rock | null = null
+let tutorialIndicator: Entity | null = null
+/** Called once the practice rock standing now has been mined. */
+let tutorialDone: (() => void) | null = null
+
+/** The shared rocks, then the practice rock if there is one. `mining` indexes into this. */
+function allRocks(): Rock[] {
+  return tutorial === null ? rocks : [...rocks, tutorial]
+}
 let lastPosition: Vector3 | null = null
 let standing = false
 
@@ -182,7 +197,7 @@ function showRock(rock: Rock, u: number, v: number, yaw: number, seq: number): v
 
 /** Settles each rock that was just hit back from its jolt to rest. */
 function settleBumps(dt: number): void {
-  for (const rock of rocks) {
+  for (const rock of allRocks()) {
     if (rock.bump <= 0) continue
     rock.bump = Math.max(0, rock.bump - dt)
     // A finished rock is hidden at scale zero; its jolt must not bring it back.
@@ -225,11 +240,12 @@ function followSharedRocks(dt: number): void {
 
 /** The nearest unfinished rock the player is at and facing, as an index; -1 if none. */
 function rockAtPlayer(): number {
+  const candidates = allRocks()
   let best = -1
   let bestDistance = Infinity
-  for (let i = 0; i < rocks.length; i++) {
-    if (rocks[i].finished) continue
-    const distance = distanceIfFacing(rocks[i].spot)
+  for (let i = 0; i < candidates.length; i++) {
+    if (candidates[i].finished) continue
+    const distance = distanceIfFacing(candidates[i].spot)
     if (distance < bestDistance) {
       best = i
       bestDistance = distance
@@ -311,7 +327,7 @@ function update(dt: number): void {
     status = null
     return
   }
-  const rock = rocks[mining]
+  const rock = allRocks()[mining]
 
   const needed = getHitsPerRock()
   if (needed <= 0) {
@@ -373,6 +389,7 @@ function update(dt: number): void {
       if (!synced) rock.reshow = OFFLINE_RESHOW_SECONDS
       status = null
       sendRockDone(rock.seq)
+      if (rock === tutorial) removeTutorialRock()
       playSfx(ROCK_DONE_SOUND, 0.8)
       // Shown immediately rather than when the wallet comes back: the swing earned it, and a
       // popup a round trip late would not read as this rock's payout. The HUD is still the one
@@ -386,6 +403,53 @@ function update(dt: number): void {
   }
 
   status = { hits: rock.hits, needed, blocked: '' }
+}
+
+/**
+ * Sets a practice rock down at `position`, with its turning ring. `seq` is one of
+ * TUTORIAL_ROCK_SEQS; `onDone` runs once it has been mined. Does nothing if one is already
+ * standing.
+ */
+export function placeTutorialRock(position: Vector3, seq: number, onDone?: () => void): void {
+  if (tutorial !== null) return
+  tutorialDone = onDone ?? null
+
+  const entity = engine.addEntity()
+  Transform.create(entity, { position })
+  GltfContainer.create(entity, { src: ROCK_MODEL, visibleMeshesCollisionMask: 0, invisibleMeshesCollisionMask: 3 })
+  tutorial = {
+    entity,
+    spot: Vector3.clone(position),
+    u: 0,
+    v: 0,
+    seq,
+    hits: 0,
+    finished: false,
+    reshow: -1,
+    bump: 0
+  }
+
+  tutorialIndicator = engine.addEntity()
+  Transform.create(tutorialIndicator, { position })
+  GltfContainer.create(tutorialIndicator, {
+    src: INDICATOR_MODEL,
+    visibleMeshesCollisionMask: 0,
+    invisibleMeshesCollisionMask: 0
+  })
+  Tween.setRotateContinuous(tutorialIndicator, Quaternion.fromEulerDegrees(0, -1, 0), 360 / INDICATOR_TURN_SECONDS)
+}
+
+/** Takes the practice rock and its ring away, once mined. */
+function removeTutorialRock(): void {
+  if (tutorial !== null) engine.removeEntity(tutorial.entity)
+  if (tutorialIndicator !== null) engine.removeEntity(tutorialIndicator)
+  tutorial = null
+  tutorialIndicator = null
+  mining = -1
+
+  const done = tutorialDone
+  tutorialDone = null
+  if (done !== null) done()
 }
 
 export function setupRocks(): void {
