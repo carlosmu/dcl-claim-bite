@@ -8,8 +8,10 @@
 //   - A purse is PER PLAYER, so it cannot use the single-purse module the client mirrors.
 //     Each wallet is keyed by wallet address here.
 //
-// Purses are in memory only: a restart still wipes them. Persisting them is the next step
-// (design/gdd.md §9), and is what the M.U.L.E. has been waiting for.
+// Purses are persisted per player (./persistence). The one rule that keeps them safe across
+// restarts: a purse is never created unless storage CONFIRMS the player is new. A failed read
+// is retried, never mistaken for a first visit — or the next flush would save an empty purse
+// over the real one.
 
 import { AvatarBase, engine, PlayerIdentityData } from '@dcl/sdk/ecs'
 import { syncEntity } from '@dcl/sdk/network'
@@ -95,6 +97,18 @@ const dirty = new Set<string>()
 let marketDirty = false
 let sinceLastSave = 0
 
+/** How long to wait before asking storage again after a read failed. */
+const LOAD_RETRY_SECONDS = 5
+
+/** When each failed purse read may be tried again, on the server clock. */
+const loadRetryAt = new Map<string, number>()
+
+// The price is only written once the stored one has been read (or confirmed absent), so a
+// failed read on start can never overwrite the town's real price with the default.
+let marketLoaded = false
+let marketLoading = false
+let marketRetryAt = 0
+
 const lastRockAt = new Map<string, number>()
 
 /**
@@ -136,7 +150,9 @@ let sinceLastAbuseReport = 0
  */
 function beginLoad(address: string): void {
   if (purses.has(address) || loading.has(address)) return
+  if (serverClock < (loadRetryAt.get(address) ?? 0)) return
   loading.add(address)
+  loadRetryAt.delete(address)
 
   loadPurse(address)
     .then((stored) => {
@@ -165,8 +181,10 @@ function beginLoad(address: string): void {
       console.log(`[Server] purse ${stored === null ? 'created for' : 'restored for'} ${address}`)
     })
     .catch((error) => {
+      // Nothing is put in `purses`: the player waits, and the presence check tries again.
       loading.delete(address)
-      console.log(`[Server] purse load failed for ${address}: ${error}`)
+      loadRetryAt.set(address, serverClock + LOAD_RETRY_SECONDS)
+      console.log(`[Server] purse load failed for ${address}, retrying in ${LOAD_RETRY_SECONDS}s: ${error}`)
     })
 }
 
@@ -525,7 +543,11 @@ function checkPresence(dt: number) {
   }
 
   for (const address of here) {
-    if (present.has(address)) continue
+    // A purse whose read failed is asked for again (beginLoad waits out the retry delay).
+    if (present.has(address)) {
+      if (!purses.has(address)) beginLoad(address)
+      continue
+    }
     present.add(address)
     // The wallet message is sent by the load itself, once there is something true to send.
     beginLoad(address)
@@ -549,7 +571,7 @@ function flushPurse(address: string): void {
   const purse = purses.get(address)
   if (purse === undefined || !dirty.has(address)) return
   dirty.delete(address)
-  savePurse(address, {
+  const saved = savePurse(address, {
     ore: purse.ore,
     coins: purse.coins,
     owned: purse.owned,
@@ -558,6 +580,12 @@ function flushPurse(address: string): void {
     muleFuel: purse.muleFuel,
     equipped: purse.equipped
   })
+  // A failed write puts the purse back in the queue for the next flush rather than losing it.
+  saved
+    .then((ok) => {
+      if (!ok) dirty.add(address)
+    })
+    .catch(() => dirty.add(address))
 }
 
 function flushSaves(dt: number) {
@@ -567,7 +595,8 @@ function flushSaves(dt: number) {
 
   for (const address of [...dirty]) flushPurse(address)
 
-  if (marketDirty) {
+  if (!marketLoaded) loadMarket()
+  else if (marketDirty) {
     marketDirty = false
     saveMarketPrice(getMacroRate())
   }
@@ -684,16 +713,28 @@ function publishRate(dt: number) {
   OreMarket.getMutable(marketEntity).price = rate
 }
 
-export function setupEconomy(): void {
-  // The price is restored rather than reset so a restart does not quietly hand the town a
-  // fresh market. It also keeps balance playtests honest: a floored price stays floored.
+// The price is restored rather than reset so a restart does not quietly hand the town a
+// fresh market. It also keeps balance playtests honest: a floored price stays floored.
+function loadMarket(): void {
+  if (marketLoaded || marketLoading || serverClock < marketRetryAt) return
+  marketLoading = true
   loadMarketPrice()
     .then((stored) => {
+      marketLoading = false
+      marketLoaded = true
       if (stored === null) return
       restoreMacroRate(stored)
       console.log(`[Server] macro rate restored at ${stored.toFixed(2)} ore per coin`)
     })
-    .catch((error) => console.log(`[Server] market price restore failed: ${error}`))
+    .catch((error) => {
+      marketLoading = false
+      marketRetryAt = serverClock + LOAD_RETRY_SECONDS
+      console.log(`[Server] market price restore failed, retrying in ${LOAD_RETRY_SECONDS}s: ${error}`)
+    })
+}
+
+export function setupEconomy(): void {
+  loadMarket()
 
   marketEntity = engine.addEntity()
   OreMarket.create(marketEntity, { price: getRate() })

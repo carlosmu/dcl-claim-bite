@@ -44,5 +44,6 @@ export enum EntityNames {
   Train_Track_6_M_Old_V01_4 = "Train Track 6 M Old V01_4",
   Train_Track_6_M_Old_V01_5 = "Train Track 6 M Old V01_5",
   Train_Track_6_M_Old_V01_6 = "Train Track 6 M Old V01_6",
+  mining_pool_glb = "mining-pool.glb",
   monument_glb = "monument.glb",
 } 

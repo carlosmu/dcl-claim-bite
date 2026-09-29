@@ -9,6 +9,8 @@
 // simple-minded about writing a purse that may not have changed.
 
 import { Storage } from '@dcl/sdk/server'
+import { getStorageServerUrl } from '@dcl/sdk/server/storage-url'
+import { signedFetch } from '~system/SignedFetch'
 
 /** Per-player key. One record holds the whole purse: a partial save is worse than none. */
 const PURSE_KEY = 'purse'
@@ -36,39 +38,55 @@ export type StoredPurse = {
 }
 
 /**
- * Reads a player's purse, or null if they have never played here.
+ * Reads one stored value: null ONLY when the service confirms the key does not exist.
  *
- * Throws are caught and reported as null rather than allowed to escape: a storage service
- * that is briefly unreachable should leave the player mining with an empty bag for a moment,
- * not take down the scene for everyone.
+ * This bypasses `Storage.get` on purpose. The SDK answers null both for "no such key" and
+ * for "the request failed", and treating a failed read as a first visit is how purses got
+ * wiped: a freshly started server whose first read hiccups hands the player an empty purse,
+ * and the next flush writes it over their real one. Here a failure throws instead, so the
+ * caller can retry and never invent a value.
  */
-export async function loadPurse(address: string): Promise<StoredPurse | null> {
-  try {
-    return await Storage.player.get<StoredPurse>(address, PURSE_KEY)
-  } catch (error) {
-    console.log(`[Server] could not load purse for ${address}: ${error}`)
-    return null
-  }
+async function readValue<T>(path: string): Promise<T | null> {
+  const baseUrl = await getStorageServerUrl()
+  const response = await signedFetch({ url: `${baseUrl}${path}` })
+  if (response.status === 404) return null
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`)
+
+  const body = JSON.parse(response.body || '{}') as { value?: T | null }
+  // A 200 without a value is neither a value nor a confirmed absence.
+  if (body.value === undefined || body.value === null) throw new Error('empty response')
+  return body.value
 }
 
-/** Fire-and-forget: the caller is a system and cannot wait for the round trip. */
-export function savePurse(address: string, purse: StoredPurse): void {
-  Storage.player.set(address, PURSE_KEY, purse).catch((error) => {
+/** A player's purse, or null if they have never played here. Throws if the read failed. */
+export function loadPurse(address: string): Promise<StoredPurse | null> {
+  return readValue<StoredPurse>(`/players/${encodeURIComponent(address)}/values/${encodeURIComponent(PURSE_KEY)}`)
+}
+
+/**
+ * Resolves true once the write is confirmed. The SDK does not throw on a failed write, it
+ * resolves false, so the caller has to look at the result to know the purse is still unsaved.
+ */
+export async function savePurse(address: string, purse: StoredPurse): Promise<boolean> {
+  try {
+    const ok = await Storage.player.set(address, PURSE_KEY, purse)
+    if (!ok) console.log(`[Server] could not save purse for ${address}`)
+    return ok
+  } catch (error) {
     console.log(`[Server] could not save purse for ${address}: ${error}`)
-  })
+    return false
+  }
 }
 
-export async function loadMarketPrice(): Promise<number | null> {
-  try {
-    return await Storage.get<number>(MARKET_PRICE_KEY)
-  } catch (error) {
-    console.log(`[Server] could not load market price: ${error}`)
-    return null
-  }
+/** The town's stored price, or null if none was ever saved. Throws if the read failed. */
+export function loadMarketPrice(): Promise<number | null> {
+  return readValue<number>(`/values/${encodeURIComponent(MARKET_PRICE_KEY)}`)
 }
 
 export function saveMarketPrice(price: number): void {
-  Storage.set(MARKET_PRICE_KEY, price).catch((error) => {
-    console.log(`[Server] could not save market price: ${error}`)
-  })
+  Storage.set(MARKET_PRICE_KEY, price)
+    .then((ok) => {
+      if (!ok) console.log('[Server] could not save market price')
+    })
+    .catch((error) => console.log(`[Server] could not save market price: ${error}`))
 }
