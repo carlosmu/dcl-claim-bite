@@ -313,6 +313,37 @@ function recoveryText(rate: number): string {
     return `Back to equilibrium (${RATE_BASE}) in ~${minutes} min`
 }
 
+// A plain reading of the rate, so the number does not have to be interpreted: traffic-light
+// thirds of the 10–12 range. Judged in whole tenths, the way the rate is quoted, so 10.6 is
+// exactly good and never a float's hair over.
+const PRICE_GOOD_MAX_TENTHS = 106
+const PRICE_FAIR_MAX_TENTHS = 113
+const PRICE_GOOD_COLOR = Color4.create(0.42, 0.8, 0.36, 1)
+const PRICE_FAIR_COLOR = Color4.create(0.96, 0.82, 0.25, 1)
+const PRICE_BAD_COLOR = Color4.create(0.9, 0.33, 0.28, 1)
+
+function priceVerdict(rate: number): { text: string; color: Color4 } {
+    const tenths = Math.round(rate * 10)
+    if (tenths <= PRICE_GOOD_MAX_TENTHS) return { text: 'GOOD PRICE', color: PRICE_GOOD_COLOR }
+    if (tenths <= PRICE_FAIR_MAX_TENTHS) return { text: 'FAIR PRICE', color: PRICE_FAIR_COLOR }
+    return { text: 'BAD PRICE', color: PRICE_BAD_COLOR }
+}
+
+// A small pill beside the recovery note, under the chart: smaller than the rate itself, coloured so it scans at a glance.
+const priceVerdictPill = (rate: number) => {
+    const verdict = priceVerdict(rate)
+    return (
+        <Label
+            value={verdict.text}
+            fontSize={14}
+            color={BANK_INK}
+            textAlign="middle-center"
+            uiTransform={{ width: 112, height: 24, borderRadius: 12 }}
+            uiBackground={{ color: verdict.color }}
+        />
+    )
+}
+
 const percent = (fraction: number): `${number}%` => `${fraction * 100}%`
 
 // The session's rates as a step line, oldest on the left, newest reaching the right edge: a
@@ -540,14 +571,16 @@ const bankPanel = () => {
                         <UiEntity key="chart" uiTransform={{ width: '100%' }}>
                             {rateChart(getRateHistory(), rate)}
                         </UiEntity>,
-                        <Label
-                            key="recovery"
-                            value={recoveryText(rate)}
-                            fontSize={14}
-                            color={BANK_CAPTION}
-                            textAlign="middle-left"
-                            uiTransform={{ width: '100%', height: 20, margin: { top: 6 } }}
-                        />
+                        <UiEntity key="recovery" uiTransform={{ width: '100%', flexDirection: 'row', alignItems: 'center', margin: { top: 6 } }}>
+                            {priceVerdictPill(rate)}
+                            <Label
+                                value={recoveryText(rate)}
+                                fontSize={14}
+                                color={BANK_CAPTION}
+                                textAlign="middle-left"
+                                uiTransform={{ flexGrow: 1, height: 24, margin: { left: 10 } }}
+                            />
+                        </UiEntity>
                     ],
                     { width: 0, grow: 1, joined: 'right' }
                 )}
