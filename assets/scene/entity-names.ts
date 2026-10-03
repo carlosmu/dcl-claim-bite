@@ -35,6 +35,7 @@ export enum EntityNames {
   Mule_Area = "Mule_Area",
   Railway = "Railway",
   Rustic_Wheelbarrow = "Rustic Wheelbarrow",
+  Street_Straw = "Street Straw",
   Text = "Text",
   Text_2 = "Text_2",
   Town_Mayor = "Town Mayor",

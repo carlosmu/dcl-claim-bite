@@ -78,17 +78,18 @@ export const RATE_RECOVERY_PER_WINDOW = 0.1
 
 // --- Carrying -------------------------------------------------------------------------
 
-/**
- * Pockets: what a player holds before owning a warehouse (balance.md §4, tier 0) — about 20
- * completed rocks, enough that manual mining works from the first swing.
- */
-export const CARRY_BASE = 100
+// One storage for all ore: manual mining and the M.U.L.E.s fill it, selling draws from it. When
+// it is full, mining stops paying and the rigs pause until there is room (V1 economy,
+// 2026-10-03).
 
-/**
- * With a tier-1 warehouse (balance.md §4). One storage for all ore: manual mining fills it and
- * selling draws from it. Replaces the carry bag and the wheelbarrow.
- */
-export const CARRY_WITH_WAREHOUSE = 500
+/** Free from the start: about 40 completed rocks. */
+export const STORAGE_BASE = 200
+
+/** With the first storage upgrade. */
+export const STORAGE_TIER_1 = 1000
+
+/** With the second storage upgrade. */
+export const STORAGE_TIER_2 = 3000
 
 // --- Anti-abuse -----------------------------------------------------------------------
 
@@ -102,40 +103,25 @@ export const ROCK_TIME_TOLERANCE = 0.8
 // --- The M.U.L.E. ---------------------------------------------------------------------
 //
 // The idle rig. It works while the player is away, which is the whole reason it justifies its
-// price — see design/balance.md §4.
+// price. V1 economy (2026-10-03): rigs are bought one by one at a flat price and output scales
+// linearly with how many the player owns. Each digs straight into the player's storage.
 
-/** Ore the rig digs per hour at level 1, running or not, whether anyone is watching. Each
- * level adds this much again: level N digs N times it. */
-export const MULE_ORE_PER_HOUR = 10
-
-/**
- * The player owns one rig and levels it up rather than buying a second (balance.md §0). The
- * level is the count stored in `owned`, so a save from before levels existed keeps its rigs as
- * levels instead of losing them.
- */
-export const MULE_MAX_LEVEL = 5
-
-/** Each level costs this much times the one before it. ×1.5 rather than balance.md §0's ×2:
- * yield only grows linearly, and at ×2 the upgrade from level 4 takes 100 days to pay back. */
-export const MULE_PRICE_GROWTH = 1.5
+/** Ore one rig digs per hour while it has fuel and the storage has room: 200 a day, about 20
+ * coins at the base rate. */
+export const MULE_ORE_PER_HOUR = 200 / 24
 
 /**
- * How much it holds before it stops. Matched to the warehouse on purpose, so a full load is
- * always one trip and never strands ore the player cannot carry.
+ * The most rigs one player can own. The design sets no limit; this only keeps a typo or a
+ * runaway purchase loop from parking a hundred rigs in the yard. The count is stored in
+ * `owned`, so a save from the levelled-rig days keeps its levels as rigs.
  */
-export const MULE_CAPACITY = 500
+export const MULE_MAX_COUNT = 10
 
 // --- Fuel -----------------------------------------------------------------------------
 //
-// The rig's running cost (balance.md §3). One tank runs it for a day at any level: a higher
-// level burns faster and its tank costs more, so the daily return stays the same while the
-// margin grows with the level.
+// The rigs' running cost. Bought in packs of days (priced in the catalogue) PER RIG: a day costs 5 coins for each
+// rig owned, so every rig nets about 15 coins a day whatever the fleet size. When the fuel runs
+// out the rigs pause; nothing is lost.
 
-/** Hours one tank runs the rig, whatever its level. */
-export const FUEL_TANK_HOURS = 24
-
-/** Tanks the rig can hold at once — a missed day is forgiven, a week away is not. */
-export const FUEL_MAX_TANKS = 2
-
-/** Coins per tank, times the rig's level. */
-export const FUEL_PRICE_PER_LEVEL = 10
+/** How many days of fuel the rigs can hold at once: two of the 7-day packs. */
+export const FUEL_MAX_DAYS = 14

@@ -1,51 +1,86 @@
 // What the Market sells, and what owning it does.
 //
-// Prices and effects are the owner-approved values of 2026-09-16 — see design/balance.md for
-// the reasoning behind each one. Two axes that ask different questions: how fast you dig
-// (picks) and how much ore can pile up (warehouse), plus the two long goals.
+// V1 economy, owner-approved 2026-10-03. Five lines, bought roughly in this order:
 //
-// The Shovel was removed on 2026-09-16: it had no answer to "what is this for".
+//   picks     Stranger's Pick → Miner's Pick → Master Pick: how fast you dig by hand
+//   M.U.L.E.  idle rigs, bought one by one, each digging into your storage
+//   fuel      packs of days that keep the rigs running
+//   storage   how much ore can pile up
+//   housing   Wagon → Cabin → House → Ranch: status, the long goal
+//
+// Lines with tiers are bought in order: each tier names the one it `requires`.
+//
+// Item ids are what saves store, so they are never renamed: 'pick', 'steel-pick' and
+// 'miners-pick' stay the ids of the three picks whatever the labels say.
 
-import {
-  CARRY_BASE,
-  CARRY_WITH_WAREHOUSE,
-  FUEL_PRICE_PER_LEVEL,
-  MULE_CAPACITY,
-  MULE_MAX_LEVEL,
-  MULE_PRICE_GROWTH
-} from './constants'
+import { MULE_MAX_COUNT, STORAGE_BASE, STORAGE_TIER_1, STORAGE_TIER_2 } from './constants'
 
-export type ShopItemId = 'pick' | 'steel-pick' | 'miners-pick' | 'warehouse' | 'mule' | 'fuel' | 'house' | 'horse' | 'revolver'
+export type ShopItemId =
+  | 'pick'
+  | 'steel-pick'
+  | 'miners-pick'
+  | 'mule'
+  | 'fuel'
+  | 'fuel-3'
+  | 'fuel-7'
+  | 'warehouse'
+  | 'warehouse-2'
+  | 'cabin'
+  | 'house'
+  | 'ranch'
+
+export type ShopLine = 'pick' | 'mule' | 'fuel' | 'storage' | 'housing'
 
 export type ShopItem = {
   id: ShopItemId
   label: string
+  line: ShopLine
+  /** Coins. For fuel this is per rig owned (see priceOf). */
   price: number
-  /** Hits a rock takes while this is the best pick owned — fewer is better. Only picks carry it. */
+  /** The main benefit, in a few words, as the Market shows it. */
+  benefit: string
+  /** The tier that has to be owned first. */
+  requires?: ShopItemId
+  /** Never sold: the mayor hands it out. */
+  starter?: boolean
+  /** Hits a rock takes while this pick is in use — fewer is better. Only picks carry it. */
   hitsPerRock?: number
-  /** Shown in the Market but not for sale yet. */
-  comingSoon?: boolean
+  /** Days of fuel one pack holds. Only fuel carries it. */
+  fuelDays?: number
+  /** Ore the storage holds with this upgrade. Only storage carries it. */
+  storage?: number
 }
 
+// Picks: 12 / 8 / 6 hits a rock is 20 / 30 / 40 coins a day for the same time at the rocks.
 export const CATALOGUE: ShopItem[] = [
-  { id: 'pick', label: 'Iron Pick', price: 5, hitsPerRock: 12 },
-  { id: 'steel-pick', label: 'Steel Pick', price: 10, hitsPerRock: 9 },
-  { id: 'miners-pick', label: 'Diamond Pick', price: 30, hitsPerRock: 6 },
-  { id: 'warehouse', label: 'Warehouse', price: 50 },
-  { id: 'mule', label: 'M.U.L.E.', price: 100 },
-  // One tank; the price shown is per level of the rig (see priceOf). Needs a rig to go in.
-  { id: 'fuel', label: 'Fuel', price: FUEL_PRICE_PER_LEVEL },
-  { id: 'house', label: 'House', price: 500 },
-  { id: 'horse', label: 'Horse', price: 0, comingSoon: true },
-  { id: 'revolver', label: 'Revolver', price: 0, comingSoon: true }
+  { id: 'pick', label: "Stranger's Pick", line: 'pick', price: 0, starter: true, hitsPerRock: 12, benefit: 'Mining output ~20 coins/day' },
+  { id: 'steel-pick', label: "Miner's Pick", line: 'pick', price: 20, requires: 'pick', hitsPerRock: 8, benefit: 'Mining output ~30 coins/day' },
+  { id: 'miners-pick', label: 'Master Pick', line: 'pick', price: 70, requires: 'steel-pick', hitsPerRock: 6, benefit: 'Mining output ~40 coins/day' },
+  { id: 'mule', label: 'M.U.L.E.', line: 'mule', price: 100, benefit: 'Produces 200 ore/day · needs fuel' },
+  { id: 'fuel', label: 'Fuel 1 Day', line: 'fuel', price: 5, fuelDays: 1, benefit: 'Runs your M.U.L.E.s 1 day' },
+  { id: 'fuel-3', label: 'Fuel 3 Days', line: 'fuel', price: 15, fuelDays: 3, benefit: 'Runs your M.U.L.E.s 3 days' },
+  { id: 'fuel-7', label: 'Fuel 7 Days', line: 'fuel', price: 30, fuelDays: 7, benefit: 'Runs your M.U.L.E.s 7 days' },
+  { id: 'warehouse', label: 'Storage I', line: 'storage', price: 30, storage: STORAGE_TIER_1, benefit: `Holds ${STORAGE_TIER_1} ore` },
+  { id: 'warehouse-2', label: 'Storage II', line: 'storage', price: 60, requires: 'warehouse', storage: STORAGE_TIER_2, benefit: `Holds ${STORAGE_TIER_2} ore` },
+  { id: 'cabin', label: 'Cabin', line: 'housing', price: 300, benefit: 'Your first real home' },
+  { id: 'house', label: 'House', line: 'housing', price: 700, requires: 'cabin', benefit: 'A house in town' },
+  { id: 'ranch', label: 'Ranch', line: 'housing', price: 2000, requires: 'house', benefit: 'The finest claim in town' }
 ]
+
+/** What a player lives in before buying any housing. */
+export const STARTER_HOME = 'Wagon'
 
 export function findItem(id: ShopItemId): ShopItem | null {
   return CATALOGUE.find((item) => item.id === id) ?? null
 }
 
+/** Every item of one line, in the order it is bought. */
+export function itemsOf(line: ShopLine): ShopItem[] {
+  return CATALOGUE.filter((item) => item.line === line)
+}
+
 /** Every pick in the catalogue, worst first. */
-export const PICKS: ShopItem[] = CATALOGUE.filter((item) => item.hitsPerRock !== undefined)
+export const PICKS: ShopItem[] = itemsOf('pick')
 
 /**
  * The best pick the player owns: the one that needs the fewest hits.
@@ -76,35 +111,51 @@ export function bestHitsPerRock(ownedCount: (id: ShopItemId) => number): number 
   return bestPick(ownedCount)?.hitsPerRock ?? 0
 }
 
-/** How much ore the player can hold — pockets, or a warehouse once they own one. */
+/** The highest tier of a line the player owns, or null for none. */
+export function ownedTier(line: ShopLine, ownedCount: (id: ShopItemId) => number): ShopItem | null {
+  let top: ShopItem | null = null
+  for (const item of itemsOf(line)) if (ownedCount(item.id) > 0) top = item
+  return top
+}
+
+/** The next tier of a line the player could buy, or null when they own the top one. */
+export function nextTier(line: ShopLine, ownedCount: (id: ShopItemId) => number): ShopItem | null {
+  const top = ownedTier(line, ownedCount)
+  const items = itemsOf(line)
+  return top === null ? items[0] : items[items.indexOf(top) + 1] ?? null
+}
+
+/** How much ore the player's storage holds: the free base, or the best upgrade owned. */
 export function carryCapacity(ownedCount: (id: ShopItemId) => number): number {
-  return ownedCount('warehouse') > 0 ? CARRY_WITH_WAREHOUSE : CARRY_BASE
+  return ownedTier('storage', ownedCount)?.storage ?? STORAGE_BASE
+}
+
+/** How many rigs the player has. Saves from before the cap may hold more; they run at the cap. */
+export function muleCount(ownedCount: (id: ShopItemId) => number): number {
+  return Math.min(ownedCount('mule'), MULE_MAX_COUNT)
 }
 
 /**
- * What the next purchase of this item costs, or null when it cannot be bought again.
+ * Why this item cannot be bought right now, or null when it can (coins aside — affording it is
+ * checked separately, so the Market can tell "not yet" from "not enough coins").
+ */
+export function unavailableReason(item: ShopItem, ownedCount: (id: ShopItemId) => number): string | null {
+  if (item.starter === true) return ownedCount(item.id) > 0 ? 'Owned' : 'Free from the Mayor'
+  if (item.line === 'fuel') return muleCount(ownedCount) > 0 ? null : 'No M.U.L.E.'
+  if (item.line === 'mule') return muleCount(ownedCount) >= MULE_MAX_COUNT ? 'Max reached' : null
+  if (ownedCount(item.id) > 0) return 'Owned'
+  if (item.requires !== undefined && ownedCount(item.requires) <= 0) return `Needs ${findItem(item.requires)?.label ?? item.requires}`
+  return null
+}
+
+/**
+ * What buying this costs right now, or null when it cannot be bought at all.
  *
- * The M.U.L.E. varies: buying it again is levelling it up, and each level costs
- * MULE_PRICE_GROWTH times the one before. Fuel costs more per tank the higher the rig. `item.price` is the price of level 1.
+ * Fuel is priced per rig: a pack runs every rig the player owns for its days, so it costs its
+ * price once for each of them.
  */
 export function priceOf(item: ShopItem, ownedCount: (id: ShopItemId) => number): number | null {
-  if (item.comingSoon === true) return null
-  const level = muleLevel(ownedCount)
-  if (item.id === 'fuel') return level > 0 ? item.price * level : null
-  if (item.id !== 'mule') return item.price
-  if (level >= MULE_MAX_LEVEL) return null
-  return Math.round(item.price * Math.pow(MULE_PRICE_GROWTH, level))
-}
-
-/**
- * The rig's level: how many times it was bought, capped. Saves from before the cap came down
- * may hold more, and they simply run at the top level.
- */
-export function muleLevel(ownedCount: (id: ShopItemId) => number): number {
-  return Math.min(ownedCount('mule'), MULE_MAX_LEVEL)
-}
-
-/** Ore the rig holds before it stops: about two days of its own output at every level. */
-export function muleCapacity(level: number): number {
-  return MULE_CAPACITY * level
+  if (unavailableReason(item, ownedCount) !== null) return null
+  if (item.line === 'fuel') return item.price * muleCount(ownedCount)
+  return item.price
 }

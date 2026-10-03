@@ -34,12 +34,12 @@ import {
   bestHitsPerRock,
   carryCapacity,
   findItem,
-  muleCapacity,
-  muleLevel,
+  muleCount,
   priceOf,
-  ShopItemId
+  ShopItemId,
+  unavailableReason
 } from '../shared/economy/catalogue'
-import { addFuelTank, collectableOre, fuelHoursLeft, settleMule } from './mule'
+import { addFuel, fuelHoursLeft, settleMule } from './mule'
 import { TUTORIAL_ROCK_SEQS } from '../shared/net/rock-sync'
 import { advanceRock, getRockSeqs, hasFinishedRock, isRock, isRockStarted, markFinished, otherFinishers } from './rock'
 
@@ -47,10 +47,10 @@ type Purse = {
   ore: number
   coins: number
   owned: Record<string, number>
-  /** Ore sitting in the player's M.U.L.E., and when it was last settled. */
+  /** Ore the rigs dug that is not in storage yet, and when they were last settled. */
   muleOre: number
   muleAt: number
-  /** Fuel left in the rig, in level-hours (see MuleState). */
+  /** Fuel left in the rigs, in rig-hours (see MuleState). */
   muleFuel: number
   /** The pick chosen in the inventory; see activePick for what happens when it is not owned. */
   equipped: string
@@ -166,15 +166,15 @@ function beginLoad(address: string): void {
         muleFuel: stored?.muleFuel ?? 0,
         equipped: stored?.equipped ?? ''
       }
-      const level = muleLevel((id) => purse.owned[id] ?? 0)
+      const owned = (id: ShopItemId) => purse.owned[id] ?? 0
 
-      // A rig bought before fuel existed has never been filled. It gets the tank every new
+      // A rig bought before fuel existed has never been filled. It gets the day every new
       // rig comes with, so the update does not greet its owner with a stalled rig.
-      if (stored !== null && stored.muleFuel === undefined) addFuelTank(purse, level)
+      if (stored !== null && stored.muleFuel === undefined) addFuel(purse, muleCount(owned), 1)
 
       // Settled the moment it is read, so the wallet the player is about to be shown already
-      // includes everything the rig dug while they were away.
-      settleMule(purse, level)
+      // includes everything the rigs dug while they were away.
+      settleMule(purse, muleCount(owned), carryCapacity(owned))
       purses.set(address, purse)
       dirty.add(address)
       sendWallet(address)
@@ -223,9 +223,8 @@ function sendWallet(address: string): void {
       capacity: carryCapacity(owned),
       hitsPerRock: activePick(owned, purse.equipped)?.hitsPerRock ?? 0,
       equipped: activePick(owned, purse.equipped)?.id ?? '',
-      muleOre: collectableOre(purse),
-      muleCapacity: muleCapacity(muleLevel(owned)),
-      muleFuelHours: fuelHoursLeft(purse, muleLevel(owned))
+      mules: muleCount(owned),
+      muleFuelHours: fuelHoursLeft(purse, muleCount(owned))
     },
     { to: [address] }
   )
@@ -317,8 +316,13 @@ function handleSell(address: string, requested: number): void {
   // Only the ore that actually bought those coins is taken; the remainder stays in the bag
   // rather than being burned by the rounding.
   const spent = Math.min(amount, oreForCoins(getRate(), payout))
+  // The rigs are settled on both sides of the sale: before, so the time they sat paused on a
+  // full storage is not paid at the new room; after, so ore waiting on them fills the room now.
+  const owned = (id: ShopItemId) => purse.owned[id] ?? 0
+  settleMule(purse, muleCount(owned), carryCapacity(owned))
   purse.ore -= spent
   purse.coins += payout
+  settleMule(purse, muleCount(owned), carryCapacity(owned))
   applySale(spent)
   dirty.add(address)
   marketDirty = true
@@ -341,12 +345,10 @@ function handleBuy(address: string, itemId: string): void {
     return
   }
 
-  const price = priceOf(item, (id) => purse.owned[id] ?? 0)
+  const owned = (id: ShopItemId) => purse.owned[id] ?? 0
+  const price = priceOf(item, owned)
   if (price === null) {
-    let reason = 'already at max level'
-    if (item.comingSoon === true) reason = 'coming soon'
-    else if (item.id === 'fuel') reason = 'no rig to fuel'
-    sendResult(address, 'buy', false, reason)
+    sendResult(address, 'buy', false, unavailableReason(item, owned) ?? 'not for sale')
     return
   }
 
@@ -355,13 +357,13 @@ function handleBuy(address: string, itemId: string): void {
     return
   }
 
-  // Pay out the hours worked on the current level and tank before either changes.
-  const level = muleLevel((id) => purse.owned[id] ?? 0)
-  if (item.id === 'mule' || item.id === 'fuel') settleMule(purse, level)
+  // Pay out the hours worked with the current rigs, fuel and storage before any of them changes.
+  const mules = muleCount(owned)
+  settleMule(purse, mules, carryCapacity(owned))
 
-  if (item.id === 'fuel') {
-    // Fuel goes into the rig, not the inventory.
-    if (!addFuelTank(purse, level)) {
+  if (item.fuelDays !== undefined) {
+    // Fuel goes into the rigs, not the inventory.
+    if (!addFuel(purse, mules, item.fuelDays)) {
       sendResult(address, 'buy', false, 'tank full')
       return
     }
@@ -369,8 +371,8 @@ function handleBuy(address: string, itemId: string): void {
   } else {
     purse.coins -= price
     purse.owned[item.id] = (purse.owned[item.id] ?? 0) + 1
-    // A new rig comes with one full tank; an upgrade keeps whatever is in it.
-    if (item.id === 'mule' && level === 0) addFuelTank(purse, 1)
+    // The first rig comes with a day of fuel; later ones share what is in the tank.
+    if (item.id === 'mule' && mules === 0) addFuel(purse, 1, 1)
   }
   // A pick just bought goes straight into the hand; the inventory can swap it back.
   if (item.hitsPerRock !== undefined) purse.equipped = item.id
@@ -513,43 +515,6 @@ function handleDebugReset(address: string): void {
   console.log(`[Server] DEBUG wiped the progress of ${address}`)
 }
 
-function handleCollect(address: string): void {
-  const purse = purseOf(address)
-  if (purse === null) {
-    sendResult(address, 'collect', false, 'still loading')
-    return
-  }
-
-  const owned = (id: ShopItemId) => purse.owned[id] ?? 0
-  if (owned('mule') <= 0) {
-    sendResult(address, 'collect', false, 'no rig')
-    return
-  }
-
-  settleMule(purse, muleLevel(owned))
-
-  const waiting = collectableOre(purse)
-  const room = Math.max(0, carryCapacity(owned) - purse.ore)
-  const taken = Math.min(waiting, room)
-
-  if (taken <= 0) {
-    sendResult(address, 'collect', false, waiting <= 0 ? 'the rig is empty' : 'bag full')
-    dirty.add(address)
-    sendWallet(address)
-    return
-  }
-
-  // Partial by design: what will not fit stays in the rig instead of being lost, so a full
-  // load is never punished for arriving with a small bag.
-  purse.ore += taken
-  purse.muleOre -= taken
-  dirty.add(address)
-
-  sendWallet(address)
-  sendResult(address, 'collect', true, `${taken} ore`)
-  console.log(`[Server] ${address} collected ${taken} ore from the rig, ${collectableOre(purse)} left`)
-}
-
 // Who is in the scene right now. There is no join or leave message, so presence is read off
 // the player entities and diffed against the last look.
 //
@@ -642,11 +607,12 @@ function settlePresentMules(dt: number) {
     const purse = purses.get(address)
     if (purse === undefined || (purse.owned['mule'] ?? 0) <= 0) continue
 
-    const level = muleLevel((id) => purse.owned[id] ?? 0)
-    const before = collectableOre(purse)
-    const hoursBefore = Math.ceil(fuelHoursLeft(purse, level))
-    settleMule(purse, level)
-    if (collectableOre(purse) === before && Math.ceil(fuelHoursLeft(purse, level)) === hoursBefore) continue
+    const owned = (id: ShopItemId) => purse.owned[id] ?? 0
+    const mules = muleCount(owned)
+    const before = purse.ore
+    const hoursBefore = Math.ceil(fuelHoursLeft(purse, mules))
+    settleMule(purse, mules, carryCapacity(owned))
+    if (purse.ore === before && Math.ceil(fuelHoursLeft(purse, mules)) === hoursBefore) continue
 
     dirty.add(address)
     sendWallet(address)
@@ -695,7 +661,7 @@ function publishYard(dt: number) {
   for (const address of present) {
     const purse = purses.get(address)
     if (purse === undefined) continue
-    const level = muleLevel((id) => purse.owned[id] ?? 0)
+    const level = muleCount((id) => purse.owned[id] ?? 0)
     if (level <= 0) continue
     const slot = slotFor(address)
     if (slot < 0) continue
@@ -796,11 +762,6 @@ export function setupEconomy(): void {
   room.onMessage('debugReset', (_data, context) => {
     if (!context) return
     handleDebugReset(context.from)
-  })
-
-  room.onMessage('collect', (_data, context) => {
-    if (!context) return
-    handleCollect(context.from)
   })
 
   room.onMessage('rockDone', (data, context) => {

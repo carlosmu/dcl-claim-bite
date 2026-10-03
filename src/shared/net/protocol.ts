@@ -27,9 +27,6 @@ export const Messages = {
   /** "Use this pick." Only a pick the player already owns can be equipped. */
   equip: Schemas.Map({ itemId: Schemas.String }),
 
-  /** "Empty the rig into my bag." Takes what fits and leaves the rest in the rig. */
-  collect: Schemas.Map({ ready: Schemas.Boolean }),
-
   /** "Mayor, I have no pick." Granted only to a player who owns none. */
   claimPick: Schemas.Map({ ready: Schemas.Boolean }),
 
@@ -58,10 +55,9 @@ export const Messages = {
     // The id of the pick in use — the one chosen in the inventory, or the best owned. Empty
     // means no pick.
     equipped: Schemas.String,
-    // What the rig is holding, and how much it can hold. Zero capacity means none is owned.
-    muleOre: Schemas.Number,
-    muleCapacity: Schemas.Number,
-    // Hours the rig keeps running on its tank. Zero means it has stopped.
+    // How many rigs the player owns. They dig straight into storage, so there is no load to show.
+    mules: Schemas.Number,
+    // Hours the rigs keep running on their fuel. Zero means they have stopped.
     muleFuelHours: Schemas.Number
   }),
 

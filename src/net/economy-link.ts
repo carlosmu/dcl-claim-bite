@@ -40,8 +40,7 @@ const HELLO_RETRY_SECONDS = 1
 
 let capacity = 0
 let hitsPerRock = 0
-let muleOre = 0
-let muleCapacity = 0
+let muleCount = 0
 let muleFuelHours = 0
 let walletReceived = false
 let sinceLastHello = HELLO_RETRY_SECONDS
@@ -66,17 +65,12 @@ export function getHitsPerRock(): number {
   return hitsPerRock
 }
 
-/** Ore waiting in the player's rig. */
-export function getMuleOre(): number {
-  return muleOre
+/** How many rigs the player owns. They dig straight into storage. */
+export function getMuleCount(): number {
+  return muleCount
 }
 
-/** What the rig holds when full. Zero means the player owns none. */
-export function getMuleCapacity(): number {
-  return muleCapacity
-}
-
-/** Hours the rig keeps running on its tank. Zero means it has stopped. */
+/** Hours the rigs keep running on their fuel. Zero means they have stopped. */
 export function getMuleFuelHours(): number {
   return muleFuelHours
 }
@@ -136,11 +130,6 @@ export function sendDebugReset(): void {
   room.send('debugReset', { ready: true })
 }
 
-export function sendCollect(): void {
-  if (!isStateSyncronized()) return
-  room.send('collect', { ready: true })
-}
-
 /**
  * Asks the server for this player's purse, and keeps asking until one arrives.
  *
@@ -179,8 +168,7 @@ export function setupEconomyLink(): void {
     walletReceived = true
     capacity = data.capacity
     hitsPerRock = data.hitsPerRock
-    muleOre = data.muleOre
-    muleCapacity = data.muleCapacity
+    muleCount = data.mules
     muleFuelHours = data.muleFuelHours
     applyServerWallet(data.ore, data.coins)
     applyServerOwned(data.owned)
@@ -226,7 +214,6 @@ export function setupEconomyLink(): void {
 
     if (data.action === 'sell') playSfx(BANK_SOUND_CLIP, SOUND_VOLUME)
     if (data.action === 'buy' || data.action === 'claimPick' || data.action === 'equip') playSfx(BUY_SOUND_CLIP, SOUND_VOLUME)
-    if (data.action === 'collect') playSfx(BANK_SOUND_CLIP, SOUND_VOLUME)
     if (data.action === 'claimPick') {
       celebratePick()
       onMayorPickGiven()

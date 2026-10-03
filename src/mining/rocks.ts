@@ -8,6 +8,7 @@ import { getOre } from '../shared/state/wallet'
 import { startMineEmote, stopMineEmote } from '../player/mine-emote'
 import { playSfx } from '../world/sfx'
 import { showOrePopup } from '../ui/ore-popup'
+import { currentFeel, playHitFeedback } from './pick-feel'
 import { ActiveRock, pickRockSpot, ROCKS_AT_ONCE, } from '../shared/net/rock-sync'
 
 // Manual mining (design/balance.md §2, 2026-09-17). No timing bar: a handful of rocks stand at
@@ -33,10 +34,9 @@ const INDICATOR_TURN_SECONDS = 6
 
 const ROCK_DONE_SOUND = 'assets/sounds/match.mp3'
 
-// The pick striking stone, one per hit. Played from here rather than baked into the emote: the
-// hit lands when the swing's timer runs out, which is the moment this code knows about and the
-// emote does not — and it keeps the volume and the clip tunable without re-exporting the GLB.
-const HIT_SOUND = 'assets/sounds/picking.mp3'
+// The pick striking stone, one per hit, is played by pick-feel.ts: from here rather than baked
+// into the emote, because the hit lands when the swing's timer runs out, which is the moment
+// this code knows about and the emote does not. Its volume, pitch and sparks follow the pick.
 
 /** The area's world transform, read once at load. The rocks are placed on its bottom face. */
 type Area = { position: Vector3; rotation: Quaternion; scale: Vector3; isPlane: boolean }
@@ -110,9 +110,8 @@ let mining = -1
  */
 const OFFLINE_RESHOW_SECONDS = 3
 
-// The jolt a hit gives the rock: it snaps to this scale and settles back to 1 over the time
-// below (10 frames at 30 fps).
-const HIT_BUMP_SCALE = 1.1
+// The jolt a hit gives the rock: it snaps to the pick's bump scale (pick-feel.ts) and settles
+// back to 1 over the time below (10 frames at 30 fps).
 const HIT_BUMP_SECONDS = 10 / 30
 
 // How long before the hit lands the jolt starts, so it meets the pick in the swing animation
@@ -202,7 +201,7 @@ function settleBumps(dt: number): void {
     rock.bump = Math.max(0, rock.bump - dt)
     // A finished rock is hidden at scale zero; its jolt must not bring it back.
     if (rock.finished) continue
-    const size = 1 + (HIT_BUMP_SCALE - 1) * (rock.bump / HIT_BUMP_SECONDS)
+    const size = 1 + (currentFeel().bump - 1) * (rock.bump / HIT_BUMP_SECONDS)
     Transform.getMutable(rock.entity).scale = Vector3.create(size, size, size)
   }
 }
@@ -339,7 +338,7 @@ function update(dt: number): void {
   const capacity = getCarryCapacity()
   if (capacity > 0 && getOre() >= capacity) {
     stopSwinging()
-    status = { hits: rock.hits, needed, blocked: 'Bag full — sell at the bank' }
+    status = { hits: rock.hits, needed, blocked: 'Storage full — sell at the bank' }
     return
   }
 
@@ -372,7 +371,7 @@ function update(dt: number): void {
     // — whose popup stalled the next frame, and so on until the scene errored. A stall earns
     // one hit, not several.
     if (swingTimer <= 0) swingTimer = SWING_SECONDS
-    playSfx(HIT_SOUND, 1)
+    playHitFeedback(rock.spot)
     // Tells the server this player is on this rock, for the boom-town bonus.
     sendSwing(rock.seq)
     // Where the swing is not a loop (mobile), each hit starts the next one; elsewhere this is

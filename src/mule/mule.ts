@@ -14,11 +14,11 @@ import { Color4, Quaternion, Vector3 } from '@dcl/sdk/math'
 import { getPlayer } from '@dcl/sdk/players'
 
 import { MULE_YARD_SPACING_X, MULE_YARD_SPACING_Z, MuleYard } from '../shared/net/mule-yard-sync'
-import { sendBuy, sendCollect } from '../net/economy-link'
+import { sendBuy } from '../net/economy-link'
+import { ShopItemId } from '../shared/economy/catalogue'
 
-// The idle rig standing in the world. Walking up to it is how a load gets claimed — the ore
-// is not posted to the bag automatically, because arriving to collect is the return hook the
-// rig exists to create (GDD §4).
+// The idle rigs standing in the world. They dig straight into the player's storage; walking up
+// to your rig is where you check on it and fuel it.
 
 export const MULE_ENTITY_NAME = 'MULE'
 export const MULE_RADIUS_METERS = 5
@@ -30,14 +30,9 @@ export function isPlayerAtMule(): boolean {
   return atOwnMule
 }
 
-/** Asks the server to empty the rig into the bag. Nothing is decided here. */
-export function collectMule(): void {
-  sendCollect()
-}
-
-/** Asks the server to put one tank in the rig. It checks the price and the room in the tank. */
-export function refuelMule(): void {
-  sendBuy('fuel')
+/** Asks the server for a fuel pack. It checks the price and the room in the tank. */
+export function refuelMule(pack: ShopItemId): void {
+  sendBuy(pack)
 }
 
 // --- The yard ------------------------------------------------------------------------------

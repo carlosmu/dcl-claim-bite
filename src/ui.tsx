@@ -5,9 +5,8 @@ import { getCoins, getOre } from './shared/state/wallet'
 import { changeSellCoins, closeBankPanel, getSellAmount, getSellCoins, isBankPanelOpen, maxSellCoins, sellSelectedOre, setSellCoins } from './bank/bank'
 import {
     getCarryCapacity,
-    getMuleCapacity,
+    getMuleCount,
     getMuleFuelHours,
-    getMuleOre,
     getRateHistory,
     getSyncedRate,
     sendDebugCoins,
@@ -15,12 +14,23 @@ import {
     sendDebugReset,
     sendEquip
 } from './net/economy-link'
-import { buySelected, getSelectedItem, getSelectedItemId, currentPrice, isPlayerAtShop, selectItem } from './shop/shop'
-import { collectMule, isPlayerAtMule, refuelMule } from './mule/mule'
-import { activePick, CATALOGUE, findItem, muleLevel, PICKS, ShopItem, ShopItemId } from './shared/economy/catalogue'
+import { buyItem, canBuy, currentPrice, isPlayerAtShop, whyUnavailable } from './shop/shop'
+import { isPlayerAtMule, refuelMule } from './mule/mule'
 import {
-    FUEL_MAX_TANKS,
-    FUEL_TANK_HOURS,
+    activePick,
+    CATALOGUE,
+    itemsOf,
+    nextTier,
+    ownedTier,
+    PICKS,
+    ShopItem,
+    ShopItemId,
+    ShopLine,
+    STARTER_HOME
+} from './shared/economy/catalogue'
+import {
+    FUEL_MAX_DAYS,
+    MULE_ORE_PER_HOUR,
     MARKET_WINDOW_SECONDS,
     RATE_BASE,
     RATE_RECOVERY_PER_WINDOW
@@ -669,93 +679,118 @@ const TILE_BORDER_COLOR = Color4.create(0.32, 0.32, 0.34, 1)
 const TILE_WIDTH = 220
 const TILE_HEIGHT = 88
 
-const shopTile = (item: ShopItem) => {
-    const selected = getSelectedItemId() === item.id
-    const owned = getOwned(item.id)
-    const price = currentPrice(item)
-    const affordable = price !== null && getCoins() >= price
+// --- Market ------------------------------------------------------------------------------
+//
+// One row per line of the catalogue, in the order a player climbs them: picks, M.U.L.E., fuel,
+// storage, housing. Each row shows the NEXT thing to buy in its line — name, price, what it
+// does — beside what the player has now, with a buy button that says why when it cannot.
 
+const MARKET_ROW_HEIGHT = 96
+const MARKET_ICON_SIZE = 64
+const MARKET_BUY_WIDTH = 150
+const MARKET_FUEL_BUY_WIDTH = 104
+const SHORT_COLOR = Color4.create(0.9, 0.45, 0.4, 1)
+
+/** Whether `days` more fuel fit in the rigs. The server checks this again; this only greys the button. */
+function fuelFits(days: number): boolean {
+    return getMuleFuelHours() + days * 24 <= FUEL_MAX_DAYS * 24 + 1e-6
+}
+
+/** Why the buy button for this item is off, or null when it can be pressed. */
+function buyBlocker(item: ShopItem): string | null {
+    const reason = whyUnavailable(item)
+    if (reason !== null) return reason
+    if (item.fuelDays !== undefined && !fuelFits(item.fuelDays)) return 'Tank full'
+    const price = currentPrice(item)
+    if (price !== null && getCoins() < price) return `Need ${price - getCoins()} more`
+    return null
+}
+
+const marketBuyButton = (item: ShopItem, label: string, width: number) => {
+    const blocker = buyBlocker(item)
+    const enabled = blocker === null && canBuy(item)
     return (
-        <UiEntity
-            uiTransform={{
-                width: TILE_WIDTH,
-                height: TILE_HEIGHT,
-                margin: { left: 6, right: 6, top: 6, bottom: 6 },
-                flexDirection: 'column',
-                justifyContent: 'center',
-                alignItems: 'center',
-                borderRadius: 10,
-                borderWidth: 2,
-                borderColor: selected ? MAGENTA : TILE_BORDER_COLOR
+        <Button
+            key={item.id}
+            value={enabled ? label : blocker ?? label}
+            fontSize={enabled ? 20 : 15}
+            color={enabled ? Color4.White() : MUTED_COLOR}
+            disabled={!enabled}
+            uiTransform={{ width, height: 48, margin: { left: 8 }, borderRadius: 8, flexShrink: 0 }}
+            uiBackground={{ color: enabled ? MAGENTA : DISABLED_COLOR }}
+            onMouseDown={() => {
+                if (enabled) buyItem(item.id)
             }}
-            uiBackground={{ color: selected ? TILE_SELECTED_COLOR : TILE_COLOR }}
-            onMouseDown={() => selectItem(item.id)}
-        >
-            <BitmapText value={item.label} fontSize={28} align="center" uiTransform={{ width: '100%' }} />
-            <Label
-                value={item.comingSoon === true ? 'coming soon' : price === null ? 'max level' : `${price} coins`}
-                fontSize={18}
-                color={affordable ? COIN_COLOR : MUTED_COLOR}
-                textAlign="middle-center"
-                uiTransform={{ width: '100%', height: 24 }}
-            />
-            {owned > 0 ? (
-                <Label
-                    value={item.id === 'mule' ? `level ${muleLevel((id) => getOwned(id))}` : `owned ${owned}`}
-                    fontSize={14}
-                    color={MUTED_COLOR}
-                    textAlign="middle-center"
-                    uiTransform={{ width: '100%', height: 18 }}
-                />
-            ) : null}
-        </UiEntity>
+        />
     )
 }
 
-const shopRow = (items: ShopItem[]) => (
+const marketText = (value: string, color: Color4) => (
+    <Label value={value} fontSize={15} color={color} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 20 }} />
+)
+
+/** "Price: 20 Coins", gold when affordable and red when not. */
+function priceLine(item: ShopItem): ReactEcs.JSX.Element {
+    const price = currentPrice(item)
+    if (price === null) return marketText(item.starter === true ? 'Price: Free' : 'Not for sale now', MUTED_COLOR)
+    return marketText(`Price: ${price} Coins`, getCoins() >= price ? COIN_COLOR : SHORT_COLOR)
+}
+
+const marketRow = (icon: number[], title: string, lines: ReactEcs.JSX.Element[], buttons: ReactEcs.JSX.Element[]) => (
     <UiEntity
         uiTransform={{
             width: '100%',
-            height: TILE_HEIGHT + 12,
+            height: MARKET_ROW_HEIGHT,
             flexDirection: 'row',
-            justifyContent: 'center',
-            alignItems: 'center'
+            alignItems: 'center',
+            padding: { left: 12, right: 12 },
+            margin: { top: 8 },
+            borderRadius: 10,
+            borderWidth: 2,
+            borderColor: TILE_BORDER_COLOR
         }}
+        uiBackground={{ color: TILE_COLOR }}
     >
-        {items.map(shopTile)}
+        <UiEntity
+            uiTransform={{ width: MARKET_ICON_SIZE, height: MARKET_ICON_SIZE, margin: { right: 12 }, flexShrink: 0 }}
+            uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: icon }}
+        />
+        <UiEntity uiTransform={{ flexGrow: 1, flexShrink: 1, width: 0, flexDirection: 'column', justifyContent: 'center' }}>
+            <BitmapText value={title} fontSize={26} />
+            {lines}
+        </UiEntity>
+        {buttons}
     </UiEntity>
 )
 
-/** Whether one more tank fits in the rig. The server checks this again; this only greys the button. */
-function tankHasRoom(): boolean {
-    return getMuleFuelHours() + FUEL_TANK_HOURS <= FUEL_MAX_TANKS * FUEL_TANK_HOURS
-}
-
-function buyButtonText(item: ShopItem, price: number | null, coins: number): string {
-    if (item.comingSoon === true) return 'Coming soon'
-    if (item.id === 'fuel' && getOwned('mule') <= 0) return 'Needs a M.U.L.E.'
-    if (price === null) return 'Max level'
-    if (item.id === 'fuel' && !tankHasRoom()) return 'Tank full'
-    if (coins < price) return `Need ${price - coins} more coins`
-    if (item.id === 'mule' && getOwned('mule') > 0) return `Upgrade to level ${muleLevel((id) => getOwned(id)) + 1}`
-    return `Buy ${item.label}`
+/** A tiered line: the next tier to buy, or the top one once it is all owned. */
+const tierRow = (line: ShopLine, icon: number[], current: string) => {
+    const next = nextTier(line, (id) => getOwned(id))
+    const tiers = itemsOf(line)
+    const top = tiers[tiers.length - 1]
+    if (next === null) {
+        return marketRow(icon, top.label, [marketText(top.benefit, ORE_COLOR), marketText(`Current: ${current} · top tier`, MUTED_COLOR)], [])
+    }
+    return marketRow(
+        icon,
+        next.label,
+        [priceLine(next), marketText(next.benefit, ORE_COLOR), marketText(`Current: ${current}`, MUTED_COLOR)],
+        [marketBuyButton(next, 'BUY', MARKET_BUY_WIDTH)]
+    )
 }
 
 const marketPanel = () => {
-    const selected = getSelectedItem()
-    const coins = getCoins()
-    const price = selected === null ? null : currentPrice(selected)
-    const affordable =
-        price !== null && coins >= price && (selected === null || selected.id !== 'fuel' || tankHasRoom())
+    const owned = (id: ShopItemId) => getOwned(id)
+    const pick = ownedTier('pick', owned)
+    const mule = itemsOf('mule')[0]
+    const mules = getMuleCount()
 
     return (
         <UiEntity
             uiTransform={{
                 width: '100%',
-                height: 460,
                 flexDirection: 'column',
                 alignItems: 'center',
-                justifyContent: 'center',
                 padding: 20,
                 borderRadius: PANEL_RADIUS
             }}
@@ -763,35 +798,31 @@ const marketPanel = () => {
         >
             <BitmapText value="Market" fontSize={42} align="center" uiTransform={{ width: '100%' }} />
 
-            {shopRow(CATALOGUE.slice(0, 3))}
-            {shopRow(CATALOGUE.slice(3, 6))}
-            {shopRow(CATALOGUE.slice(6))}
+            {tierRow('pick', (pick && PICK_ICONS[pick.id]) ?? ICON_PICK_IRON, pick?.label ?? 'no pick')}
 
-            {/* The buy button only exists once something is picked. */}
-            {selected === null ? (
-                <Label
-                    value="Pick an item"
-                    fontSize={20}
-                    color={MUTED_COLOR}
-                    textAlign="middle-center"
-                    uiTransform={{ width: '100%', height: 56, margin: { top: 12 } }}
-                />
-            ) : (
-                <Button
-                    value={buyButtonText(selected, price, coins)}
-                    fontSize={24}
-                    color={Color4.White()}
-                    disabled={!affordable}
-                    uiTransform={{
-                        width: '100%',
-                        height: 56,
-                        margin: { top: 12 },
-                        borderRadius: 10
-                    }}
-                    uiBackground={{ color: affordable ? MAGENTA : DISABLED_COLOR }}
-                    onMouseDown={buySelected}
-                />
+            {marketRow(
+                ICON_MULE,
+                mule.label,
+                [priceLine(mule), marketText(mule.benefit, ORE_COLOR), marketText(`Owned: ${mules}`, MUTED_COLOR)],
+                [marketBuyButton(mule, 'BUY', MARKET_BUY_WIDTH)]
             )}
+
+            {/* Fuel comes in three packs, priced per M.U.L.E. owned, so the row carries all three. */}
+            {marketRow(
+                ICON_FUEL,
+                'Fuel',
+                [
+                    marketText(mules > 0 ? '5 coins a day per M.U.L.E.' : 'Buy a M.U.L.E. first', ORE_COLOR),
+                    marketText(`Fuel left: ${fuelLeftText()}`, mules > 0 && getMuleFuelHours() > 0 ? COIN_COLOR : MUTED_COLOR)
+                ],
+                itemsOf('fuel').map((pack) =>
+                    marketBuyButton(pack, `${pack.fuelDays}D · ${currentPrice(pack) ?? pack.price}c`, MARKET_FUEL_BUY_WIDTH)
+                )
+            )}
+
+            {tierRow('storage', ICON_WAREHOUSE, `holds ${getCarryCapacity()} ore`)}
+
+            {tierRow('housing', ICON_HOUSE, ownedTier('housing', owned)?.label ?? STARTER_HOME)}
         </UiEntity>
     )
 }
@@ -1078,29 +1109,26 @@ const serverStatus = () => {
 
 function fuelLeftText(): string {
     const hours = getMuleFuelHours()
-    if (hours <= 0) return 'empty — stopped'
-    if (hours < 1) return `${Math.ceil(hours * 60)} min left`
-    return `${Math.floor(hours)}h left`
+    if (getMuleCount() <= 0) return 'no M.U.L.E.'
+    if (hours <= 0) return 'empty'
+    if (hours < 1) return `${Math.ceil(hours * 60)} min`
+    if (hours < 24) return `${Math.floor(hours)}h`
+    return `${Math.floor(hours / 24)}d ${Math.floor(hours % 24)}h`
 }
 
-// The rig's panel. Collecting is a deliberate act at the rig itself rather than ore appearing
-// in the bag on login: arriving to claim a load is the return the rig is built to create.
+/** What the rigs are doing right now, by the same rules the server settles them with. */
+function muleStatus(): { text: string; color: Color4 } {
+    if (getMuleFuelHours() <= 0) return { text: 'Paused: no fuel', color: SHORT_COLOR }
+    if (getOre() >= getCarryCapacity()) return { text: 'Paused: storage full', color: SHORT_COLOR }
+    return { text: 'Running', color: PRICE_GOOD_COLOR }
+}
+
+// The rigs' panel, at your own rig. They dig straight into storage, so there is nothing to
+// collect: this is where you see how they are doing and fuel them.
 const mulePanel = () => {
-    const waiting = getMuleOre()
-    const room = Math.max(0, getCarryCapacity() - getOre())
-    const takeable = Math.min(waiting, room)
-
-    let buttonText = `Collect ${takeable} ore`
-    if (waiting <= 0) buttonText = 'The rig is empty'
-    else if (room <= 0) buttonText = 'Bag full'
-    else if (takeable < waiting) buttonText = `Collect ${takeable} of ${waiting} ore`
-
-    const fuel = findItem('fuel')
-    const fuelPrice = fuel === null ? null : currentPrice(fuel)
-    const canRefuel = fuelPrice !== null && tankHasRoom() && getCoins() >= fuelPrice
-    let refuelText = `Refuel · ${fuelPrice} coins`
-    if (!tankHasRoom()) refuelText = 'Tank full'
-    else if (fuelPrice !== null && getCoins() < fuelPrice) refuelText = `Refuel · need ${fuelPrice - getCoins()} more coins`
+    const mules = getMuleCount()
+    const status = muleStatus()
+    const perDay = Math.round(MULE_ORE_PER_HOUR * 24 * mules)
 
     return (
         <UiEntity
@@ -1114,22 +1142,30 @@ const mulePanel = () => {
             uiBackground={{ color: PANEL_BACKGROUND }}
         >
             <BitmapText value="Mining Utility Labor Engine" fontSize={28} align="center" uiTransform={{ width: '100%', margin: { bottom: 8 } }} />
-            {infoRow('M.U.L.E.', `${waiting} / ${getMuleCapacity()} ore`, ORE_COLOR)}
-            {infoRow('Fuel', fuelLeftText(), getMuleFuelHours() > 0 ? COIN_COLOR : MUTED_COLOR)}
-            <Button
-                value={buttonText}
-                fontSize={20}
-                uiTransform={{ width: '100%', height: 46, margin: { top: 12 } }}
-                uiBackground={{ color: takeable > 0 ? MAGENTA : DISABLED_COLOR }}
-                onMouseDown={collectMule}
-            />
-            <Button
-                value={refuelText}
-                fontSize={20}
-                uiTransform={{ width: '100%', height: 46, margin: { top: 8 } }}
-                uiBackground={{ color: canRefuel ? MAGENTA : DISABLED_COLOR }}
-                onMouseDown={refuelMule}
-            />
+            {infoRow('M.U.L.E.s', `${mules}`, ORE_COLOR)}
+            {infoRow('Produces', `${perDay} ore/day`, ORE_COLOR)}
+            {infoRow('Status', status.text, status.color)}
+            {infoRow('Fuel left', fuelLeftText(), getMuleFuelHours() > 0 ? COIN_COLOR : MUTED_COLOR)}
+            <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', justifyContent: 'space-between', margin: { top: 12 } }}>
+                {itemsOf('fuel').map((pack) => {
+                    const blocker = buyBlocker(pack)
+                    const enabled = blocker === null
+                    return (
+                        <Button
+                            key={pack.id}
+                            value={enabled ? `${pack.fuelDays}D · ${currentPrice(pack)}c` : blocker}
+                            fontSize={enabled ? 18 : 14}
+                            color={enabled ? Color4.White() : MUTED_COLOR}
+                            disabled={!enabled}
+                            uiTransform={{ width: '32%', height: 46, borderRadius: 8 }}
+                            uiBackground={{ color: enabled ? MAGENTA : DISABLED_COLOR }}
+                            onMouseDown={() => {
+                                if (enabled) refuelMule(pack.id)
+                            }}
+                        />
+                    )
+                })}
+            </UiEntity>
         </UiEntity>
     )
 }
@@ -1148,9 +1184,11 @@ const INVENTORY_ROW_HEIGHT = 88
 // Icons for the non-pick items. The house and the rest have their own cells in the atlas.
 const ITEM_ICONS: Partial<Record<ShopItemId, number[]>> = {
     warehouse: ICON_WAREHOUSE,
+    'warehouse-2': ICON_WAREHOUSE,
     mule: ICON_MULE,
-    fuel: ICON_FUEL,
-    house: ICON_HOUSE
+    cabin: ICON_HOUSE,
+    house: ICON_HOUSE,
+    ranch: ICON_HOUSE
 }
 
 const inventoryRow = (item: ShopItem) => {
@@ -1160,8 +1198,8 @@ const inventoryRow = (item: ShopItem) => {
     const detail = isPick
         ? `${item.hitsPerRock} hits per rock`
         : item.id === 'mule'
-          ? `level ${muleLevel((id) => getOwned(id))}`
-          : `owned ${getOwned(item.id)}`
+          ? `${getMuleCount()} owned · ${item.benefit}`
+          : item.benefit
 
     return (
         <UiEntity
@@ -1367,7 +1405,7 @@ export const uiMenu = () => (
             {inventoryOpen ? inventoryPanel() : null}
             {!mapOpen && !inventoryOpen && isBankPanelOpen() ? bankPanel() : null}
             {!mapOpen && !inventoryOpen && isPlayerAtShop() ? marketPanel() : null}
-            {!mapOpen && !inventoryOpen && isPlayerAtMule() && getMuleCapacity() > 0 ? mulePanel() : null}
+            {!mapOpen && !inventoryOpen && isPlayerAtMule() && getMuleCount() > 0 ? mulePanel() : null}
             {mapButton()}
             {inventoryButton()}
             {DEBUG_SERVER_STATUS ? serverStatus() : null}
