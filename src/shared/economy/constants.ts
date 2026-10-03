@@ -55,35 +55,26 @@ export const MINE_FACING_DEGREES = 60
 /** The rate a quiet market settles at. */
 export const RATE_BASE = 10
 
-/** The worst it can ever get, no matter how much the town dumps. 4x the base. */
-export const RATE_CAP = 40
+/** The worst it can ever get, no matter how much the town dumps. */
+export const RATE_CAP = 12
 
-// --- Two speeds -----------------------------------------------------------------------
+// --- Market window --------------------------------------------------------------------
 //
-// One rate cannot both recover over hours and visibly answer a single sale: a slow recovery
-// with a perceptible impact drives the equilibrium far past the cap. So the rate is the sum
-// of a slow macro drift and a fast personal slippage.
+// Sales are pooled per window rather than priced one by one: the impact is worked out from
+// the window's TOTAL volume, on a log curve, so splitting a dump into many small sales buys
+// nothing and a whale moves the market less than proportionally. Once a window closes its
+// impact is settled into the rate and recovery takes one step back toward the base.
 
-/** How much one ore sold pushes the slippage up. 200 ore moves the rate a full point. */
-export const SLIPPAGE_PER_ORE = 0.005
+/** How long one market window lasts. */
+export const MARKET_WINDOW_SECONDS = 60
 
-/** Slippage decays toward zero with this time constant: about a minute and a half. */
-export const SLIPPAGE_RECOVERY_SECONDS = 90
+/** Impact = IMPACT_SCALE × log2(1 + ore / IMPACT_VOLUME): 100 ore ≈ +0.5, 500 ≈ +1.3, a
+ * full minute of ~1500 ore reaches the cap. Strong on purpose: the recovery brings it back. */
+export const MARKET_IMPACT_SCALE = 0.5
+export const MARKET_IMPACT_VOLUME = 100
 
-/** How much one ore sold pushes the macro up. Invisible per sale; the town's volume is not. */
-export const MACRO_PER_ORE = 0.00002
-
-/**
- * The macro's time constant PER CONNECTED PLAYER: about three hours for one player, and
- * proportionally faster as the town fills.
- *
- * Scaling this with population is what keeps the market alive at twenty players. Production
- * scales with population too, so the two cancel and the equilibrium rate lands in the same
- * place in an empty town and a full one. Held fixed, a crowd would pin the rate at the cap
- * permanently — killing the choice of when to sell, and putting the market at odds with the
- * boom-town bonus, which exists to make a crowd a good thing.
- */
-export const MACRO_RECOVERY_SECONDS_PER_PLAYER = 3 * 60 * 60
+/** How far the rate walks back toward the base per window: 12 → 10 takes twenty minutes. */
+export const RATE_RECOVERY_PER_WINDOW = 0.1
 
 // --- Carrying -------------------------------------------------------------------------
 

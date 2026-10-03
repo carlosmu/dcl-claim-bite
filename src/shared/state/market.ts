@@ -1,47 +1,55 @@
 // The town's ore rate, quoted as ORE PER COIN — how much ore buys one coin, the way a
 // currency board quotes a rate. Selling pushes it UP, and up is worse for the seller.
 //
-// The rate is the sum of two parts moving at different speeds (design/balance.md §2):
+// One shared rate between RATE_BASE (10) and RATE_CAP (12):
 //
-//   macro     the town's rate today. Moves on aggregate volume, recovers over hours, and
-//             persists across restarts. No single sale visibly moves it.
-//   slippage  your own immediate impact. Your sale pushes it hard; it fades in a minute or
-//             two. This is what punishes dumping a full bag at once.
+//   settled   the rate as of the last closed window. Persisted across restarts.
+//   window    ore sold since that window opened. Its impact is a log of the TOTAL, so many
+//             small sales cost the same as one big one, and a whale moves the market less
+//             than proportionally.
 //
-// Both are needed because one rate cannot do both jobs: with a recovery measured in hours, an
-// impact large enough to feel drives the equilibrium far past the cap, and the market ends up
-// pinned at its worst value with no variance — which is the same as having no market at all.
+// The live rate is settled + the open window's impact, so a sale shows on the board at once
+// instead of a minute later, and nobody can sell a second load at the pre-dump price. When the
+// window closes the impact is folded into the settled rate and recovery takes one 0.1 step
+// back toward the base.
 //
 // Same rule as the wallet: no ECS, React or rendering imports. The server owns this.
 
 import {
-  MACRO_PER_ORE,
-  MACRO_RECOVERY_SECONDS_PER_PLAYER,
+  MARKET_IMPACT_SCALE,
+  MARKET_IMPACT_VOLUME,
+  MARKET_WINDOW_SECONDS,
   RATE_BASE,
   RATE_CAP,
-  SLIPPAGE_PER_ORE,
-  SLIPPAGE_RECOVERY_SECONDS
+  RATE_RECOVERY_PER_WINDOW
 } from '../economy/constants'
 
-let macro = RATE_BASE
-let slippage = 0
+let settled = RATE_BASE
+let windowOre = 0
+let windowElapsed = 0
+
+/** How much the rate rises for `oreSold` ore sold within one window. */
+export function marketImpact(oreSold: number): number {
+  if (oreSold <= 0) return 0
+  return MARKET_IMPACT_SCALE * Math.log2(1 + oreSold / MARKET_IMPACT_VOLUME)
+}
 
 /** What one coin costs in ore right now. Higher is worse for the seller. */
 export function getRate(): number {
-  return Math.min(RATE_CAP, macro + slippage)
+  return Math.min(RATE_CAP, settled + marketImpact(windowOre))
 }
 
-/** The slow half, on its own — the only part worth persisting. */
-export function getMacroRate(): number {
-  return macro
+/** The rate as of the last closed window — the part worth persisting. */
+export function getSettledRate(): number {
+  return settled
 }
 
 /**
  * The rate a sale is priced at: the live rate to one decimal, as the bank shows it.
  *
- * The live rate eases back toward its base without ever quite landing on it, so it sits a
- * hair above: 10.004 shown as "10.0". Priced unrounded, ten ore bought 0.9996 of a coin —
- * nothing, once floored — and the bank refused a sale its own screen said would pay one.
+ * A sale's impact is a log, so the live rate is rarely a round tenth: 10.26 is shown as
+ * "10.3". Priced unrounded, the screen and the sale disagreed — at 10.004, ten ore bought
+ * 0.9996 of a coin, nothing once floored, and the bank refused a sale it said would pay one.
  * Pricing at the shown rate makes the screen and the sale agree, on the client and the server.
  */
 export function quotedRate(rate: number): number {
@@ -91,39 +99,30 @@ export function oreForCoins(rawRate: number, coins: number): number {
   return Math.ceil((coins * rateTenths(rawRate)) / 10)
 }
 
-/** Moves the rate for a sale that has just happened. */
+/** Adds a sale to the open window. The rate it moves is visible right away through getRate(). */
 export function applySale(oreAmount: number): void {
   if (oreAmount <= 0) return
-  slippage += oreAmount * SLIPPAGE_PER_ORE
-  macro = Math.min(RATE_CAP, macro + oreAmount * MACRO_PER_ORE)
+  windowOre += oreAmount
 }
 
 /**
- * Lets both halves drift back. Call once per frame with the frame's dt and the number of
- * players connected.
+ * Advances the market clock. Call once per frame with the frame's dt.
  *
- * Exponential rather than linear, in both: a restoring force proportional to how far the rate
- * has strayed is what gives the market an equilibrium at all. With the flat recovery this
- * module used to have, the rate was a race between two fixed speeds and one always won — it
- * sat at the base or at the cap, and the interesting middle only existed while travelling
- * between them.
+ * Each time a window closes: its impact is settled into the rate, then the rate takes one
+ * recovery step back toward the base. A town selling about 100 ore a minute therefore holds
+ * the rate where it is; a quiet one walks it down 0.1 a minute, 12 to 10 in twenty minutes.
  */
-export function recoverRate(dt: number, players: number): void {
-  slippage *= Math.exp(-dt / SLIPPAGE_RECOVERY_SECONDS)
-  if (slippage < 0.0001) slippage = 0
-
-  // A town with nobody in it has no demand, so the macro simply waits.
-  if (players <= 0) return
-  const k = players / MACRO_RECOVERY_SECONDS_PER_PLAYER
-  macro = RATE_BASE + (macro - RATE_BASE) * Math.exp(-k * dt)
+export function tickMarket(dt: number): void {
+  windowElapsed += dt
+  while (windowElapsed >= MARKET_WINDOW_SECONDS) {
+    windowElapsed -= MARKET_WINDOW_SECONDS
+    const withSales = Math.min(RATE_CAP, settled + marketImpact(windowOre))
+    windowOre = 0
+    settled = Math.max(RATE_BASE, withSales - RATE_RECOVERY_PER_WINDOW)
+  }
 }
 
-/**
- * Puts the macro back to a value read from storage, on server start.
- *
- * Deliberately not a general setter, and deliberately only the macro: slippage fades in
- * ninety seconds, so persisting it would restore something already gone.
- */
-export function restoreMacroRate(stored: number): void {
-  macro = Math.max(RATE_BASE, Math.min(RATE_CAP, stored))
+/** Puts the settled rate back to a value read from storage, on server start. */
+export function restoreRate(stored: number): void {
+  settled = Math.max(RATE_BASE, Math.min(RATE_CAP, stored))
 }

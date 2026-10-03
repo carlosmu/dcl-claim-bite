@@ -19,7 +19,7 @@ import { syncEntity } from '@dcl/sdk/network'
 import { MARKET_ENTITY_ENUM_ID, OreMarket } from '../shared/net/market-sync'
 import { MULE_YARD_ENTITY_ENUM_ID, MULE_YARD_MAX_SLOTS, MuleYard } from '../shared/net/mule-yard-sync'
 import { room } from '../shared/net/protocol'
-import { applySale, getMacroRate, getRate, oreForCoins, quoteSale, recoverRate, restoreMacroRate } from '../shared/state/market'
+import { applySale, getRate, getSettledRate, oreForCoins, quoteSale, restoreRate, tickMarket } from '../shared/state/market'
 import { loadMarketPrice, loadPurse, savePurse, saveMarketPrice } from './persistence'
 import {
   BOOM_TOWN_ACTIVE_SECONDS,
@@ -627,7 +627,7 @@ function flushSaves(dt: number) {
   if (!marketLoaded) loadMarket()
   else if (marketDirty) {
     marketDirty = false
-    saveMarketPrice(getMacroRate())
+    saveMarketPrice(getSettledRate())
   }
 }
 
@@ -729,12 +729,10 @@ function reportAbuse(dt: number) {
 }
 
 function publishRate(dt: number) {
-  // Population is what makes the macro recover at a town's pace rather than one player's, so
-  // the equilibrium rate is the same in an empty town and a full one.
-  recoverRate(dt, present.size)
+  tickMarket(dt)
 
-  // Only on a real change, and only to two decimals: recovery moves the rate by a fraction
-  // every frame, and syncing that every frame would be 30 writes a second of noise.
+  // Only on a real change, and only to two decimals: syncing an unchanged rate every frame
+  // would be 30 writes a second of noise.
   const rate = Math.round(getRate() * 100) / 100
   if (rate === lastPublishedPrice) return
   lastPublishedPrice = rate
@@ -752,8 +750,8 @@ function loadMarket(): void {
       marketLoading = false
       marketLoaded = true
       if (stored === null) return
-      restoreMacroRate(stored)
-      console.log(`[Server] macro rate restored at ${stored.toFixed(2)} ore per coin`)
+      restoreRate(stored)
+      console.log(`[Server] rate restored at ${getSettledRate().toFixed(2)} ore per coin`)
     })
     .catch((error) => {
       marketLoading = false

@@ -18,7 +18,13 @@ import {
 import { buySelected, getSelectedItem, getSelectedItemId, currentPrice, isPlayerAtShop, selectItem } from './shop/shop'
 import { collectMule, isPlayerAtMule, refuelMule } from './mule/mule'
 import { activePick, CATALOGUE, findItem, muleLevel, PICKS, ShopItem, ShopItemId } from './shared/economy/catalogue'
-import { FUEL_MAX_TANKS, FUEL_TANK_HOURS } from './shared/economy/constants'
+import {
+    FUEL_MAX_TANKS,
+    FUEL_TANK_HOURS,
+    MARKET_WINDOW_SECONDS,
+    RATE_BASE,
+    RATE_RECOVERY_PER_WINDOW
+} from './shared/economy/constants'
 import { getEquipped, getOwned } from './shared/state/inventory'
 import { getServerTick, isServerOnline } from './net/server-link'
 import { getMiningStatus } from './mining/rocks'
@@ -247,6 +253,9 @@ const BANK_GOLD_LIGHT = Color4.create(1, 0.85, 0.48, 1)
 const BANK_CREAM = Color4.create(0.96, 0.9, 0.78, 1)
 const BANK_CAPTION = Color4.create(0.79, 0.65, 0.42, 1)
 
+// Breathing room between the panel's rows, on top of each section's own 10 px margin.
+const BANK_ROW_GAP = 20
+const BANK_BUTTON_GAP = 36
 const BANK_HINT = Color4.create(0.86, 0.55, 0.3, 1)
 const BANK_INK = Color4.create(0.17, 0.11, 0.08, 1)
 const BANK_STEP_COLOR = Color4.create(0.23, 0.16, 0.1, 1)
@@ -288,6 +297,18 @@ function rateColor(rate: number): Color4 {
 function rateLevel(rate: number): number {
     const inner = RATE_CHART_HEIGHT - RATE_CHART_PADDING * 2
     return rateQuality(rate) * (inner - RATE_LINE_WIDTH)
+}
+
+/**
+ * How long until the rate is back at the base if nobody sells, at one recovery step per window.
+ * An estimate: the client does not know how far into the current window the server is, so it
+ * can be up to a minute early.
+ */
+function recoveryText(rate: number): string {
+    const steps = Math.ceil((rate - RATE_BASE) / RATE_RECOVERY_PER_WINDOW - 1e-6)
+    if (steps <= 0) return `At equilibrium price (${RATE_BASE})`
+    const minutes = Math.ceil((steps * MARKET_WINDOW_SECONDS) / 60)
+    return `Back to equilibrium (${RATE_BASE}) in ~${minutes} min`
 }
 
 const percent = (fraction: number): `${number}%` => `${fraction * 100}%`
@@ -407,6 +428,21 @@ const bankSection = (
     </UiEntity>
 )
 
+// The two side boxes read as sentences with their caption: "You have / 3 ore", "You receive /
+// 10 coins". The number is the big thing; its unit sits under it, since a 200 px box has no
+// room for "126 COINS" on one line at that size.
+const bankAmount = (icon: number[], value: number, unit: string, color: Color4) => (
+    <UiEntity uiTransform={{ flexGrow: 1, flexDirection: 'row', alignItems: 'center' }}>
+        {bankIcon(icon, 48)}
+        <UiEntity uiTransform={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+            <BitmapText value={`${value}`} fontSize={46} color={color} />
+            <UiEntity uiTransform={{ margin: { top: 2 } }}>
+                <BitmapText value={unit} fontSize={26} color={color} />
+            </UiEntity>
+        </UiEntity>
+    </UiEntity>
+)
+
 const bankButton = (
     label: string,
     onClick: () => void,
@@ -487,13 +523,10 @@ const bankPanel = () => {
             </UiEntity>
 
             {/* Your ore on the left, the town's rate beside it: both stretch to the taller one. */}
-            <UiEntity uiTransform={{ width: '100%', flexDirection: 'row' }}>
+            <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', margin: { top: BANK_ROW_GAP } }}>
                 {bankSection(
-                    'YOUR ORE',
-                    <UiEntity uiTransform={{ flexGrow: 1, flexDirection: 'row', alignItems: 'center' }}>
-                        {bankIcon(ICON_ORE, 48)}
-                        <BitmapText value={`${ore}`} fontSize={46} color={BANK_CREAM} />
-                    </UiEntity>,
+                    'YOU HAVE',
+                    bankAmount(ICON_ORE, ore, 'ORE', BANK_CREAM),
                     { width: 200, marginRight: 10 }
                 )}
 
@@ -505,25 +538,25 @@ const bankPanel = () => {
                         </UiEntity>,
                         <UiEntity key="chart" uiTransform={{ width: '100%' }}>
                             {rateChart(getRateHistory(), rate)}
-                        </UiEntity>
+                        </UiEntity>,
+                        <Label
+                            key="recovery"
+                            value={recoveryText(rate)}
+                            fontSize={14}
+                            color={BANK_CAPTION}
+                            textAlign="middle-left"
+                            uiTransform={{ width: '100%', height: 20, margin: { top: 6 } }}
+                        />
                     ],
                     { width: 0, grow: 1 }
                 )}
             </UiEntity>
 
             {/* What the sale pays on the left, the amount picker beside it, like the row above. */}
-            <UiEntity uiTransform={{ width: '100%', flexDirection: 'row' }}>
+            <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', margin: { top: BANK_ROW_GAP } }}>
                 {bankSection(
                     'YOU RECEIVE',
-                    [
-                        <UiEntity key="payout" uiTransform={{ height: 52, flexDirection: 'row', alignItems: 'center' }}>
-                            {bankIcon(ICON_COINS, 48)}
-                            <BitmapText value={`${payout}`} fontSize={46} color={COIN_COLOR} />
-                        </UiEntity>,
-                        <UiEntity key="unit" uiTransform={{ margin: { top: 4 } }}>
-                            <BitmapText value={payout === 1 ? 'COIN' : 'COINS'} fontSize={28} color={COIN_COLOR} />
-                        </UiEntity>
-                    ],
+                    bankAmount(ICON_COINS, payout, payout === 1 ? 'COIN' : 'COINS', COIN_COLOR),
                     { width: 200, marginRight: 10 }
                 )}
 
@@ -567,7 +600,7 @@ const bankPanel = () => {
                 )}
             </UiEntity>
 
-            <UiEntity uiTransform={{ width: '100%', height: 12 }} />
+            <UiEntity uiTransform={{ width: '100%', height: BANK_BUTTON_GAP }} />
             {bankButton(
                 canSell ? `SELL ${amount} ORE` : 'SELL',
                 canSell ? sellSelectedOre : () => {},
