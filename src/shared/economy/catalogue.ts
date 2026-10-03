@@ -13,7 +13,7 @@
 // Item ids are what saves store, so they are never renamed: 'pick', 'steel-pick' and
 // 'miners-pick' stay the ids of the three picks whatever the labels say.
 
-import { MULE_MAX_COUNT, STORAGE_BASE, STORAGE_TIER_1, STORAGE_TIER_2 } from './constants'
+import { FUEL_PRICE_PER_DAY, MULE_MAX_COUNT, STORAGE_BASE, STORAGE_TIER_1, STORAGE_TIER_2 } from './constants'
 
 export type ShopItemId =
   | 'pick'
@@ -35,7 +35,7 @@ export type ShopItem = {
   id: ShopItemId
   label: string
   line: ShopLine
-  /** Coins. For fuel this is per rig owned (see priceOf). */
+  /** Coins. For fuel this is for one rig: days × FUEL_PRICE_PER_DAY (see priceOf). */
   price: number
   /** The main benefit, in a few words, as the Market shows it. */
   benefit: string
@@ -57,9 +57,9 @@ export const CATALOGUE: ShopItem[] = [
   { id: 'steel-pick', label: "Miner's Pick", line: 'pick', price: 20, requires: 'pick', hitsPerRock: 8, benefit: 'Mining output ~30 coins/day' },
   { id: 'miners-pick', label: 'Master Pick', line: 'pick', price: 70, requires: 'steel-pick', hitsPerRock: 6, benefit: 'Mining output ~40 coins/day' },
   { id: 'mule', label: 'M.U.L.E.', line: 'mule', price: 100, benefit: 'Produces 200 ore/day · needs fuel' },
-  { id: 'fuel', label: 'Fuel 1 Day', line: 'fuel', price: 5, fuelDays: 1, benefit: 'Runs your M.U.L.E.s 1 day' },
-  { id: 'fuel-3', label: 'Fuel 3 Days', line: 'fuel', price: 15, fuelDays: 3, benefit: 'Runs your M.U.L.E.s 3 days' },
-  { id: 'fuel-7', label: 'Fuel 7 Days', line: 'fuel', price: 30, fuelDays: 7, benefit: 'Runs your M.U.L.E.s 7 days' },
+  { id: 'fuel', label: 'Fuel 1 Day', line: 'fuel', price: FUEL_PRICE_PER_DAY * 1, fuelDays: 1, benefit: 'Runs your M.U.L.E.s 1 day' },
+  { id: 'fuel-3', label: 'Fuel 3 Days', line: 'fuel', price: FUEL_PRICE_PER_DAY * 3, fuelDays: 3, benefit: 'Runs your M.U.L.E.s 3 days' },
+  { id: 'fuel-7', label: 'Fuel 7 Days', line: 'fuel', price: FUEL_PRICE_PER_DAY * 7, fuelDays: 7, benefit: 'Runs your M.U.L.E.s 7 days' },
   { id: 'warehouse', label: 'Storage I', line: 'storage', price: 30, storage: STORAGE_TIER_1, benefit: `Holds ${STORAGE_TIER_1} ore` },
   { id: 'warehouse-2', label: 'Storage II', line: 'storage', price: 60, requires: 'warehouse', storage: STORAGE_TIER_2, benefit: `Holds ${STORAGE_TIER_2} ore` },
   { id: 'cabin', label: 'Cabin', line: 'housing', price: 300, benefit: 'Your first real home' },

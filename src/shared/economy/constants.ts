@@ -119,9 +119,13 @@ export const MULE_MAX_COUNT = 10
 
 // --- Fuel -----------------------------------------------------------------------------
 //
-// The rigs' running cost. Bought in packs of days (priced in the catalogue) PER RIG: a day costs 5 coins for each
+// The rigs' running cost. Bought in packs of days, PER RIG, at one flat rate with no bulk
+// discount: a pack costs rigs × days × FUEL_PRICE_PER_DAY. A day costs 5 coins for each
 // rig owned, so every rig nets about 15 coins a day whatever the fleet size. When the fuel runs
 // out the rigs pause; nothing is lost.
+
+/** Coins for one day of fuel for one rig. Every pack is this × days × rigs owned. */
+export const FUEL_PRICE_PER_DAY = 5
 
 /** How many days of fuel the rigs can hold at once: two of the 7-day packs. */
 export const FUEL_MAX_DAYS = 14

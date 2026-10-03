@@ -28,6 +28,7 @@ import {
 } from './shared/economy/catalogue'
 import {
     FUEL_MAX_DAYS,
+    FUEL_PRICE_PER_DAY,
     MULE_ORE_PER_HOUR,
     MARKET_WINDOW_SECONDS,
     RATE_BASE,
@@ -983,7 +984,7 @@ function fuelDetail(): Detail {
         description: 'Keeps your M.U.L.E.s running.',
         icon: ICON_FUEL,
         stats: [detailStat('Fuel left', fuelLeftText().toUpperCase(), getMuleFuelHours() > 0 ? BANK_CREAM : SHORT_COLOR)],
-        notes: [detailNote(`5 Coins a day for each M.U.L.E. (you own ${mules})`, BANK_CAPTION)],
+        notes: [detailNote(`${FUEL_PRICE_PER_DAY} Coins a day for each M.U.L.E.`, BANK_CAPTION), detailNote(`You own ${mules}`, BANK_CAPTION)],
         actions: itemsOf('fuel').map(fuelOption)
     }
 }
