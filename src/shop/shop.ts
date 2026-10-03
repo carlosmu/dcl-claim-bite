@@ -11,8 +11,30 @@ export const SHOP_ENTITY_NAME = 'Market'
 export const SHOP_RADIUS_METERS = 5
 let zone: ProximityZone | null = null
 
+// Closing the store only hides it for this visit, and the selection only lasts the visit too:
+// walking out and back in opens it again on its default product.
+let closed = false
+let selected: string | null = null
+
 export function isPlayerAtShop(): boolean {
   return zone !== null && zone.isPlayerInside()
+}
+
+export function isStorePanelOpen(): boolean {
+  return isPlayerAtShop() && !closed
+}
+
+export function closeStorePanel(): void {
+  closed = true
+}
+
+/** The product shown in the detail panel, or null for the store's default. */
+export function getSelectedProduct(): string | null {
+  return selected
+}
+
+export function selectProduct(key: string): void {
+  selected = key
 }
 
 /** What buying this costs right now, or null when it cannot be bought. */
@@ -46,7 +68,11 @@ export function buyItem(id: ShopItemId): void {
 export function setupShop(): void {
   zone = createProximityZone({
     entityName: SHOP_ENTITY_NAME,
-    radiusMeters: SHOP_RADIUS_METERS
+    radiusMeters: SHOP_RADIUS_METERS,
+    onEnter: () => {
+      closed = false
+      selected = null
+    }
   })
 
   console.log(`[shop] catalogue: ${CATALOGUE.map((i) => `${i.label} ${i.price}c`).join(' · ')}`)

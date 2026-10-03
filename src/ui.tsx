@@ -14,19 +14,17 @@ import {
     sendDebugReset,
     sendEquip
 } from './net/economy-link'
-import { buyItem, canBuy, currentPrice, isPlayerAtShop, whyUnavailable } from './shop/shop'
+import { buyItem, closeStorePanel, currentPrice, getSelectedProduct, isStorePanelOpen, selectProduct, whyUnavailable } from './shop/shop'
 import { isPlayerAtMule, refuelMule } from './mule/mule'
 import {
     activePick,
     CATALOGUE,
+    findItem,
     itemsOf,
     nextTier,
-    ownedTier,
     PICKS,
     ShopItem,
-    ShopItemId,
-    ShopLine,
-    STARTER_HOME
+    ShopItemId
 } from './shared/economy/catalogue'
 import {
     FUEL_MAX_DAYS,
@@ -679,17 +677,23 @@ const TILE_BORDER_COLOR = Color4.create(0.32, 0.32, 0.34, 1)
 const TILE_WIDTH = 220
 const TILE_HEIGHT = 88
 
-// --- Market ------------------------------------------------------------------------------
+// --- General Store -----------------------------------------------------------------------
 //
-// One row per line of the catalogue, in the order a player climbs them: picks, M.U.L.E., fuel,
-// storage, housing. Each row shows the NEXT thing to buy in its line — name, price, what it
-// does — beside what the player has now, with a buy button that says why when it cannot.
+// Select a product, inspect it, buy or equip it. A list of compact cards on the left; the
+// selected one opens in a large detail panel on the right with its price, what it does, and
+// one action button. Same wood-and-gold dress as the bank.
+//
+// Housing is not sold here: it belongs to the Land Office.
 
-const MARKET_ROW_HEIGHT = 96
-const MARKET_ICON_SIZE = 64
-const MARKET_BUY_WIDTH = 150
-const MARKET_FUEL_BUY_WIDTH = 104
+const STORE_LIST_WIDTH = 270
+const STORE_CARD_HEIGHT = 60
+const STORE_CARD_ICON = 42
+const STORE_DETAIL_ICON = 130
+const STORE_ACTION_HEIGHT = 64
 const SHORT_COLOR = Color4.create(0.9, 0.45, 0.4, 1)
+const EQUIPPED_COLOR = Color4.create(0.42, 0.52, 0.24, 1)
+const EQUIPPED_TEXT = Color4.create(0.88, 0.95, 0.75, 1)
+const COMING_SOON_TINT = Color4.create(1, 1, 1, 0.35)
 
 /** Whether `days` more fuel fit in the rigs. The server checks this again; this only greys the button. */
 function fuelFits(days: number): boolean {
@@ -702,127 +706,396 @@ function buyBlocker(item: ShopItem): string | null {
     if (reason !== null) return reason
     if (item.fuelDays !== undefined && !fuelFits(item.fuelDays)) return 'Tank full'
     const price = currentPrice(item)
-    if (price !== null && getCoins() < price) return `Need ${price - getCoins()} more`
+    if (price !== null && getCoins() < price) return 'Not enough coins'
     return null
 }
 
-const marketBuyButton = (item: ShopItem, label: string, width: number) => {
-    const blocker = buyBlocker(item)
-    const enabled = blocker === null && canBuy(item)
-    return (
-        <Button
-            key={item.id}
-            value={enabled ? label : blocker ?? label}
-            fontSize={enabled ? 20 : 15}
-            color={enabled ? Color4.White() : MUTED_COLOR}
-            disabled={!enabled}
-            uiTransform={{ width, height: 48, margin: { left: 8 }, borderRadius: 8, flexShrink: 0 }}
-            uiBackground={{ color: enabled ? MAGENTA : DISABLED_COLOR }}
-            onMouseDown={() => {
-                if (enabled) buyItem(item.id)
-            }}
-        />
-    )
+/** 1000 → "1,000". */
+function withCommas(value: number): string {
+    return `${Math.round(value)}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 }
 
-const marketText = (value: string, color: Color4) => (
-    <Label value={value} fontSize={15} color={color} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 20 }} />
-)
-
-/** "Price: 20 Coins", gold when affordable and red when not. */
-function priceLine(item: ShopItem): ReactEcs.JSX.Element {
-    const price = currentPrice(item)
-    if (price === null) return marketText(item.starter === true ? 'Price: Free' : 'Not for sale now', MUTED_COLOR)
-    return marketText(`Price: ${price} Coins`, getCoins() >= price ? COIN_COLOR : SHORT_COLOR)
+// What the detail panel says about each pick, beyond the catalogue's numbers.
+const PICK_COPY: Record<string, { description: string; perDay: number; benefits: string[] }> = {
+    pick: { description: 'A borrowed pick. It gets the job done.', perDay: 20, benefits: ['Free starting tool', 'Mines every rock'] },
+    'steel-pick': { description: 'Better hits. Faster mining.', perDay: 30, benefits: ['Faster mining', 'Better hits'] },
+    'miners-pick': { description: 'The finest pick in the territory.', perDay: 40, benefits: ['Fastest mining', 'Strongest hits', 'Brightest sparks'] }
 }
 
-const marketRow = (icon: number[], title: string, lines: ReactEcs.JSX.Element[], buttons: ReactEcs.JSX.Element[]) => (
+// --- Products ---
+
+type ProductKey = ShopItemId | 'storage' | 'horse' | 'revolver'
+
+type Status = { text: string; color: Color4 }
+
+type Product = {
+    key: ProductKey
+    title: string
+    icon: number[]
+    /** The card's second line: a price, or a short hint. */
+    hint: string
+    status: Status | null
+    muted: boolean
+}
+
+const STATUS_EQUIPPED: Status = { text: 'Equipped', color: PRICE_GOOD_COLOR }
+const STATUS_LOCKED: Status = { text: 'Locked', color: MUTED_COLOR }
+const STATUS_BUY: Status = { text: 'Buy', color: BANK_GOLD_LIGHT }
+const STATUS_SOON: Status = { text: 'Coming Soon', color: MUTED_COLOR }
+
+function ownedStatus(count: number): Status {
+    return { text: count > 1 ? `Owned x${count}` : 'Owned', color: BANK_CREAM }
+}
+
+function pickStatus(item: ShopItem): Status {
+    const owned = (id: ShopItemId) => getOwned(id)
+    if (getOwned(item.id) > 0) return activePick(owned, getEquipped())?.id === item.id ? STATUS_EQUIPPED : ownedStatus(1)
+    return whyUnavailable(item) === null ? STATUS_BUY : STATUS_LOCKED
+}
+
+function storeProducts(): Product[] {
+    const mules = getMuleCount()
+    const picks: Product[] = PICKS.map((pick) => ({
+        key: pick.id,
+        title: pick.label,
+        icon: PICK_ICONS[pick.id] ?? ICON_PICK_IRON,
+        hint: pick.price > 0 ? `${pick.price} Coins` : 'Free',
+        status: pickStatus(pick),
+        muted: false
+    }))
+    const mule = itemsOf('mule')[0]
+    return [
+        ...picks,
+        {
+            key: 'mule',
+            title: mule.label,
+            icon: ICON_MULE,
+            hint: `${mule.price} Coins`,
+            status: mules > 0 ? ownedStatus(mules) : STATUS_BUY,
+            muted: false
+        },
+        { key: 'fuel', title: 'Fuel', icon: ICON_FUEL, hint: '1 / 3 / 7 days', status: mules > 0 ? null : STATUS_LOCKED, muted: false },
+        { key: 'storage', title: 'Storage', icon: ICON_WAREHOUSE, hint: `${withCommas(getCarryCapacity())} Ore`, status: null, muted: false },
+        { key: 'horse', title: 'Horse', icon: ICON_LOCK, hint: '', status: STATUS_SOON, muted: true },
+        { key: 'revolver', title: 'Revolver', icon: ICON_SHERIFF, hint: '', status: STATUS_SOON, muted: true }
+    ]
+}
+
+/** The selected product, or the pick in use when nothing has been picked yet this visit. */
+function selectedProductKey(): ProductKey {
+    const chosen = getSelectedProduct()
+    if (chosen !== null) return chosen as ProductKey
+    return activePick((id) => getOwned(id), getEquipped())?.id ?? 'pick'
+}
+
+const storeCard = (product: Product, selected: boolean) => (
     <UiEntity
+        key={product.key}
         uiTransform={{
             width: '100%',
-            height: MARKET_ROW_HEIGHT,
+            height: STORE_CARD_HEIGHT,
             flexDirection: 'row',
             alignItems: 'center',
-            padding: { left: 12, right: 12 },
-            margin: { top: 8 },
+            padding: { left: 10, right: 10 },
+            margin: { bottom: 6 },
             borderRadius: 10,
-            borderWidth: 2,
-            borderColor: TILE_BORDER_COLOR
+            borderWidth: selected ? 3 : 2,
+            borderColor: selected ? BANK_GOLD : BANK_TRIM
         }}
-        uiBackground={{ color: TILE_COLOR }}
+        uiBackground={{ color: selected ? BANK_TRIM : BANK_WOOD }}
+        onMouseDown={() => selectProduct(product.key)}
     >
         <UiEntity
-            uiTransform={{ width: MARKET_ICON_SIZE, height: MARKET_ICON_SIZE, margin: { right: 12 }, flexShrink: 0 }}
-            uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: icon }}
+            uiTransform={{ width: STORE_CARD_ICON, height: STORE_CARD_ICON, margin: { right: 10 }, flexShrink: 0 }}
+            uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: product.icon, color: product.muted ? COMING_SOON_TINT : undefined }}
         />
-        <UiEntity uiTransform={{ flexGrow: 1, flexShrink: 1, width: 0, flexDirection: 'column', justifyContent: 'center' }}>
-            <BitmapText value={title} fontSize={26} />
-            {lines}
+        <UiEntity uiTransform={{ flexGrow: 1, flexDirection: 'column', justifyContent: 'center' }}>
+            <BitmapText value={product.title.toUpperCase()} fontSize={19} color={product.muted ? MUTED_COLOR : BANK_CREAM} />
+            <UiEntity uiTransform={{ flexDirection: 'row', height: 18, margin: { top: 2 } }}>
+                {product.hint !== '' ? (
+                    <Label value={product.hint} fontSize={13} color={product.muted ? MUTED_COLOR : COIN_COLOR} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 18, margin: { right: 8 } }} />
+                ) : null}
+                {product.status !== null ? (
+                    <Label value={product.status.text} fontSize={13} color={product.status.color} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 18 }} />
+                ) : null}
+            </UiEntity>
         </UiEntity>
-        {buttons}
     </UiEntity>
 )
 
-/** A tiered line: the next tier to buy, or the top one once it is all owned. */
-const tierRow = (line: ShopLine, icon: number[], current: string) => {
-    const next = nextTier(line, (id) => getOwned(id))
-    const tiers = itemsOf(line)
-    const top = tiers[tiers.length - 1]
-    if (next === null) {
-        return marketRow(icon, top.label, [marketText(top.benefit, ORE_COLOR), marketText(`Current: ${current} · top tier`, MUTED_COLOR)], [])
-    }
-    return marketRow(
-        icon,
-        next.label,
-        [priceLine(next), marketText(next.benefit, ORE_COLOR), marketText(`Current: ${current}`, MUTED_COLOR)],
-        [marketBuyButton(next, 'BUY', MARKET_BUY_WIDTH)]
+// --- Detail panel ---
+
+type Action = { label: string; kind: 'buy' | 'equip' | 'equipped' | 'off'; onClick?: () => void }
+
+const storeActionButton = (action: Action) => {
+    const live = action.kind === 'buy' || action.kind === 'equip'
+    const background = action.kind === 'equipped' ? EQUIPPED_COLOR : live ? BANK_GOLD : DISABLED_COLOR
+    const text = action.kind === 'equipped' ? EQUIPPED_TEXT : live ? BANK_INK : MUTED_COLOR
+    return (
+        <UiEntity
+            uiTransform={{
+                width: '100%',
+                height: STORE_ACTION_HEIGHT,
+                flexDirection: 'row',
+                justifyContent: 'center',
+                alignItems: 'center',
+                margin: { top: 12 },
+                borderRadius: 10,
+                borderWidth: 2,
+                borderColor: BANK_TRIM
+            }}
+            uiBackground={{ color: background }}
+            onMouseDown={() => {
+                if (live) action.onClick?.()
+            }}
+        >
+            {action.kind === 'equipped' ? (
+                <Label value="✓" fontSize={34} color={text} textAlign="middle-center" uiTransform={{ width: 40, height: STORE_ACTION_HEIGHT }} />
+            ) : null}
+            <BitmapText value={action.label} fontSize={38} color={text} />
+        </UiEntity>
     )
 }
 
-const marketPanel = () => {
-    const owned = (id: ShopItemId) => getOwned(id)
-    const pick = ownedTier('pick', owned)
+const detailStat = (caption: string, value: string, color: Color4) => (
+    <UiEntity key={caption} uiTransform={{ flexDirection: 'column', margin: { bottom: 10 } }}>
+        <Label value={caption} fontSize={14} color={BANK_CAPTION} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 20 }} />
+        <BitmapText value={value} fontSize={26} color={color} />
+    </UiEntity>
+)
+
+const detailNote = (text: string, color: Color4 = BANK_CREAM) => (
+    <Label key={text} value={text} fontSize={16} color={color} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 24 }} />
+)
+
+/** Price as a stat: gold when it can be paid, red when it cannot — but always shown. */
+function priceStat(price: number | null, label: string = 'Price'): ReactEcs.JSX.Element {
+    if (price === null) return detailStat(label, '-', MUTED_COLOR)
+    if (price === 0) return detailStat(label, 'FREE', COIN_COLOR)
+    return detailStat(label, `${withCommas(price)} COINS`, getCoins() >= price ? COIN_COLOR : SHORT_COLOR)
+}
+
+/** The buy action for an item: live when it can be bought, off (price still shown above) when not. */
+function buyAction(item: ShopItem): Action {
+    const why = whyUnavailable(item)
+    if (why !== null) return { label: 'LOCKED', kind: 'off' }
+    return { label: 'BUY', kind: buyBlocker(item) === null ? 'buy' : 'off', onClick: () => buyItem(item.id) }
+}
+
+/** The pieces of one product's detail: what it is, its numbers, and what you can do. */
+type Detail = { title: string; description: string; icon: number[]; stats: ReactEcs.JSX.Element[]; notes: ReactEcs.JSX.Element[]; actions: ReactEcs.JSX.Element[] }
+
+function pickDetail(item: ShopItem): Detail {
+    const copy = PICK_COPY[item.id]
+    const status = pickStatus(item)
+    let action: Action
+    if (status === STATUS_EQUIPPED) action = { label: 'EQUIPPED', kind: 'equipped' }
+    else if (getOwned(item.id) > 0) action = { label: 'EQUIP', kind: 'equip', onClick: () => sendEquip(item.id) }
+    else if (item.starter === true) action = { label: 'LOCKED', kind: 'off' }
+    else action = buyAction(item)
+
+    const notes = copy.benefits.map((benefit) => detailNote(`• ${benefit}`))
+    if (getOwned(item.id) <= 0 && item.starter === true) notes.push(detailNote('Free from the Mayor', BANK_CAPTION))
+    else if (getOwned(item.id) <= 0 && item.requires !== undefined && getOwned(item.requires) <= 0) {
+        notes.push(detailNote(`Requires ${findItem(item.requires)?.label ?? ''}`, SHORT_COLOR))
+    }
+    return {
+        title: item.label,
+        description: copy.description,
+        icon: PICK_ICONS[item.id] ?? ICON_PICK_IRON,
+        stats: [priceStat(item.price), detailStat('Manual mining output', `~${copy.perDay} COINS/DAY`, BANK_CREAM)],
+        notes,
+        actions: [storeActionButton(action)]
+    }
+}
+
+function muleDetail(): Detail {
     const mule = itemsOf('mule')[0]
     const mules = getMuleCount()
+    return {
+        title: mule.label,
+        description: 'Digs ore for you, even while you are away.',
+        icon: ICON_MULE,
+        stats: [priceStat(mule.price), detailStat('Produces', '200 ORE/DAY', BANK_CREAM)],
+        notes: [
+            detailNote('• Digs straight into your storage'),
+            detailNote('• Requires fuel'),
+            detailNote(mules > 0 ? `You own ${mules}` : 'You own none yet', BANK_CAPTION)
+        ],
+        actions: [storeActionButton(buyAction(mule))]
+    }
+}
+
+const fuelOption = (pack: ShopItem) => {
+    const live = buyBlocker(pack) === null
+    const price = currentPrice(pack) ?? pack.price
+    return (
+        <UiEntity
+            key={pack.id}
+            uiTransform={{
+                width: '100%',
+                height: 52,
+                flexDirection: 'row',
+                alignItems: 'center',
+                padding: { left: 14, right: 6 },
+                margin: { top: 8 },
+                borderRadius: 10,
+                borderWidth: 2,
+                borderColor: BANK_TRIM
+            }}
+            uiBackground={{ color: BANK_WOOD }}
+        >
+            <BitmapText value={`${pack.fuelDays} ${pack.fuelDays === 1 ? 'DAY' : 'DAYS'}`} fontSize={26} color={BANK_CREAM} uiTransform={{ width: 110 }} />
+            <Label
+                value={`${price} Coins`}
+                fontSize={16}
+                color={getCoins() >= price ? COIN_COLOR : SHORT_COLOR}
+                textAlign="middle-left"
+                uiTransform={{ flexGrow: 1, height: 40 }}
+            />
+            <UiEntity
+                uiTransform={{ width: 96, height: 40, justifyContent: 'center', alignItems: 'center', borderRadius: 8 }}
+                uiBackground={{ color: live ? BANK_GOLD : DISABLED_COLOR }}
+                onMouseDown={() => {
+                    if (live) buyItem(pack.id)
+                }}
+            >
+                <BitmapText value="BUY" fontSize={24} color={live ? BANK_INK : MUTED_COLOR} />
+            </UiEntity>
+        </UiEntity>
+    )
+}
+
+function fuelDetail(): Detail {
+    const mules = getMuleCount()
+    if (mules <= 0) {
+        return {
+            title: 'Fuel',
+            description: 'Keeps your M.U.L.E.s running.',
+            icon: ICON_FUEL,
+            stats: [],
+            notes: [detailNote('Requires a M.U.L.E.', SHORT_COLOR)],
+            actions: [storeActionButton({ label: 'LOCKED', kind: 'off' })]
+        }
+    }
+    return {
+        title: 'Fuel',
+        description: 'Keeps your M.U.L.E.s running.',
+        icon: ICON_FUEL,
+        stats: [detailStat('Fuel left', fuelLeftText().toUpperCase(), getMuleFuelHours() > 0 ? BANK_CREAM : SHORT_COLOR)],
+        notes: [detailNote(`5 Coins a day for each M.U.L.E. (you own ${mules})`, BANK_CAPTION)],
+        actions: itemsOf('fuel').map(fuelOption)
+    }
+}
+
+function storageDetail(): Detail {
+    const next = nextTier('storage', (id) => getOwned(id))
+    const stats = [detailStat('Current capacity', `${withCommas(getCarryCapacity())} ORE`, BANK_CREAM)]
+    if (next !== null) stats.push(detailStat('Next upgrade', `${withCommas(next.storage ?? 0)} ORE`, BANK_CREAM), priceStat(next.price))
+    return {
+        title: next?.label ?? 'Storage',
+        description: 'How much ore you can hold.',
+        icon: ICON_WAREHOUSE,
+        stats,
+        notes: [detailNote(`Stored now: ${withCommas(getOre())} Ore`, BANK_CAPTION)],
+        actions: [storeActionButton(next === null ? { label: 'MAX CAPACITY', kind: 'off' } : buyAction(next))]
+    }
+}
+
+function comingSoonDetail(title: string, icon: number[]): Detail {
+    return {
+        title,
+        description: 'On its way to the store.',
+        icon,
+        stats: [],
+        notes: [],
+        actions: [storeActionButton({ label: 'COMING SOON', kind: 'off' })]
+    }
+}
+
+function detailFor(key: ProductKey): Detail {
+    if (key === 'mule') return muleDetail()
+    if (key === 'fuel') return fuelDetail()
+    if (key === 'storage') return storageDetail()
+    if (key === 'horse') return comingSoonDetail('Horse', ICON_LOCK)
+    if (key === 'revolver') return comingSoonDetail('Revolver', ICON_SHERIFF)
+    const pick = findItem(key as ShopItemId)
+    return pick !== null && pick.line === 'pick' ? pickDetail(pick) : pickDetail(PICKS[0])
+}
+
+const storeDetail = (detail: Detail) => (
+    <UiEntity
+        uiTransform={{
+            flexGrow: 1,
+            width: 0,
+            flexDirection: 'column',
+            padding: 18,
+            margin: { left: 12 },
+            borderRadius: PANEL_RADIUS,
+            borderWidth: 2,
+            borderColor: BANK_TRIM
+        }}
+        uiBackground={{ color: BANK_WOOD }}
+    >
+        <BitmapText value={detail.title.toUpperCase()} fontSize={40} color={BANK_GOLD_LIGHT} />
+        <Label value={detail.description} fontSize={16} color={BANK_CAPTION} textAlign="middle-left" uiTransform={{ height: 26 }} />
+        <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', margin: { top: 12 } }}>
+            <UiEntity
+                uiTransform={{ width: STORE_DETAIL_ICON, height: STORE_DETAIL_ICON, margin: { right: 18 }, flexShrink: 0 }}
+                uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: detail.icon }}
+            />
+            <UiEntity uiTransform={{ flexGrow: 1, flexDirection: 'column' }}>{detail.stats}</UiEntity>
+        </UiEntity>
+        <UiEntity uiTransform={{ width: '100%', flexDirection: 'column', margin: { top: 6 } }}>{detail.notes}</UiEntity>
+        {/* The action sits at the bottom, however much the product above has to say. */}
+        <UiEntity uiTransform={{ flexGrow: 1 }} />
+        {detail.actions}
+    </UiEntity>
+)
+
+const storePanel = () => {
+    const key = selectedProductKey()
+    const products = storeProducts()
 
     return (
         <UiEntity
             uiTransform={{
                 width: '100%',
                 flexDirection: 'column',
-                alignItems: 'center',
-                padding: 20,
-                borderRadius: PANEL_RADIUS
+                padding: BANK_PANEL_PADDING,
+                borderRadius: PANEL_RADIUS,
+                borderWidth: 3,
+                borderColor: BANK_TRIM
             }}
-            uiBackground={{ color: PANEL_BACKGROUND }}
+            uiBackground={{ color: BANK_WOOD_DARK }}
         >
-            <BitmapText value="Market" fontSize={42} align="center" uiTransform={{ width: '100%' }} />
+            {/* Title on the left; the purse and the close button on the right. */}
+            <UiEntity uiTransform={{ width: '100%', height: 56, flexDirection: 'row', alignItems: 'center', margin: { bottom: 12 } }}>
+                <BitmapText value="GENERAL STORE" fontSize={40} color={BANK_GOLD_LIGHT} />
+                <UiEntity uiTransform={{ flexGrow: 1 }} />
+                <UiEntity
+                    uiTransform={{ height: 44, flexDirection: 'row', alignItems: 'center', padding: { left: 8, right: 14 }, margin: { right: 10 }, borderRadius: 22 }}
+                    uiBackground={{ color: BANK_WOOD }}
+                >
+                    <UiEntity uiTransform={{ width: 34, height: 34, margin: { right: 8 } }} uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: ICON_COINS }} />
+                    <BitmapText value={`${withCommas(getCoins())} COINS`} fontSize={26} color={COIN_COLOR} />
+                </UiEntity>
+                <Button
+                    value="X"
+                    fontSize={30}
+                    color={Color4.White()}
+                    uiTransform={{ width: 48, height: 48, borderRadius: PANEL_RADIUS }}
+                    uiBackground={{ color: MAP_CLOSE_COLOR }}
+                    onMouseDown={closeStorePanel}
+                />
+            </UiEntity>
 
-            {tierRow('pick', (pick && PICK_ICONS[pick.id]) ?? ICON_PICK_IRON, pick?.label ?? 'no pick')}
-
-            {marketRow(
-                ICON_MULE,
-                mule.label,
-                [priceLine(mule), marketText(mule.benefit, ORE_COLOR), marketText(`Owned: ${mules}`, MUTED_COLOR)],
-                [marketBuyButton(mule, 'BUY', MARKET_BUY_WIDTH)]
-            )}
-
-            {/* Fuel comes in three packs, priced per M.U.L.E. owned, so the row carries all three. */}
-            {marketRow(
-                ICON_FUEL,
-                'Fuel',
-                [
-                    marketText(mules > 0 ? '5 coins a day per M.U.L.E.' : 'Buy a M.U.L.E. first', ORE_COLOR),
-                    marketText(`Fuel left: ${fuelLeftText()}`, mules > 0 && getMuleFuelHours() > 0 ? COIN_COLOR : MUTED_COLOR)
-                ],
-                itemsOf('fuel').map((pack) =>
-                    marketBuyButton(pack, `${pack.fuelDays}D · ${currentPrice(pack) ?? pack.price}c`, MARKET_FUEL_BUY_WIDTH)
-                )
-            )}
-
-            {tierRow('storage', ICON_WAREHOUSE, `holds ${getCarryCapacity()} ore`)}
-
-            {tierRow('housing', ICON_HOUSE, ownedTier('housing', owned)?.label ?? STARTER_HOME)}
+            <UiEntity uiTransform={{ width: '100%', flexDirection: 'row' }}>
+                <UiEntity uiTransform={{ width: STORE_LIST_WIDTH, flexShrink: 0, flexDirection: 'column' }}>
+                    {products.map((product) => storeCard(product, product.key === key))}
+                </UiEntity>
+                {storeDetail(detailFor(key))}
+            </UiEntity>
         </UiEntity>
     )
 }
@@ -1404,7 +1677,7 @@ export const uiMenu = () => (
             {mapOpen ? mapPanel() : null}
             {inventoryOpen ? inventoryPanel() : null}
             {!mapOpen && !inventoryOpen && isBankPanelOpen() ? bankPanel() : null}
-            {!mapOpen && !inventoryOpen && isPlayerAtShop() ? marketPanel() : null}
+            {!mapOpen && !inventoryOpen && isStorePanelOpen() ? storePanel() : null}
             {!mapOpen && !inventoryOpen && isPlayerAtMule() && getMuleCount() > 0 ? mulePanel() : null}
             {mapButton()}
             {inventoryButton()}
