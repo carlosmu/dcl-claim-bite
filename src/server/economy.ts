@@ -28,7 +28,7 @@ import {
   ROCK_TIME_TOLERANCE,
   SWING_SECONDS
 } from '../shared/economy/constants'
-import { DEBUG_ADD_COINS, DEBUG_MAX_COINS, DEBUG_RESET_PROGRESS } from '../shared/debug-flags'
+import { DEBUG_ADD_COINS, DEBUG_ADD_ORE, DEBUG_MAX_COINS, DEBUG_RESET_PROGRESS } from '../shared/debug-flags'
 import {
   activePick,
   bestHitsPerRock,
@@ -453,6 +453,35 @@ function handleDebugCoins(address: string, requested: number): void {
   console.log(`[Server] DEBUG granted ${amount} coins to ${address} · balance ${purse.coins}`)
 }
 
+// DEBUG: ore out of nothing, for testing the bank without mining. It lands in the bag like
+// mined ore would, so the bag's capacity still holds; whatever does not fit is not granted.
+function handleDebugOre(address: string, requested: number): void {
+  if (!DEBUG_ADD_ORE) {
+    sendResult(address, 'debugOre', false, 'debug tools are off')
+    return
+  }
+
+  const purse = purseOf(address)
+  if (purse === null) {
+    sendResult(address, 'debugOre', false, 'still loading')
+    return
+  }
+
+  const owned = (id: ShopItemId) => purse.owned[id] ?? 0
+  const space = Math.max(0, carryCapacity(owned) - purse.ore)
+  const amount = Math.max(0, Math.min(Math.floor(requested), space))
+  if (amount <= 0 || Number.isNaN(amount)) {
+    sendResult(address, 'debugOre', false, space <= 0 ? 'bag full' : 'nothing to add')
+    return
+  }
+
+  purse.ore += amount
+  dirty.add(address)
+  sendWallet(address)
+  sendResult(address, 'debugOre', true, `+${amount} ore`)
+  console.log(`[Server] DEBUG granted ${amount} ore to ${address} · bag ${purse.ore}`)
+}
+
 // DEBUG: back to a first visit. The purse is emptied in place rather than replaced, so nothing
 // holding it sees a stale copy, and it is saved like any other change.
 function handleDebugReset(address: string): void {
@@ -759,6 +788,11 @@ export function setupEconomy(): void {
   room.onMessage('debugCoins', (data, context) => {
     if (!context) return
     handleDebugCoins(context.from, data.amount)
+  })
+
+  room.onMessage('debugOre', (data, context) => {
+    if (!context) return
+    handleDebugOre(context.from, data.amount)
   })
 
   room.onMessage('debugReset', (_data, context) => {

@@ -36,6 +36,9 @@ export const Messages = {
   /** DEBUG: "give me coins." Refused by the server unless DEBUG_ADD_COINS is on (shared/debug-flags.ts). */
   debugCoins: Schemas.Map({ amount: Schemas.Number }),
 
+  /** DEBUG: "give me ore." Refused by the server unless DEBUG_ADD_ORE is on. Fills the bag at most. */
+  debugOre: Schemas.Map({ amount: Schemas.Number }),
+
   /** DEBUG: "wipe my progress." Refused by the server unless DEBUG_RESET_PROGRESS is on. */
   debugReset: Schemas.Map({ ready: Schemas.Boolean }),
 

@@ -15,6 +15,17 @@ export function isPlayerAtBank(): boolean {
   return zone !== null && zone.isPlayerInside()
 }
 
+// Closing the panel only hides it for this visit: walking out and back in opens it again.
+let panelClosed = false
+
+export function isBankPanelOpen(): boolean {
+  return isPlayerAtBank() && !panelClosed
+}
+
+export function closeBankPanel(): void {
+  panelClosed = true
+}
+
 export function getSellAmount(): number {
   return clampToBag(sellAmount)
 }
@@ -52,7 +63,10 @@ export function setupBank(): void {
     entityName: BANK_ENTITY_NAME,
     radiusMeters: BANK_RADIUS_METERS,
     // Walking in with a full bag, the common move is to sell it — so it starts selected.
-    onEnter: () => setSellAmount(getOre())
+    onEnter: () => {
+      panelClosed = false
+      setSellAmount(getOre())
+    }
   })
 
   // The price recovery system moved to the server: one town, one price, one clock.

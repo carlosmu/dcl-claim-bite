@@ -28,6 +28,13 @@ const SOUND_VOLUME = 0.8
 // render an empty slot.
 let price = RATE_BASE
 
+// The rates this session has seen, oldest first, for the bank's chart. A new entry lands
+// only when the rate moves by the smallest step the panel shows, so the slow recovery
+// does not fill it with near-duplicates.
+const RATE_HISTORY_LENGTH = 30
+const RATE_HISTORY_STEP = 0.1
+const rateHistory: number[] = []
+
 /** How often the client re-announces itself while it still has no purse. */
 const HELLO_RETRY_SECONDS = 1
 
@@ -42,6 +49,11 @@ let sinceLastHello = HELLO_RETRY_SECONDS
 /** The town's rate as the server last published it, in ore per coin. */
 export function getSyncedRate(): number {
   return price
+}
+
+/** The rates seen this session, oldest first, each rounded to the panel's 0.1 step. */
+export function getRateHistory(): readonly number[] {
+  return rateHistory
 }
 
 /** How much ore the bag holds, as the server computed it from what the player owns. */
@@ -112,6 +124,12 @@ export function sendDebugCoins(amount: number): void {
   room.send('debugCoins', { amount })
 }
 
+/** DEBUG: asks the server for free ore. */
+export function sendDebugOre(amount: number): void {
+  if (!isStateSyncronized()) return
+  room.send('debugOre', { amount })
+}
+
 /** DEBUG: asks the server to wipe this player's progress. */
 export function sendDebugReset(): void {
   if (!isStateSyncronized()) return
@@ -143,8 +161,17 @@ function announce(dt: number) {
 function readPrice() {
   for (const [, market] of engine.getEntitiesWith(OreMarket)) {
     price = market.price
+    recordRate(price)
     return
   }
+}
+
+function recordRate(rate: number): void {
+  const rounded = Math.round(rate / RATE_HISTORY_STEP) * RATE_HISTORY_STEP
+  const last = rateHistory[rateHistory.length - 1]
+  if (last !== undefined && Math.abs(rounded - last) < RATE_HISTORY_STEP / 2) return
+  rateHistory.push(rounded)
+  if (rateHistory.length > RATE_HISTORY_LENGTH) rateHistory.shift()
 }
 
 export function setupEconomyLink(): void {

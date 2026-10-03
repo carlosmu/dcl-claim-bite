@@ -9,6 +9,10 @@
  * market never moves. The server refuses the grant while this is false. */
 export const DEBUG_ADD_COINS = true
 
+/** A "Free ore" button, the same as free coins but into the bag, up to its capacity. Skips the
+ * rocks. The server refuses the grant while this is false. */
+export const DEBUG_ADD_ORE = true
+
 /** A "Reset progress" button that wipes the player's purse back to a first visit: no ore, no
  * coins, nothing owned, an empty M.U.L.E. The server refuses the wipe while this is false. */
 export const DEBUG_RESET_PROGRESS = true

@@ -2,15 +2,17 @@ import { engine, UiCanvasInformation } from '@dcl/sdk/ecs'
 import ReactEcs, { ReactEcsRenderer, UiEntity, Label, Button, Input } from "@dcl/sdk/react-ecs"
 import { Color4 } from "@dcl/sdk/math"
 import { getCoins, getOre } from './shared/state/wallet'
-import { changeSellAmount, getSellAmount, isPlayerAtBank, sellSelectedOre, setSellAmount } from './bank/bank'
+import { changeSellAmount, closeBankPanel, getSellAmount, isBankPanelOpen, sellSelectedOre, setSellAmount } from './bank/bank'
 import {
     getCarryCapacity,
     getMuleCapacity,
     getMuleFuelHours,
     getMuleOre,
+    getRateHistory,
     getSyncedRate,
     quoteSaleForDisplay,
     sendDebugCoins,
+    sendDebugOre,
     sendDebugReset,
     sendEquip
 } from './net/economy-link'
@@ -23,7 +25,8 @@ import { getServerTick, isServerOnline } from './net/server-link'
 import { getMiningStatus } from './mining/rocks'
 import { setupRollingCounters, shownCoins, shownOre } from './ui/rolling-counter'
 import { getOrePopup, RISE_SHARE, setupOrePopup } from './ui/ore-popup'
-import { DEBUG_ADD_COINS, DEBUG_RESET_PROGRESS, DEBUG_SERVER_STATUS } from './shared/debug-flags'
+import { DEBUG_ADD_COINS, DEBUG_ADD_ORE, DEBUG_RESET_PROGRESS, DEBUG_SERVER_STATUS } from './shared/debug-flags'
+import { quotedRate } from './shared/state/market'
 import { BitmapText } from './ui/bitmap-text'
 import { introScreen } from './ui/intro-screen'
 import { welcomeOverlay } from './ui/welcome-overlay'
@@ -232,95 +235,347 @@ const infoRow = (label: string, value: string, valueColor: Color4) => (
     </UiEntity>
 )
 
-const stepButton = (label: string, onClick: () => void, width: number) => (
-    <Button
-        value={label}
-        fontSize={20}
-        color={Color4.White()}
-        uiTransform={{
-            width,
-            height: 44,
-            margin: { left: 4, right: 4 },
-            borderRadius: 8
-        }}
-        uiBackground={{ color: STEP_BUTTON_COLOR }}
-        onMouseDown={onClick}
+// --- Bank ------------------------------------------------------------------------------
+//
+// Dark wood panels with gold trim, one section per step of the sale: what the town pays, what
+// you hold, how much to sell, what you get back, and the button that does it. Big numbers and
+// titles use the western font; the small section captions stay as plain labels.
+const BANK_WOOD = Color4.create(0.17, 0.11, 0.08, 0.95)
+const BANK_WOOD_DARK = Color4.create(0.1, 0.07, 0.04, 0.96)
+const BANK_TRIM = Color4.create(0.42, 0.27, 0.12, 1)
+const BANK_GOLD = Color4.create(0.88, 0.7, 0.32, 1)
+const BANK_GOLD_LIGHT = Color4.create(1, 0.85, 0.48, 1)
+const BANK_CREAM = Color4.create(0.96, 0.9, 0.78, 1)
+const BANK_CAPTION = Color4.create(0.79, 0.65, 0.42, 1)
+const BANK_INK = Color4.create(0.17, 0.11, 0.08, 1)
+const BANK_STEP_COLOR = Color4.create(0.23, 0.16, 0.1, 1)
+const RATE_GOOD_COLOR = Color4.create(0.48, 0.83, 0.42, 1)
+const RATE_FAIR_COLOR = Color4.create(0.95, 0.75, 0.3, 1)
+const RATE_BAD_COLOR = Color4.create(0.9, 0.35, 0.3, 1)
+
+// The chart's scale, in ore per coin. 10 is the rate a quiet town settles at; 12 is about as
+// bad as it gets in play, so anything past it pins to the floor rather than squashing the rest.
+// The line runs higher the better the rate is for the seller.
+const RATE_CHART_BEST = 10
+const RATE_CHART_WORST = 12
+const RATE_CHART_HEIGHT = 72
+const RATE_CHART_PADDING = 6
+const RATE_LINE_WIDTH = 3
+const RATE_DOT_SIZE = 11
+
+function formatRate(rate: number): string {
+    return Number.isInteger(rate) ? `${rate}` : rate.toFixed(1)
+}
+
+/** 1 at the best rate, 0 at the worst, clamped. */
+function rateQuality(rate: number): number {
+    return Math.max(0, Math.min(1, (RATE_CHART_WORST - rate) / (RATE_CHART_WORST - RATE_CHART_BEST)))
+}
+
+function mixColor(a: Color4, b: Color4, t: number): Color4 {
+    return Color4.create(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t, 1)
+}
+
+function rateColor(rate: number): Color4 {
+    const quality = rateQuality(rate)
+    return quality >= 0.5
+        ? mixColor(RATE_FAIR_COLOR, RATE_GOOD_COLOR, (quality - 0.5) * 2)
+        : mixColor(RATE_BAD_COLOR, RATE_FAIR_COLOR, quality * 2)
+}
+
+/** How far above the plot's floor the line sits at this rate. */
+function rateLevel(rate: number): number {
+    const inner = RATE_CHART_HEIGHT - RATE_CHART_PADDING * 2
+    return rateQuality(rate) * (inner - RATE_LINE_WIDTH)
+}
+
+const percent = (fraction: number): `${number}%` => `${fraction * 100}%`
+
+// The session's rates as a step line, oldest on the left, newest reaching the right edge: a
+// flat run per rate and a riser wherever it moved. The UI cannot rotate an entity, so there
+// are no diagonals; the steps are what makes the peaks read. With no history yet the line is
+// one flat run at the current rate. A dot marks where the price is now.
+const rateLine = (history: readonly number[], current: number) => {
+    const points = history.length > 0 ? history : [current]
+    const slot = 1 / points.length
+    const pieces: ReactEcs.JSX.Element[] = []
+
+    points.forEach((rate, i) => {
+        pieces.push(
+            <UiEntity
+                key={`run${i}`}
+                uiTransform={{
+                    positionType: 'absolute',
+                    position: { left: percent(i * slot), bottom: rateLevel(rate) },
+                    width: percent(slot),
+                    height: RATE_LINE_WIDTH
+                }}
+                uiBackground={{ color: rateColor(rate) }}
+            />
+        )
+        if (i === 0) return
+        const from = rateLevel(points[i - 1])
+        const to = rateLevel(rate)
+        if (from === to) return
+        pieces.push(
+            <UiEntity
+                key={`rise${i}`}
+                uiTransform={{
+                    positionType: 'absolute',
+                    position: { left: percent(i * slot), bottom: Math.min(from, to) },
+                    width: RATE_LINE_WIDTH,
+                    height: Math.abs(to - from) + RATE_LINE_WIDTH
+                }}
+                uiBackground={{ color: rateColor(rate) }}
+            />
+        )
+    })
+
+    const last = points[points.length - 1]
+    pieces.push(
+        <UiEntity
+            key="now"
+            uiTransform={{
+                positionType: 'absolute',
+                position: { right: 0, bottom: rateLevel(last) - (RATE_DOT_SIZE - RATE_LINE_WIDTH) / 2 },
+                width: RATE_DOT_SIZE,
+                height: RATE_DOT_SIZE,
+                borderRadius: RATE_DOT_SIZE / 2
+            }}
+            uiBackground={{ color: rateColor(last) }}
+        />
+    )
+    return pieces
+}
+
+const rateChart = (history: readonly number[], current: number) => (
+    <UiEntity uiTransform={{ width: '100%', height: RATE_CHART_HEIGHT, flexDirection: 'row', margin: { top: 8 } }}>
+        <UiEntity uiTransform={{ width: 32, height: '100%', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <Label value={`${RATE_CHART_BEST}`} fontSize={13} color={BANK_CAPTION} textAlign="top-left" uiTransform={{ height: 18 }} />
+            <Label value={`${RATE_CHART_WORST}`} fontSize={13} color={BANK_CAPTION} textAlign="bottom-left" uiTransform={{ height: 18 }} />
+        </UiEntity>
+        <UiEntity
+            uiTransform={{
+                flexGrow: 1,
+                height: '100%',
+                padding: RATE_CHART_PADDING,
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: BANK_TRIM
+            }}
+            uiBackground={{ color: BANK_WOOD_DARK }}
+        >
+            {/* The line's pieces are absolute, so they get a box of their own: offsets then
+                count from the inside of the padding, not from the frame's edge. */}
+            <UiEntity uiTransform={{ width: '100%', height: '100%', positionType: 'relative' }}>
+                {rateLine(history, current)}
+            </UiEntity>
+        </UiEntity>
+    </UiEntity>
+)
+
+const bankIcon = (uvs: number[], size: number) => (
+    <UiEntity
+        uiTransform={{ width: size, height: size, flexShrink: 0, margin: { right: 12 } }}
+        uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs }}
     />
+)
+
+// A section spans the panel unless given a width; `grow` lets one share a row with another.
+const bankSection = (
+    caption: string,
+    children: ReactEcs.JSX.Element | (ReactEcs.JSX.Element | null)[],
+    layout: { width?: number | `${number}%`; grow?: number; marginRight?: number } = {}
+) => (
+    <UiEntity
+        uiTransform={{
+            width: layout.width ?? '100%',
+            flexGrow: layout.grow ?? 0,
+            flexShrink: layout.grow ?? 0,
+            flexDirection: 'column',
+            padding: { left: 18, right: 18, top: 10, bottom: 14 },
+            margin: { top: 10, right: layout.marginRight ?? 0 },
+            borderRadius: PANEL_RADIUS,
+            borderWidth: 2,
+            borderColor: BANK_TRIM
+        }}
+        uiBackground={{ color: BANK_WOOD }}
+    >
+        <Label value={caption} fontSize={16} color={BANK_CAPTION} textAlign="middle-left" uiTransform={{ height: 22 }} />
+        {children}
+    </UiEntity>
+)
+
+const bankButton = (
+    label: string,
+    onClick: () => void,
+    transform: { width: number | `${number}%`; height: number },
+    fontSize: number,
+    background: Color4,
+    textColor: Color4
+) => (
+    <UiEntity
+        uiTransform={{
+            ...transform,
+            flexShrink: 0,
+            justifyContent: 'center',
+            alignItems: 'center',
+            borderRadius: 10,
+            borderWidth: 2,
+            borderColor: BANK_TRIM
+        }}
+        uiBackground={{ color: background }}
+        onMouseDown={onClick}
+    >
+        <BitmapText value={label} fontSize={fontSize} color={textColor} align="center" />
+    </UiEntity>
 )
 
 const bankPanel = () => {
     const ore = getOre()
     const amount = getSellAmount()
     const payout = quoteSaleForDisplay(amount)
+    const rate = getSyncedRate()
+    // The fewest whole ore that buy a coin at the rate on screen. Below it a sale pays nothing,
+    // and the server refuses it, so the panel says so instead of offering it.
+    const minOre = Math.ceil(quotedRate(rate) - 1e-6)
+    const short = amount > 0 && payout <= 0
+    const canSell = amount > 0 && !short
 
     return (
         <UiEntity
             uiTransform={{
                 width: '100%',
-                height: 380,
                 flexDirection: 'column',
                 alignItems: 'center',
-                justifyContent: 'center',
-                padding: 20,
-                borderRadius: PANEL_RADIUS
+                padding: 16,
+                borderRadius: PANEL_RADIUS,
+                borderWidth: 3,
+                borderColor: BANK_TRIM
             }}
-            uiBackground={{ color: PANEL_BACKGROUND }}
+            uiBackground={{ color: BANK_WOOD_DARK }}
         >
-            <BitmapText value="The Bank" fontSize={42} align="center" uiTransform={{ width: '100%' }} />
-            {infoRow('Town rate', `${getSyncedRate().toFixed(1)} ore = 1 coin`, ORE_COLOR)}
-            {infoRow('Your ore', `${ore}`, ORE_COLOR)}
-
             <UiEntity
                 uiTransform={{
                     width: '100%',
-                    height: 52,
+                    height: 84,
                     flexDirection: 'row',
                     justifyContent: 'center',
                     alignItems: 'center'
                 }}
             >
-                {stepButton('-10', () => changeSellAmount(-10), 64)}
-                {stepButton('-1', () => changeSellAmount(-1), 64)}
-                <Label
-                    value={`${amount}`}
-                    fontSize={26}
+                {bankIcon(ICON_BANK, 64)}
+                <BitmapText value="THE BANK" fontSize={60} color={BANK_GOLD_LIGHT} />
+                <Button
+                    value="X"
+                    fontSize={30}
                     color={Color4.White()}
-                    textAlign="middle-center"
-                    uiTransform={{ width: 96, height: 44 }}
+                    uiTransform={{
+                        positionType: 'absolute',
+                        position: { top: 18, right: 18 },
+                        width: 44,
+                        height: 44,
+                        borderRadius: 22,
+                        borderWidth: 3,
+                        borderColor: Color4.Black()
+                    }}
+                    uiBackground={{ color: MAP_CLOSE_COLOR }}
+                    onMouseDown={closeBankPanel}
                 />
-                {stepButton('+1', () => changeSellAmount(1), 64)}
-                {stepButton('+10', () => changeSellAmount(10), 64)}
             </UiEntity>
 
-            <UiEntity
-                uiTransform={{
-                    width: '100%',
-                    height: 48,
-                    flexDirection: 'row',
-                    justifyContent: 'center',
-                    alignItems: 'center'
-                }}
-            >
-                {stepButton('Half', () => setSellAmount(Math.floor(getOre() / 2)), 96)}
-                {stepButton('All', () => setSellAmount(getOre()), 96)}
+            {/* Your ore on the left, the town's rate beside it: both stretch to the taller one. */}
+            <UiEntity uiTransform={{ width: '100%', flexDirection: 'row' }}>
+                {bankSection(
+                    'YOUR ORE',
+                    <UiEntity uiTransform={{ flexGrow: 1, flexDirection: 'row', alignItems: 'center' }}>
+                        {bankIcon(ICON_ORE, 48)}
+                        <BitmapText value={`${ore}`} fontSize={46} color={BANK_CREAM} />
+                    </UiEntity>,
+                    { width: 200, marginRight: 10 }
+                )}
+
+                {bankSection(
+                    'TOWN RATE',
+                    [
+                        <UiEntity key="rate" uiTransform={{ height: 44, flexDirection: 'row', alignItems: 'center' }}>
+                            <BitmapText value={`${formatRate(rate)} ORE = 1 COIN`} fontSize={34} color={BANK_CREAM} />
+                        </UiEntity>,
+                        <UiEntity key="chart" uiTransform={{ width: '100%' }}>
+                            {rateChart(getRateHistory(), rate)}
+                        </UiEntity>
+                    ],
+                    { width: 0, grow: 1 }
+                )}
             </UiEntity>
 
-            {infoRow('You get', `${payout} coins`, COIN_COLOR)}
+            {/* What the sale pays on the left, the amount picker beside it, like the row above. */}
+            <UiEntity uiTransform={{ width: '100%', flexDirection: 'row' }}>
+                {bankSection(
+                    'YOU RECEIVE',
+                    [
+                        <UiEntity key="payout" uiTransform={{ height: 52, flexDirection: 'row', alignItems: 'center' }}>
+                            {bankIcon(ICON_COINS, 48)}
+                            <BitmapText value={`${payout}`} fontSize={46} color={short ? RATE_BAD_COLOR : COIN_COLOR} />
+                        </UiEntity>,
+                        <UiEntity key="unit" uiTransform={{ margin: { top: 4 } }}>
+                            <BitmapText value={payout === 1 ? 'COIN' : 'COINS'} fontSize={28} color={short ? RATE_BAD_COLOR : COIN_COLOR} />
+                        </UiEntity>,
+                        short ? (
+                            <Label
+                                key="short"
+                                value={`Not enough ore: 1 coin needs ${minOre} ore`}
+                                fontSize={15}
+                                color={RATE_BAD_COLOR}
+                                textAlign="top-left"
+                                textWrap="wrap"
+                                uiTransform={{ width: '100%', height: 40, margin: { top: 6 } }}
+                            />
+                        ) : null
+                    ],
+                    { width: 200, marginRight: 10 }
+                )}
 
-            <Button
-                value={amount > 0 ? `SELL ${amount} ORE` : 'NOTHING TO SELL'}
-                fontSize={24}
-                color={Color4.White()}
-                disabled={amount <= 0}
-                uiTransform={{
-                    width: '100%',
-                    height: 56,
-                    margin: { top: 12 },
-                    borderRadius: 10
-                }}
-                uiBackground={{ color: amount > 0 ? MAGENTA : DISABLED_COLOR }}
-                onMouseDown={sellSelectedOre}
-            />
+                {bankSection(
+                    'SELL AMOUNT',
+                    [
+                        <UiEntity key="step" uiTransform={{ width: '100%', height: 64, flexDirection: 'row', alignItems: 'center' }}>
+                            {bankButton('-10', () => changeSellAmount(-10), { width: 96, height: 60 }, 36, BANK_STEP_COLOR, BANK_CREAM)}
+                            <UiEntity
+                                uiTransform={{
+                                    flexGrow: 1,
+                                    height: 60,
+                                    margin: { left: 12, right: 12 },
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    borderRadius: 10,
+                                    borderWidth: 2,
+                                    borderColor: BANK_TRIM
+                                }}
+                                uiBackground={{ color: BANK_WOOD_DARK }}
+                            >
+                                <BitmapText value={`${amount} ORE`} fontSize={42} color={short ? RATE_BAD_COLOR : BANK_GOLD_LIGHT} align="center" />
+                            </UiEntity>
+                            {bankButton('+10', () => changeSellAmount(10), { width: 96, height: 60 }, 36, BANK_STEP_COLOR, BANK_CREAM)}
+                        </UiEntity>,
+                        <UiEntity key="quick" uiTransform={{ width: '100%', height: 52, flexDirection: 'row', justifyContent: 'space-between', margin: { top: 10 } }}>
+                            {bankButton('HALF', () => setSellAmount(Math.floor(getOre() / 2)), { width: '48%', height: 50 }, 30, BANK_STEP_COLOR, BANK_CREAM)}
+                            {bankButton('MAX', () => setSellAmount(getOre()), { width: '48%', height: 50 }, 30, BANK_STEP_COLOR, BANK_CREAM)}
+                        </UiEntity>
+                    ],
+                    { width: 0, grow: 1 }
+                )}
+            </UiEntity>
+
+            <UiEntity uiTransform={{ width: '100%', height: 12 }} />
+            {bankButton(
+                amount <= 0 ? 'NOTHING TO SELL' : short ? `NEED ${minOre} ORE` : `SELL ${amount} ORE`,
+                canSell ? sellSelectedOre : () => {},
+                { width: '100%', height: 72 },
+                44,
+                canSell ? BANK_GOLD : DISABLED_COLOR,
+                canSell ? BANK_INK : MUTED_COLOR
+            )}
         </UiEntity>
     )
 }
@@ -496,23 +751,26 @@ const debugResetTool = () => {
     )
 }
 
-// --- Debug: add coins -------------------------------------------------------------------
+// --- Debug: free coins and ore -------------------------------------------------------
 //
-// A small button at the bottom-left of the column that opens an amount field. Only drawn while
-// DEBUG_ADD_COINS is on; the server checks the same flag, so hiding it is not the only guard.
+// Small buttons at the bottom-left of the column, each opening an amount field. Each is only
+// drawn while its flag is on; the server checks the same flag, so hiding it is not the only guard.
 
-let debugOpen = false
+type DebugGrant = 'coins' | 'ore'
+
+let debugOpen: DebugGrant | null = null
 let debugAmount = ''
 
-function submitDebugCoins() {
+function submitDebugGrant() {
     const amount = Math.floor(Number(debugAmount))
     if (!(amount > 0)) return
-    sendDebugCoins(amount)
+    if (debugOpen === 'coins') sendDebugCoins(amount)
+    if (debugOpen === 'ore') sendDebugOre(amount)
     debugAmount = ''
-    debugOpen = false
+    debugOpen = null
 }
 
-const debugCoinsTool = () => (
+const debugGrantTool = (grant: DebugGrant, label: string) => (
     <UiEntity
         uiTransform={{
             flexDirection: 'row',
@@ -521,16 +779,18 @@ const debugCoinsTool = () => (
         }}
     >
         <Button
-            value={debugOpen ? 'Close' : 'Free coins'}
+            value={debugOpen === grant ? 'Close' : label}
             fontSize={16}
             color={Color4.White()}
             uiTransform={{ width: 150, height: 40, borderRadius: 8 }}
             uiBackground={{ color: STEP_BUTTON_COLOR }}
             onMouseDown={() => {
-                debugOpen = !debugOpen
+                // Switching tools starts the field over: an amount typed for coins is not meant as ore.
+                if (debugOpen !== grant) debugAmount = ''
+                debugOpen = debugOpen === grant ? null : grant
             }}
         />
-        {debugOpen ? (
+        {debugOpen === grant ? (
             <UiEntity uiTransform={{ flexDirection: 'row', alignItems: 'center', margin: { left: 8 } }}>
                 <Input
                     placeholder="amount"
@@ -545,7 +805,7 @@ const debugCoinsTool = () => (
                     }}
                     onSubmit={(value) => {
                         debugAmount = value
-                        submitDebugCoins()
+                        submitDebugGrant()
                     }}
                 />
                 <Button
@@ -554,7 +814,7 @@ const debugCoinsTool = () => (
                     color={Color4.White()}
                     uiTransform={{ width: 70, height: 40, margin: { left: 8 }, borderRadius: 8 }}
                     uiBackground={{ color: MAGENTA }}
-                    onMouseDown={submitDebugCoins}
+                    onMouseDown={submitDebugGrant}
                 />
             </UiEntity>
         ) : null}
@@ -580,7 +840,8 @@ const debugBox = () => (
     >
         <Label value="DEBUG PLANEL" fontSize={14} color={MUTED_COLOR} uiTransform={{ height: 18 }} />
         {DEBUG_RESET_PROGRESS ? debugResetTool() : null}
-        {DEBUG_ADD_COINS ? debugCoinsTool() : null}
+        {DEBUG_ADD_COINS ? debugGrantTool('coins', 'Free coins') : null}
+        {DEBUG_ADD_ORE ? debugGrantTool('ore', 'Free ore') : null}
     </UiEntity>
 )
 
@@ -1021,13 +1282,13 @@ export const uiMenu = () => (
             {orePopup()}
             {mapOpen ? mapPanel() : null}
             {inventoryOpen ? inventoryPanel() : null}
-            {!mapOpen && !inventoryOpen && isPlayerAtBank() ? bankPanel() : null}
+            {!mapOpen && !inventoryOpen && isBankPanelOpen() ? bankPanel() : null}
             {!mapOpen && !inventoryOpen && isPlayerAtShop() ? marketPanel() : null}
             {!mapOpen && !inventoryOpen && isPlayerAtMule() && getMuleCapacity() > 0 ? mulePanel() : null}
             {mapButton()}
             {inventoryButton()}
             {DEBUG_SERVER_STATUS ? serverStatus() : null}
-            {DEBUG_RESET_PROGRESS || DEBUG_ADD_COINS ? debugBox() : null}
+            {DEBUG_RESET_PROGRESS || DEBUG_ADD_COINS || DEBUG_ADD_ORE ? debugBox() : null}
         </UiEntity>
         {welcomeOverlay()}
         {introScreen()}
