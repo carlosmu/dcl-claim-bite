@@ -1,15 +1,21 @@
 import { createProximityZone, ProximityZone } from '../world/proximity-zone'
 import { getOre } from '../shared/state/wallet'
-import { sendSell } from '../net/economy-link'
+import { getSyncedRate, quoteSaleForDisplay, sendSell } from '../net/economy-link'
+import { oreForCoins } from '../shared/state/market'
 
 export const BANK_ENTITY_NAME = 'Bank'
 export const BANK_RADIUS_METERS = 5
 
 let zone: ProximityZone | null = null
 
-// How much of the bag the player has lined up to sell. Selling is player-timed and never
-// automatic (decisions.md, 2026-08-31), so nothing here fires on its own.
-let sellAmount = 0
+// How much of the bag the player has lined up to sell, counted in the COINS it will buy.
+// Selling is player-timed and never automatic (decisions.md, 2026-08-31), so nothing here
+// fires on its own.
+//
+// Counting coins rather than ore keeps the selection on whole multiples of the rate: the ore
+// shown is always ore that converts, never a remainder the bank would hand back. The rate can
+// move while the panel is open, so the ore is worked out from the coins each time it is read.
+let sellCoins = 0
 
 export function isPlayerAtBank(): boolean {
   return zone !== null && zone.isPlayerInside()
@@ -26,20 +32,31 @@ export function closeBankPanel(): void {
   panelClosed = true
 }
 
+/** Coins the selection buys, clamped to what the bag can pay for at the rate right now. */
+export function getSellCoins(): number {
+  return clampToBag(sellCoins)
+}
+
+/** The ore the selection sells: exactly what leaves the bag for getSellCoins(). */
 export function getSellAmount(): number {
-  return clampToBag(sellAmount)
+  return oreForCoins(getSyncedRate(), getSellCoins())
 }
 
-export function changeSellAmount(delta: number): void {
-  sellAmount = clampToBag(getSellAmount() + delta)
+export function changeSellCoins(delta: number): void {
+  sellCoins = clampToBag(getSellCoins() + delta)
 }
 
-export function setSellAmount(amount: number): void {
-  sellAmount = clampToBag(amount)
+export function setSellCoins(coins: number): void {
+  sellCoins = clampToBag(coins)
 }
 
-function clampToBag(amount: number): number {
-  return Math.max(0, Math.min(Math.floor(amount), getOre()))
+/** The most coins the whole bag buys. */
+export function maxSellCoins(): number {
+  return quoteSaleForDisplay(getOre())
+}
+
+function clampToBag(coins: number): number {
+  return Math.max(0, Math.min(Math.floor(coins), maxSellCoins()))
 }
 
 /**
@@ -65,7 +82,7 @@ export function setupBank(): void {
     // Walking in with a full bag, the common move is to sell it — so it starts selected.
     onEnter: () => {
       panelClosed = false
-      setSellAmount(getOre())
+      setSellCoins(maxSellCoins())
     }
   })
 

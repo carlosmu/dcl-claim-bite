@@ -45,7 +45,13 @@ export function getMacroRate(): number {
  * Pricing at the shown rate makes the screen and the sale agree, on the client and the server.
  */
 export function quotedRate(rate: number): number {
-  return Math.round(rate * 10) / 10
+  return rateTenths(rate) / 10
+}
+
+// The quoted rate in whole tenths of an ore: 10.1 becomes 101. Sales are priced with these
+// integers, because in floating point 101 / 10.1 can land a hair under 10 and floor a coin away.
+function rateTenths(rate: number): number {
+  return Math.round(rate * 10)
 }
 
 /**
@@ -59,7 +65,7 @@ export function quotedRate(rate: number): number {
  */
 export function quoteSaleAt(rawRate: number, oreAmount: number): number {
   if (oreAmount <= 0) return 0
-  return Math.floor(oreAmount / quotedRate(rawRate))
+  return Math.floor((oreAmount * 10) / rateTenths(rawRate))
 }
 
 /** The same quote at the rate right now. */
@@ -74,12 +80,15 @@ export function quoteSale(oreAmount: number): number {
  * coins, and charging the player's whole offer for a floored payout silently burns the
  * remainder: selling 11 ore at a rate of 10 pays 1 coin and used to cost all 11, so a tenth
  * of a coin — about one ore — vanished. Selling the exact cost and leaving the rest in the
- * bag means the advertised rate is the rate the player actually gets. Rounded down, so a
- * fractional rate never charges a part of an ore the player does not have.
+ * bag means the advertised rate is the rate the player actually gets.
+ *
+ * Rounded UP to a whole ore: one coin at 10.1 costs 11. That is the amount the bank panel
+ * shows as the sale, so the ore on screen is exactly the ore that leaves the bag. Never more
+ * than the offer it priced: quoteSaleAt floors, so `coins` at `rate` always fits in it.
  */
 export function oreForCoins(rawRate: number, coins: number): number {
   if (coins <= 0) return 0
-  return Math.floor(coins * quotedRate(rawRate))
+  return Math.ceil((coins * rateTenths(rawRate)) / 10)
 }
 
 /** Moves the rate for a sale that has just happened. */

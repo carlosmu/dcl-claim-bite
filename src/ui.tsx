@@ -2,7 +2,7 @@ import { engine, UiCanvasInformation } from '@dcl/sdk/ecs'
 import ReactEcs, { ReactEcsRenderer, UiEntity, Label, Button, Input } from "@dcl/sdk/react-ecs"
 import { Color4 } from "@dcl/sdk/math"
 import { getCoins, getOre } from './shared/state/wallet'
-import { changeSellAmount, closeBankPanel, getSellAmount, isBankPanelOpen, sellSelectedOre, setSellAmount } from './bank/bank'
+import { changeSellCoins, closeBankPanel, getSellAmount, getSellCoins, isBankPanelOpen, maxSellCoins, sellSelectedOre, setSellCoins } from './bank/bank'
 import {
     getCarryCapacity,
     getMuleCapacity,
@@ -10,7 +10,6 @@ import {
     getMuleOre,
     getRateHistory,
     getSyncedRate,
-    quoteSaleForDisplay,
     sendDebugCoins,
     sendDebugOre,
     sendDebugReset,
@@ -247,6 +246,8 @@ const BANK_GOLD = Color4.create(0.88, 0.7, 0.32, 1)
 const BANK_GOLD_LIGHT = Color4.create(1, 0.85, 0.48, 1)
 const BANK_CREAM = Color4.create(0.96, 0.9, 0.78, 1)
 const BANK_CAPTION = Color4.create(0.79, 0.65, 0.42, 1)
+
+const BANK_HINT = Color4.create(0.86, 0.55, 0.3, 1)
 const BANK_INK = Color4.create(0.17, 0.11, 0.08, 1)
 const BANK_STEP_COLOR = Color4.create(0.23, 0.16, 0.1, 1)
 const RATE_GOOD_COLOR = Color4.create(0.48, 0.83, 0.42, 1)
@@ -258,10 +259,10 @@ const RATE_BAD_COLOR = Color4.create(0.9, 0.35, 0.3, 1)
 // The line runs higher the better the rate is for the seller.
 const RATE_CHART_BEST = 10
 const RATE_CHART_WORST = 12
-const RATE_CHART_HEIGHT = 72
+const RATE_CHART_HEIGHT = 56
 const RATE_CHART_PADDING = 6
-const RATE_LINE_WIDTH = 3
-const RATE_DOT_SIZE = 11
+const RATE_LINE_WIDTH = 2
+const RATE_DOT_SIZE = 9
 
 function formatRate(rate: number): string {
     return Number.isInteger(rate) ? `${rate}` : rate.toFixed(1)
@@ -433,14 +434,12 @@ const bankButton = (
 
 const bankPanel = () => {
     const ore = getOre()
+    // The selection is counted in coins, so the ore shown is always the ore that converts.
+    const payout = getSellCoins()
     const amount = getSellAmount()
-    const payout = quoteSaleForDisplay(amount)
-    const rate = getSyncedRate()
-    // The fewest whole ore that buy a coin at the rate on screen. Below it a sale pays nothing,
-    // and the server refuses it, so the panel says so instead of offering it.
-    const minOre = Math.ceil(quotedRate(rate) - 1e-6)
-    const short = amount > 0 && payout <= 0
-    const canSell = amount > 0 && !short
+    // The rate as sales are priced, to one decimal; it doubles as the minimum to sell.
+    const rate = quotedRate(getSyncedRate())
+    const canSell = payout > 0
 
     return (
         <UiEntity
@@ -458,14 +457,17 @@ const bankPanel = () => {
             <UiEntity
                 uiTransform={{
                     width: '100%',
-                    height: 84,
+                    height: 96,
                     flexDirection: 'row',
                     justifyContent: 'center',
                     alignItems: 'center'
                 }}
             >
-                {bankIcon(ICON_BANK, 64)}
-                <BitmapText value="THE BANK" fontSize={60} color={BANK_GOLD_LIGHT} />
+                {bankIcon(ICON_BANK, 72)}
+                <UiEntity uiTransform={{ flexDirection: 'column', alignItems: 'center' }}>
+                    <BitmapText value="THE BANK" fontSize={60} color={BANK_GOLD_LIGHT} />
+                    <Label value="Sell Ore for Coins" fontSize={18} color={BANK_CAPTION} textAlign="middle-center" uiTransform={{ height: 24 }} />
+                </UiEntity>
                 <Button
                     value="X"
                     fontSize={30}
@@ -516,22 +518,11 @@ const bankPanel = () => {
                     [
                         <UiEntity key="payout" uiTransform={{ height: 52, flexDirection: 'row', alignItems: 'center' }}>
                             {bankIcon(ICON_COINS, 48)}
-                            <BitmapText value={`${payout}`} fontSize={46} color={short ? RATE_BAD_COLOR : COIN_COLOR} />
+                            <BitmapText value={`${payout}`} fontSize={46} color={COIN_COLOR} />
                         </UiEntity>,
                         <UiEntity key="unit" uiTransform={{ margin: { top: 4 } }}>
-                            <BitmapText value={payout === 1 ? 'COIN' : 'COINS'} fontSize={28} color={short ? RATE_BAD_COLOR : COIN_COLOR} />
-                        </UiEntity>,
-                        short ? (
-                            <Label
-                                key="short"
-                                value={`Not enough ore: 1 coin needs ${minOre} ore`}
-                                fontSize={15}
-                                color={RATE_BAD_COLOR}
-                                textAlign="top-left"
-                                textWrap="wrap"
-                                uiTransform={{ width: '100%', height: 40, margin: { top: 6 } }}
-                            />
-                        ) : null
+                            <BitmapText value={payout === 1 ? 'COIN' : 'COINS'} fontSize={28} color={COIN_COLOR} />
+                        </UiEntity>
                     ],
                     { width: 200, marginRight: 10 }
                 )}
@@ -540,7 +531,7 @@ const bankPanel = () => {
                     'SELL AMOUNT',
                     [
                         <UiEntity key="step" uiTransform={{ width: '100%', height: 64, flexDirection: 'row', alignItems: 'center' }}>
-                            {bankButton('-10', () => changeSellAmount(-10), { width: 96, height: 60 }, 36, BANK_STEP_COLOR, BANK_CREAM)}
+                            {bankButton('-10', () => changeSellCoins(-1), { width: 96, height: 60 }, 36, BANK_STEP_COLOR, BANK_CREAM)}
                             <UiEntity
                                 uiTransform={{
                                     flexGrow: 1,
@@ -554,13 +545,22 @@ const bankPanel = () => {
                                 }}
                                 uiBackground={{ color: BANK_WOOD_DARK }}
                             >
-                                <BitmapText value={`${amount} ORE`} fontSize={42} color={short ? RATE_BAD_COLOR : BANK_GOLD_LIGHT} align="center" />
+                                <BitmapText value={`${amount} ORE`} fontSize={42} color={BANK_GOLD_LIGHT} align="center" />
                             </UiEntity>
-                            {bankButton('+10', () => changeSellAmount(10), { width: 96, height: 60 }, 36, BANK_STEP_COLOR, BANK_CREAM)}
+                            {bankButton('+10', () => changeSellCoins(1), { width: 96, height: 60 }, 36, BANK_STEP_COLOR, BANK_CREAM)}
                         </UiEntity>,
-                        <UiEntity key="quick" uiTransform={{ width: '100%', height: 52, flexDirection: 'row', justifyContent: 'space-between', margin: { top: 10 } }}>
-                            {bankButton('HALF', () => setSellAmount(Math.floor(getOre() / 2)), { width: '48%', height: 50 }, 30, BANK_STEP_COLOR, BANK_CREAM)}
-                            {bankButton('MAX', () => setSellAmount(getOre()), { width: '48%', height: 50 }, 30, BANK_STEP_COLOR, BANK_CREAM)}
+                        // The one place the minimum is stated: under the amount, quiet, always there.
+                        <Label
+                            key="minimum"
+                            value={`Minimum: ${formatRate(rate)} Ore`}
+                            fontSize={15}
+                            color={BANK_HINT}
+                            textAlign="middle-center"
+                            uiTransform={{ width: '100%', height: 20, margin: { top: 4 } }}
+                        />,
+                        <UiEntity key="quick" uiTransform={{ width: '100%', height: 52, flexDirection: 'row', justifyContent: 'space-between', margin: { top: 6 } }}>
+                            {bankButton('HALF', () => setSellCoins(Math.floor(maxSellCoins() / 2)), { width: '48%', height: 50 }, 30, BANK_STEP_COLOR, BANK_CREAM)}
+                            {bankButton('MAX', () => setSellCoins(maxSellCoins()), { width: '48%', height: 50 }, 30, BANK_STEP_COLOR, BANK_CREAM)}
                         </UiEntity>
                     ],
                     { width: 0, grow: 1 }
@@ -569,7 +569,7 @@ const bankPanel = () => {
 
             <UiEntity uiTransform={{ width: '100%', height: 12 }} />
             {bankButton(
-                amount <= 0 ? 'NOTHING TO SELL' : short ? `NEED ${minOre} ORE` : `SELL ${amount} ORE`,
+                canSell ? `SELL ${amount} ORE` : 'SELL',
                 canSell ? sellSelectedOre : () => {},
                 { width: '100%', height: 72 },
                 44,
