@@ -254,6 +254,8 @@ const BANK_CREAM = Color4.create(0.96, 0.9, 0.78, 1)
 const BANK_CAPTION = Color4.create(0.79, 0.65, 0.42, 1)
 
 // Breathing room between the panel's rows, on top of each section's own 10 px margin.
+// The panel's inner margin; the close button sits this far in from the corner too.
+const BANK_PANEL_PADDING = 16
 const BANK_ROW_GAP = 20
 const BANK_BUTTON_GAP = 36
 const BANK_HINT = Color4.create(0.86, 0.55, 0.3, 1)
@@ -403,11 +405,28 @@ const bankIcon = (uvs: number[], size: number) => (
     />
 )
 
+// Two sections can be joined into one box: `joined` names which half this one is. The corners
+// where they meet go square, and the left half drops its right border so the seam is one
+// line, not two side by side.
+function sectionEdges(joined?: 'left' | 'right') {
+    const r = PANEL_RADIUS
+    return {
+        borderColor: BANK_TRIM,
+        borderWidth: joined === 'left' ? { top: 2, bottom: 2, left: 2, right: 0 } : 2,
+        borderRadius:
+            joined === 'left'
+                ? { topLeft: r, bottomLeft: r, topRight: 0, bottomRight: 0 }
+                : joined === 'right'
+                  ? { topLeft: 0, bottomLeft: 0, topRight: r, bottomRight: r }
+                  : r
+    }
+}
+
 // A section spans the panel unless given a width; `grow` lets one share a row with another.
 const bankSection = (
     caption: string,
     children: ReactEcs.JSX.Element | (ReactEcs.JSX.Element | null)[],
-    layout: { width?: number | `${number}%`; grow?: number; marginRight?: number } = {}
+    layout: { width?: number | `${number}%`; grow?: number; marginRight?: number; joined?: 'left' | 'right' } = {}
 ) => (
     <UiEntity
         uiTransform={{
@@ -417,9 +436,7 @@ const bankSection = (
             flexDirection: 'column',
             padding: { left: 18, right: 18, top: 10, bottom: 14 },
             margin: { top: 10, right: layout.marginRight ?? 0 },
-            borderRadius: PANEL_RADIUS,
-            borderWidth: 2,
-            borderColor: BANK_TRIM
+            ...sectionEdges(layout.joined)
         }}
         uiBackground={{ color: BANK_WOOD }}
     >
@@ -483,7 +500,7 @@ const bankPanel = () => {
                 width: '100%',
                 flexDirection: 'column',
                 alignItems: 'center',
-                padding: 16,
+                padding: BANK_PANEL_PADDING,
                 borderRadius: PANEL_RADIUS,
                 borderWidth: 3,
                 borderColor: BANK_TRIM
@@ -504,22 +521,6 @@ const bankPanel = () => {
                     <BitmapText value="THE BANK" fontSize={60} color={BANK_GOLD_LIGHT} />
                     <Label value="Sell Ore for Coins" fontSize={18} color={BANK_CAPTION} textAlign="middle-center" uiTransform={{ height: 24 }} />
                 </UiEntity>
-                <Button
-                    value="X"
-                    fontSize={30}
-                    color={Color4.White()}
-                    uiTransform={{
-                        positionType: 'absolute',
-                        position: { top: 18, right: 18 },
-                        width: 44,
-                        height: 44,
-                        borderRadius: 22,
-                        borderWidth: 3,
-                        borderColor: Color4.Black()
-                    }}
-                    uiBackground={{ color: MAP_CLOSE_COLOR }}
-                    onMouseDown={closeBankPanel}
-                />
             </UiEntity>
 
             {/* Your ore on the left, the town's rate beside it: both stretch to the taller one. */}
@@ -527,7 +528,7 @@ const bankPanel = () => {
                 {bankSection(
                     'YOU HAVE',
                     bankAmount(ICON_ORE, ore, 'ORE', BANK_CREAM),
-                    { width: 200, marginRight: 10 }
+                    { width: 200, joined: 'left' }
                 )}
 
                 {bankSection(
@@ -548,7 +549,7 @@ const bankPanel = () => {
                             uiTransform={{ width: '100%', height: 20, margin: { top: 6 } }}
                         />
                     ],
-                    { width: 0, grow: 1 }
+                    { width: 0, grow: 1, joined: 'right' }
                 )}
             </UiEntity>
 
@@ -557,7 +558,7 @@ const bankPanel = () => {
                 {bankSection(
                     'YOU RECEIVE',
                     bankAmount(ICON_COINS, payout, payout === 1 ? 'COIN' : 'COINS', COIN_COLOR),
-                    { width: 200, marginRight: 10 }
+                    { width: 200, joined: 'left' }
                 )}
 
                 {bankSection(
@@ -596,7 +597,7 @@ const bankPanel = () => {
                             {bankButton('MAX', () => setSellCoins(maxSellCoins()), { width: '48%', height: 50 }, 30, BANK_STEP_COLOR, BANK_CREAM)}
                         </UiEntity>
                     ],
-                    { width: 0, grow: 1 }
+                    { width: 0, grow: 1, joined: 'right' }
                 )}
             </UiEntity>
 
@@ -609,6 +610,22 @@ const bankPanel = () => {
                 canSell ? BANK_GOLD : DISABLED_COLOR,
                 canSell ? BANK_INK : MUTED_COLOR
             )}
+            {/* Last, so it draws over the header. Inset from the corner by the panel's padding,
+                so it lines up with the sections' sides below, with the panel's own corner radius. */}
+            <Button
+                value="X"
+                fontSize={30}
+                color={Color4.White()}
+                uiTransform={{
+                    positionType: 'absolute',
+                    position: { top: BANK_PANEL_PADDING, right: BANK_PANEL_PADDING },
+                    width: 48,
+                    height: 48,
+                    borderRadius: PANEL_RADIUS
+                }}
+                uiBackground={{ color: MAP_CLOSE_COLOR }}
+                onMouseDown={closeBankPanel}
+            />
         </UiEntity>
     )
 }
