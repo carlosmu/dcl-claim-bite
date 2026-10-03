@@ -20,6 +20,7 @@ export type ShopItemId =
   | 'steel-pick'
   | 'miners-pick'
   | 'mule'
+  | 'fuel-12h'
   | 'fuel'
   | 'fuel-3'
   | 'fuel-7'
@@ -57,6 +58,7 @@ export const CATALOGUE: ShopItem[] = [
   { id: 'steel-pick', label: "Miner's Pick", line: 'pick', price: 20, requires: 'pick', hitsPerRock: 8, benefit: 'Mining output ~30 coins/day' },
   { id: 'miners-pick', label: 'Master Pick', line: 'pick', price: 70, requires: 'steel-pick', hitsPerRock: 6, benefit: 'Mining output ~40 coins/day' },
   { id: 'mule', label: 'M.U.L.E.', line: 'mule', price: 100, benefit: 'Produces 200 ore/day · needs fuel' },
+  { id: 'fuel-12h', label: 'Fuel 12 Hours', line: 'fuel', price: FUEL_PRICE_PER_DAY * 0.5, fuelDays: 0.5, benefit: 'Runs your M.U.L.E.s 12 hours' },
   { id: 'fuel', label: 'Fuel 1 Day', line: 'fuel', price: FUEL_PRICE_PER_DAY * 1, fuelDays: 1, benefit: 'Runs your M.U.L.E.s 1 day' },
   { id: 'fuel-3', label: 'Fuel 3 Days', line: 'fuel', price: FUEL_PRICE_PER_DAY * 3, fuelDays: 3, benefit: 'Runs your M.U.L.E.s 3 days' },
   { id: 'fuel-7', label: 'Fuel 7 Days', line: 'fuel', price: FUEL_PRICE_PER_DAY * 7, fuelDays: 7, benefit: 'Runs your M.U.L.E.s 7 days' },
@@ -152,10 +154,11 @@ export function unavailableReason(item: ShopItem, ownedCount: (id: ShopItemId) =
  * What buying this costs right now, or null when it cannot be bought at all.
  *
  * Fuel is priced per rig: a pack runs every rig the player owns for its days, so it costs its
- * price once for each of them.
+ * price once for each of them. Coins are whole, so a half-day for an odd fleet rounds up: one
+ * rig for 12 hours is 3 coins, not 2.5.
  */
 export function priceOf(item: ShopItem, ownedCount: (id: ShopItemId) => number): number | null {
   if (unavailableReason(item, ownedCount) !== null) return null
-  if (item.line === 'fuel') return item.price * muleCount(ownedCount)
+  if (item.line === 'fuel') return Math.ceil(item.price * muleCount(ownedCount))
   return item.price
 }

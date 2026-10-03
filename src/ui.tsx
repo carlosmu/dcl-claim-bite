@@ -775,7 +775,7 @@ function storeProducts(): Product[] {
             status: mules > 0 ? ownedStatus(mules) : STATUS_BUY,
             muted: false
         },
-        { key: 'fuel', title: 'Fuel', icon: ICON_FUEL, hint: '1 / 3 / 7 days', status: mules > 0 ? null : STATUS_LOCKED, muted: false },
+        { key: 'fuel', title: 'Fuel', icon: ICON_FUEL, hint: '12h / 1 / 3 / 7 days', status: mules > 0 ? null : STATUS_LOCKED, muted: false },
         { key: 'storage', title: 'Storage', icon: ICON_WAREHOUSE, hint: `${withCommas(getCarryCapacity())} Ore`, status: null, muted: false },
         { key: 'horse', title: 'Horse', icon: ICON_LOCK, hint: '', status: STATUS_SOON, muted: true },
         { key: 'revolver', title: 'Revolver', icon: ICON_SHERIFF, hint: '', status: STATUS_SOON, muted: true }
@@ -927,6 +927,13 @@ function muleDetail(): Detail {
     }
 }
 
+/** A pack's length: "12 HOURS" / "3 DAYS", or "12H" / "3D" when short. */
+function fuelDuration(pack: ShopItem, short: boolean): string {
+    const days = pack.fuelDays ?? 0
+    if (days < 1) return short ? `${days * 24}H` : `${days * 24} HOURS`
+    return short ? `${days}D` : `${days} ${days === 1 ? 'DAY' : 'DAYS'}`
+}
+
 const fuelOption = (pack: ShopItem) => {
     const live = buyBlocker(pack) === null
     const price = currentPrice(pack) ?? pack.price
@@ -946,7 +953,7 @@ const fuelOption = (pack: ShopItem) => {
             }}
             uiBackground={{ color: BANK_WOOD }}
         >
-            <BitmapText value={`${pack.fuelDays} ${pack.fuelDays === 1 ? 'DAY' : 'DAYS'}`} fontSize={26} color={BANK_CREAM} uiTransform={{ width: 110 }} />
+            <BitmapText value={fuelDuration(pack, false)} fontSize={26} color={BANK_CREAM} uiTransform={{ width: 130 }} />
             <Label
                 value={`${price} Coins`}
                 fontSize={16}
@@ -1427,11 +1434,11 @@ const mulePanel = () => {
                     return (
                         <Button
                             key={pack.id}
-                            value={enabled ? `${pack.fuelDays}D · ${currentPrice(pack)}c` : blocker}
+                            value={enabled ? `${fuelDuration(pack, true)}  ${currentPrice(pack)}c` : blocker}
                             fontSize={enabled ? 18 : 14}
                             color={enabled ? Color4.White() : MUTED_COLOR}
                             disabled={!enabled}
-                            uiTransform={{ width: '32%', height: 46, borderRadius: 8 }}
+                            uiTransform={{ width: '24%', height: 46, borderRadius: 8 }}
                             uiBackground={{ color: enabled ? MAGENTA : DISABLED_COLOR }}
                             onMouseDown={() => {
                                 if (enabled) refuelMule(pack.id)
