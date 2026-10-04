@@ -29,6 +29,7 @@ import {
     ShopItemId
 } from './shared/economy/catalogue'
 import {
+    FUEL_GALLONS_PER_RIG_DAY,
     FUEL_MAX_DAYS,
     FUEL_PRICE_PER_GALLON,
     MULE_ORE_PER_HOUR,
@@ -1428,60 +1429,209 @@ function muleStatus(): { running: boolean; reason: string } {
     return { running: true, reason: '' }
 }
 
-const FUEL_BAR_HEIGHT = 16
-const FUEL_BAR_TRACK = Color4.create(0.12, 0.1, 0.06, 1)
+// --- M.U.L.E. panel -------------------------------------------------------------------------
+//
+// At your own rig. Four tabs, one question each, so no screen carries everything:
+//
+//   Overview  how is the whole system doing right now?
+//   Fuel      how much fuel, how fast it goes, and refilling it
+//   Storage   how much ore has piled up, and when it stops for lack of room
+//   Fleet     the fleet's numbers and how they are worked out
+//
+// Same wood-and-gold dress as the bank and the store. The rigs dig straight into storage, so
+// there is nothing to collect here.
 
-// The rigs' panel, at your own rig. They dig straight into storage, so there is nothing to
-// collect, and fuel is bought at the General Store: this is where gallons turn into time.
-const mulePanel = () => {
-    const mules = getMuleCount()
-    const status = muleStatus()
-    const perDay = Math.round(MULE_ORE_PER_HOUR * 24 * mules)
-    const gallons = fuelGallonsNow()
-    const tank = fuelTankGallons(mules)
-    const share = tank > 0 ? Math.max(0, Math.min(1, gallons / tank)) : 0
+type MuleTab = 'overview' | 'fuel' | 'storage' | 'fleet'
 
+const MULE_TABS: { id: MuleTab; label: string; icon: number[] }[] = [
+    { id: 'overview', label: 'Overview', icon: ICON_MAP },
+    { id: 'fuel', label: 'Fuel', icon: ICON_FUEL },
+    { id: 'storage', label: 'Storage', icon: ICON_WAREHOUSE },
+    { id: 'fleet', label: 'Fleet', icon: ICON_MULE }
+]
+
+let muleTab: MuleTab = 'overview'
+
+const MULE_TAB_HEIGHT = 58
+const MULE_ROW_HEIGHT = 40
+const MULE_BAR_HEIGHT = 18
+const MULE_BAR_TRACK = Color4.create(0.12, 0.1, 0.06, 1)
+
+/** "3d 9h", "21h", "40 min" — however long, in the units that read best. */
+function durationText(hours: number): string {
+    if (hours < 1) return `${Math.max(1, Math.ceil(hours * 60))} min`
+    if (hours < 24) return `${Math.floor(hours)}h`
+    return `${Math.floor(hours / 24)}d ${Math.floor(hours % 24)}h`
+}
+
+const muleTabButton = (tab: { id: MuleTab; label: string; icon: number[] }) => {
+    const active = muleTab === tab.id
     return (
         <UiEntity
+            key={tab.id}
             uiTransform={{
-                width: PANEL_WIDTH,
-                flexDirection: 'column',
+                width: '24%',
+                height: MULE_TAB_HEIGHT,
+                flexDirection: 'row',
+                justifyContent: 'center',
                 alignItems: 'center',
-                padding: { top: 16, bottom: 16, left: 20, right: 20 },
-                borderRadius: PANEL_RADIUS
+                borderRadius: 10,
+                borderWidth: active ? 3 : 2,
+                borderColor: active ? BANK_GOLD : BANK_TRIM
             }}
-            uiBackground={{ color: PANEL_BACKGROUND }}
+            uiBackground={{ color: active ? BANK_TRIM : BANK_WOOD }}
+            onMouseDown={() => {
+                muleTab = tab.id
+            }}
         >
-            <BitmapText value="Mining Utility Labor Engine" fontSize={28} align="center" uiTransform={{ width: '100%', margin: { bottom: 8 } }} />
-            {infoRow('M.U.L.E.s', `${mules}`, ORE_COLOR)}
-            {infoRow('Produces', `${perDay} ore/day`, ORE_COLOR)}
-            {infoRow('Status', status.running ? 'Running' : 'Paused', status.running ? PRICE_GOOD_COLOR : SHORT_COLOR)}
-            {status.running ? null : infoRow('Reason', status.reason, SHORT_COLOR)}
-
-            <UiEntity uiTransform={{ width: '100%', height: 1, margin: { top: 10, bottom: 6 } }} uiBackground={{ color: HUD_DIVIDER }} />
-            {infoRow('Fuel in tank', `${Math.floor(gallons)} / ${tank} Gallons`, gallons > 0 ? COIN_COLOR : SHORT_COLOR)}
             <UiEntity
-                uiTransform={{ width: '100%', height: FUEL_BAR_HEIGHT, margin: { top: 2, bottom: 6 }, borderRadius: FUEL_BAR_HEIGHT / 2 }}
-                uiBackground={{ color: FUEL_BAR_TRACK }}
-            >
-                <UiEntity
-                    uiTransform={{ width: `${share * 100}%`, height: '100%', borderRadius: FUEL_BAR_HEIGHT / 2 }}
-                    uiBackground={{ color: COIN_COLOR }}
-                />
-            </UiEntity>
-            {infoRow('Consumption', `${mules} Gallons/day`, ORE_COLOR)}
-            {infoRow('Autonomy left', fuelLeftText(), gallons > 0 ? ORE_COLOR : SHORT_COLOR)}
-            {infoRow('Max autonomy', `${FUEL_MAX_DAYS} days`, MUTED_COLOR)}
-            <Label
-                value="Buy fuel at the General Store"
-                fontSize={15}
-                color={MUTED_COLOR}
-                textAlign="middle-center"
-                uiTransform={{ width: '100%', height: 24, margin: { top: 8 } }}
+                uiTransform={{ width: 32, height: 32, margin: { right: 6 }, flexShrink: 0 }}
+                uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: tab.icon }}
             />
+            <BitmapText value={tab.label.toUpperCase()} fontSize={20} color={active ? BANK_GOLD_LIGHT : BANK_CREAM} />
         </UiEntity>
     )
 }
+
+/** One line of a tab: a caption on the left, its value on the right. */
+const muleRow = (label: string, value: ReactEcs.JSX.Element | string, color: Color4 = BANK_CREAM) => (
+    <UiEntity
+        key={label}
+        uiTransform={{ width: '100%', height: MULE_ROW_HEIGHT, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+    >
+        <Label value={label} fontSize={18} color={BANK_CAPTION} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: MULE_ROW_HEIGHT }} />
+        {typeof value === 'string' ? <BitmapText value={value.toUpperCase()} fontSize={26} color={color} /> : value}
+    </UiEntity>
+)
+
+const muleDivider = (key: string) => (
+    <UiEntity key={key} uiTransform={{ width: '100%', height: 2, margin: { top: 6, bottom: 6 } }} uiBackground={{ color: BANK_TRIM }} />
+)
+
+const muleBar = (key: string, share: number, color: Color4) => (
+    <UiEntity
+        key={key}
+        uiTransform={{ width: '100%', height: MULE_BAR_HEIGHT, margin: { top: 2, bottom: 8 }, borderRadius: MULE_BAR_HEIGHT / 2 }}
+        uiBackground={{ color: MULE_BAR_TRACK }}
+    >
+        <UiEntity
+            uiTransform={{ width: `${Math.max(0, Math.min(1, share)) * 100}%`, height: '100%', borderRadius: MULE_BAR_HEIGHT / 2 }}
+            uiBackground={{ color }}
+        />
+    </UiEntity>
+)
+
+const muleHint = (text: string) => (
+    <Label key={text} value={text} fontSize={15} color={BANK_CAPTION} textAlign="middle-center" uiTransform={{ width: '100%', height: 24, margin: { top: 6 } }} />
+)
+
+function overviewTab(): ReactEcs.JSX.Element[] {
+    const mules = getMuleCount()
+    const status = muleStatus()
+    const perHour = status.running ? MULE_ORE_PER_HOUR * mules : 0
+    return [
+        muleRow('M.U.L.E.s', `${mules}`),
+        muleRow('Status', status.running ? 'Running' : `Paused: ${status.reason}`, status.running ? PRICE_GOOD_COLOR : SHORT_COLOR),
+        muleRow('Total output', `${withCommas(MULE_ORE_PER_HOUR * 24 * mules)} Ore/day`),
+        muleRow('Producing now', `+${Math.round(perHour)} Ore/hour`, status.running ? PRICE_GOOD_COLOR : MUTED_COLOR),
+        muleRow('Stored ore', `${withCommas(getOre())} / ${withCommas(getCarryCapacity())}`),
+        muleRow('Autonomy left', fuelLeftText(), getMuleFuelHours() > 0 ? BANK_CREAM : SHORT_COLOR)
+    ]
+}
+
+function fuelTab(): ReactEcs.JSX.Element[] {
+    const mules = getMuleCount()
+    const gallons = fuelGallonsNow()
+    const tank = fuelTankGallons(mules)
+    return [
+        muleRow('Fuel in tank', `${Math.floor(gallons)} / ${tank} Gallons`, gallons > 0 ? COIN_COLOR : SHORT_COLOR),
+        muleBar('fuel-bar', tank > 0 ? gallons / tank : 0, COIN_COLOR),
+        muleRow('Consumption', `${mules} Gallons/day`),
+        muleRow('Autonomy left', fuelLeftText(), gallons > 0 ? BANK_CREAM : SHORT_COLOR),
+        muleRow('Max autonomy', `${FUEL_MAX_DAYS} days`, MUTED_COLOR),
+        muleDivider('fuel-divider'),
+        ...itemsOf('fuel').map(fuelOption)
+    ]
+}
+
+function storageTab(): ReactEcs.JSX.Element[] {
+    const ore = getOre()
+    const capacity = getCarryCapacity()
+    const perHour = MULE_ORE_PER_HOUR * getMuleCount()
+    const fuelHours = getMuleFuelHours()
+    const next = nextTier('storage', (id) => getOwned(id))
+
+    // When the storage fills at the current pace — unless the fuel runs out first, which
+    // pauses the rigs before it can.
+    let fullIn = 'Full now'
+    let fullColor = SHORT_COLOR
+    if (ore < capacity) {
+        const hours = (capacity - ore) / perHour
+        if (perHour <= 0 || fuelHours <= 0) [fullIn, fullColor] = ['Not filling', MUTED_COLOR]
+        else if (fuelHours < hours) [fullIn, fullColor] = ['Fuel runs out first', MUTED_COLOR]
+        else [fullIn, fullColor] = [durationText(hours), BANK_CREAM]
+    }
+
+    return [
+        muleRow('Stored ore', `${withCommas(ore)} / ${withCommas(capacity)}`),
+        muleBar('storage-bar', capacity > 0 ? ore / capacity : 0, ore >= capacity ? SHORT_COLOR : ORE_COLOR),
+        muleRow('Storage full in', fullIn, fullColor),
+        muleRow('Next upgrade', next === null ? 'Max capacity' : `${withCommas(next.storage ?? 0)} Ore`, next === null ? MUTED_COLOR : BANK_CREAM),
+        muleHint(next === null ? 'Your storage is at its largest' : 'Increase storage capacity at the General Store')
+    ]
+}
+
+function fleetTab(): ReactEcs.JSX.Element[] {
+    const mules = getMuleCount()
+    const perRig = MULE_ORE_PER_HOUR * 24
+    return [
+        muleRow('M.U.L.E.s owned', `${mules}`),
+        muleRow('Per M.U.L.E.', `${withCommas(perRig)} Ore/day`),
+        muleRow('Total output', `${withCommas(perRig * mules)} Ore/day`),
+        muleRow('Fuel per M.U.L.E.', `${FUEL_GALLONS_PER_RIG_DAY} Gallon/day`),
+        muleRow('Fuel cost per Gallon', coinAmount(FUEL_PRICE_PER_GALLON, COIN_COLOR, 26))
+    ]
+}
+
+const MULE_TAB_CONTENT: Record<MuleTab, () => ReactEcs.JSX.Element[]> = {
+    overview: overviewTab,
+    fuel: fuelTab,
+    storage: storageTab,
+    fleet: fleetTab
+}
+
+const mulePanel = () => (
+    <UiEntity
+        uiTransform={{
+            width: '100%',
+            flexDirection: 'column',
+            padding: BANK_PANEL_PADDING,
+            borderRadius: PANEL_RADIUS,
+            borderWidth: 3,
+            borderColor: BANK_TRIM
+        }}
+        uiBackground={{ color: BANK_WOOD_DARK }}
+    >
+        <BitmapText value="MINING UTILITY LABOR ENGINE" fontSize={36} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%', margin: { bottom: 12 } }} />
+        <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', justifyContent: 'space-between' }}>
+            {MULE_TABS.map(muleTabButton)}
+        </UiEntity>
+        <UiEntity
+            uiTransform={{
+                width: '100%',
+                flexDirection: 'column',
+                padding: { left: 20, right: 20, top: 12, bottom: 16 },
+                margin: { top: 10 },
+                borderRadius: PANEL_RADIUS,
+                borderWidth: 2,
+                borderColor: BANK_GOLD
+            }}
+            uiBackground={{ color: BANK_WOOD }}
+        >
+            {MULE_TAB_CONTENT[muleTab]()}
+        </UiEntity>
+    </UiEntity>
+)
 
 // --- Inventory ----------------------------------------------------------------------------
 //
