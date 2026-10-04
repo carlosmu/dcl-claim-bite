@@ -119,13 +119,18 @@ export const MULE_MAX_COUNT = 10
 
 // --- Fuel -----------------------------------------------------------------------------
 //
-// The rigs' running cost. Bought in packs of days, PER RIG, at one flat rate with no bulk
-// discount: a pack costs rigs × days × FUEL_PRICE_PER_DAY. A day costs 5 coins for each
-// rig owned, so every rig nets about 15 coins a day whatever the fleet size. When the fuel runs
-// out the rigs pause; nothing is lost.
+// The rigs' running cost, as a physical resource: gallons. One gallon runs one rig for one day,
+// so a fleet of N burns N gallons a day, and at 5 coins a gallon every rig nets about 15 coins
+// a day whatever the fleet size. When the fuel runs out the rigs pause; nothing is lost.
+//
+// The tank grows with the fleet: it holds FUEL_MAX_DAYS days for every rig, so however many
+// rigs a player owns, a full tank keeps them running a week away and no longer.
 
-/** Coins for one day of fuel for one rig. Every pack is this × days × rigs owned. */
-export const FUEL_PRICE_PER_DAY = 5
+/** Coins per gallon. */
+export const FUEL_PRICE_PER_GALLON = 5
 
-/** How many days of fuel the rigs can hold at once: two of the 7-day packs. */
-export const FUEL_MAX_DAYS = 14
+/** Gallons one rig burns in a day. */
+export const FUEL_GALLONS_PER_RIG_DAY = 1
+
+/** The most autonomy the tank can hold: its capacity is this many days for each rig owned. */
+export const FUEL_MAX_DAYS = 7

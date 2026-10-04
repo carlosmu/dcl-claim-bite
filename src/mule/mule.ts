@@ -14,11 +14,9 @@ import { Color4, Quaternion, Vector3 } from '@dcl/sdk/math'
 import { getPlayer } from '@dcl/sdk/players'
 
 import { MULE_YARD_SPACING_X, MULE_YARD_SPACING_Z, MuleYard } from '../shared/net/mule-yard-sync'
-import { sendBuy } from '../net/economy-link'
-import { ShopItemId } from '../shared/economy/catalogue'
 
 // The idle rigs standing in the world. They dig straight into the player's storage; walking up
-// to your rig is where you check on it and fuel it.
+// to your rig is where you check on it. Fuel is bought at the General Store.
 
 export const MULE_ENTITY_NAME = 'MULE'
 export const MULE_RADIUS_METERS = 5
@@ -30,10 +28,6 @@ export function isPlayerAtMule(): boolean {
   return atOwnMule
 }
 
-/** Asks the server for a fuel pack. It checks the price and the room in the tank. */
-export function refuelMule(pack: ShopItemId): void {
-  sendBuy(pack)
-}
 
 // --- The yard ------------------------------------------------------------------------------
 //

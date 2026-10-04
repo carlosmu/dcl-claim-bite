@@ -10,7 +10,8 @@
 // sent by a client. The same arithmetic on the client would be an invitation to move the
 // system clock forward and harvest a year.
 
-import { FUEL_MAX_DAYS, MULE_ORE_PER_HOUR } from '../shared/economy/constants'
+import { FUEL_GALLONS_PER_RIG_DAY, MULE_ORE_PER_HOUR } from '../shared/economy/constants'
+import { fuelTankGallons } from '../shared/economy/catalogue'
 
 const MILLISECONDS_PER_HOUR = 60 * 60 * 1000
 const HOURS_PER_DAY = 24
@@ -27,9 +28,8 @@ export type MuleState = {
   /** When the rigs were last settled, as a wall-clock timestamp in milliseconds. */
   muleAt: number
   /**
-   * Fuel left, in rig-hours: N rigs burn N per hour. Counting it this way means buying another
-   * rig with a half-full tank makes it run out sooner, instead of letting fuel bought for one
-   * rig power five.
+   * Fuel left, in rig-hours: N rigs burn N per hour. One gallon is a rig-day, so gallons are
+   * this over 24 (fuelGallons). Kept in rig-hours because saves already store it that way.
    */
   muleFuel: number
 }
@@ -82,10 +82,21 @@ export function fuelHoursLeft(state: MuleState, mules: number): number {
   return mules > 0 ? state.muleFuel / mules : 0
 }
 
-/** Adds `days` of fuel for every rig. False, and nothing added, if it would overflow. */
-export function addFuel(state: MuleState, mules: number, days: number): boolean {
-  if (mules <= 0 || days <= 0) return false
-  if (fuelHoursLeft(state, mules) + days * HOURS_PER_DAY > FUEL_MAX_DAYS * HOURS_PER_DAY + 1e-6) return false
-  state.muleFuel += days * HOURS_PER_DAY * mules
+const RIG_HOURS_PER_GALLON = HOURS_PER_DAY / FUEL_GALLONS_PER_RIG_DAY
+
+/** Gallons in the tank. */
+export function fuelGallons(state: MuleState): number {
+  return state.muleFuel / RIG_HOURS_PER_GALLON
+}
+
+/**
+ * Pours `gallons` into the tank. False, and nothing added, if they would overflow it — beyond a
+ * hair, so Fill Tank's exact top-up never trips on rounding; it then lands exactly on full.
+ */
+export function addFuelGallons(state: MuleState, mules: number, gallons: number): boolean {
+  if (mules <= 0 || gallons <= 0) return false
+  const capacity = fuelTankGallons(mules)
+  if (fuelGallons(state) + gallons > capacity + 1e-6) return false
+  state.muleFuel = Math.min(capacity * RIG_HOURS_PER_GALLON, state.muleFuel + gallons * RIG_HOURS_PER_GALLON)
   return true
 }

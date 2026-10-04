@@ -4,7 +4,7 @@
 //
 //   picks     Stranger's Pick → Miner's Pick → Master Pick: how fast you dig by hand
 //   M.U.L.E.  idle rigs, bought one by one, each digging into your storage
-//   fuel      packs of days that keep the rigs running
+//   fuel      gallons that keep the rigs running
 //   storage   how much ore can pile up
 //   housing   Wagon → Cabin → House → Ranch: status, the long goal
 //
@@ -13,17 +13,25 @@
 // Item ids are what saves store, so they are never renamed: 'pick', 'steel-pick' and
 // 'miners-pick' stay the ids of the three picks whatever the labels say.
 
-import { FUEL_PRICE_PER_DAY, MULE_MAX_COUNT, STORAGE_BASE, STORAGE_TIER_1, STORAGE_TIER_2 } from './constants'
+import {
+  FUEL_GALLONS_PER_RIG_DAY,
+  FUEL_MAX_DAYS,
+  FUEL_PRICE_PER_GALLON,
+  MULE_MAX_COUNT,
+  STORAGE_BASE,
+  STORAGE_TIER_1,
+  STORAGE_TIER_2
+} from './constants'
 
 export type ShopItemId =
   | 'pick'
   | 'steel-pick'
   | 'miners-pick'
   | 'mule'
-  | 'fuel-12h'
-  | 'fuel'
-  | 'fuel-3'
-  | 'fuel-7'
+  | 'fuel-10'
+  | 'fuel-25'
+  | 'fuel-50'
+  | 'fuel-fill'
   | 'warehouse'
   | 'warehouse-2'
   | 'cabin'
@@ -36,7 +44,7 @@ export type ShopItem = {
   id: ShopItemId
   label: string
   line: ShopLine
-  /** Coins. For fuel this is for one rig: days × FUEL_PRICE_PER_DAY (see priceOf). */
+  /** Coins. For fuel see fuelOrder: the Fill Tank price depends on what is in the tank. */
   price: number
   /** The main benefit, in a few words, as the Market shows it. */
   benefit: string
@@ -46,8 +54,10 @@ export type ShopItem = {
   starter?: boolean
   /** Hits a rock takes while this pick is in use — fewer is better. Only picks carry it. */
   hitsPerRock?: number
-  /** Days of fuel one pack holds. Only fuel carries it. */
-  fuelDays?: number
+  /** Gallons this fuel order adds. Only fuel carries it, except Fill Tank, which tops up. */
+  fuelGallons?: number
+  /** Fuel only: buy exactly what the tank is missing. */
+  fillTank?: boolean
   /** Ore the storage holds with this upgrade. Only storage carries it. */
   storage?: number
 }
@@ -58,10 +68,10 @@ export const CATALOGUE: ShopItem[] = [
   { id: 'steel-pick', label: "Miner's Pick", line: 'pick', price: 20, requires: 'pick', hitsPerRock: 8, benefit: 'Mining output ~30 coins/day' },
   { id: 'miners-pick', label: 'Master Pick', line: 'pick', price: 70, requires: 'steel-pick', hitsPerRock: 6, benefit: 'Mining output ~40 coins/day' },
   { id: 'mule', label: 'M.U.L.E.', line: 'mule', price: 100, benefit: 'Produces 200 ore/day · needs fuel' },
-  { id: 'fuel-12h', label: 'Fuel 12 Hours', line: 'fuel', price: FUEL_PRICE_PER_DAY * 0.5, fuelDays: 0.5, benefit: 'Runs your M.U.L.E.s 12 hours' },
-  { id: 'fuel', label: 'Fuel 1 Day', line: 'fuel', price: FUEL_PRICE_PER_DAY * 1, fuelDays: 1, benefit: 'Runs your M.U.L.E.s 1 day' },
-  { id: 'fuel-3', label: 'Fuel 3 Days', line: 'fuel', price: FUEL_PRICE_PER_DAY * 3, fuelDays: 3, benefit: 'Runs your M.U.L.E.s 3 days' },
-  { id: 'fuel-7', label: 'Fuel 7 Days', line: 'fuel', price: FUEL_PRICE_PER_DAY * 7, fuelDays: 7, benefit: 'Runs your M.U.L.E.s 7 days' },
+  { id: 'fuel-10', label: '+10 Gallons', line: 'fuel', price: 10 * FUEL_PRICE_PER_GALLON, fuelGallons: 10, benefit: '10 rig-days of fuel' },
+  { id: 'fuel-25', label: '+25 Gallons', line: 'fuel', price: 25 * FUEL_PRICE_PER_GALLON, fuelGallons: 25, benefit: '25 rig-days of fuel' },
+  { id: 'fuel-50', label: '+50 Gallons', line: 'fuel', price: 50 * FUEL_PRICE_PER_GALLON, fuelGallons: 50, benefit: '50 rig-days of fuel' },
+  { id: 'fuel-fill', label: 'Fill Tank', line: 'fuel', price: 0, fillTank: true, benefit: 'Tops the tank up' },
   { id: 'warehouse', label: 'Storage I', line: 'storage', price: 30, storage: STORAGE_TIER_1, benefit: `Holds ${STORAGE_TIER_1} ore` },
   { id: 'warehouse-2', label: 'Storage II', line: 'storage', price: 60, requires: 'warehouse', storage: STORAGE_TIER_2, benefit: `Holds ${STORAGE_TIER_2} ore` },
   { id: 'cabin', label: 'Cabin', line: 'housing', price: 300, benefit: 'Your first real home' },
@@ -143,7 +153,7 @@ export function muleCount(ownedCount: (id: ShopItemId) => number): number {
  */
 export function unavailableReason(item: ShopItem, ownedCount: (id: ShopItemId) => number): string | null {
   if (item.starter === true) return ownedCount(item.id) > 0 ? 'Owned' : 'Free from the Mayor'
-  if (item.line === 'fuel') return muleCount(ownedCount) > 0 ? null : 'No M.U.L.E.'
+  if (item.line === 'fuel') return muleCount(ownedCount) > 0 ? null : 'Requires a M.U.L.E.'
   if (item.line === 'mule') return muleCount(ownedCount) >= MULE_MAX_COUNT ? 'Max reached' : null
   if (ownedCount(item.id) > 0) return 'Owned'
   if (item.requires !== undefined && ownedCount(item.requires) <= 0) return `Needs ${findItem(item.requires)?.label ?? item.requires}`
@@ -153,12 +163,37 @@ export function unavailableReason(item: ShopItem, ownedCount: (id: ShopItemId) =
 /**
  * What buying this costs right now, or null when it cannot be bought at all.
  *
- * Fuel is priced per rig: a pack runs every rig the player owns for its days, so it costs its
- * price once for each of them. Coins are whole, so a half-day for an odd fleet rounds up: one
- * rig for 12 hours is 3 coins, not 2.5.
+ * Not for fuel: what a fuel order costs depends on what is in the tank — see fuelOrder.
  */
 export function priceOf(item: ShopItem, ownedCount: (id: ShopItemId) => number): number | null {
   if (unavailableReason(item, ownedCount) !== null) return null
-  if (item.line === 'fuel') return Math.ceil(item.price * muleCount(ownedCount))
+  if (item.line === 'fuel') return null
   return item.price
+}
+
+// --- Fuel -------------------------------------------------------------------------------
+
+/** Gallons the tank holds for this many rigs: a week of running for each. */
+export function fuelTankGallons(mules: number): number {
+  return mules * FUEL_MAX_DAYS * FUEL_GALLONS_PER_RIG_DAY
+}
+
+/**
+ * What a fuel order would add and cost, given the rigs owned and the gallons in the tank — or
+ * why it cannot be placed. The same rule on both sides: the client greys the button with it and
+ * the server charges with it.
+ *
+ * Never past the tank: an order that would overflow is refused rather than trimmed, so the
+ * gallons on the button are the gallons you get. Fill Tank buys exactly what is missing; the
+ * tank drains continuously, so that is rarely a whole number of gallons, and the price rounds
+ * up to a whole coin.
+ */
+export function fuelOrder(item: ShopItem, mules: number, gallonsNow: number): { gallons: number; price: number } | { reason: string } {
+  if (mules <= 0) return { reason: 'Requires a M.U.L.E.' }
+  const room = fuelTankGallons(mules) - gallonsNow
+  if (room < 0.01) return { reason: 'Tank full' }
+  if (item.fillTank === true) return { gallons: room, price: Math.ceil(room * FUEL_PRICE_PER_GALLON) }
+  const gallons = item.fuelGallons ?? 0
+  if (gallons > room + 1e-6) return { reason: 'Too much for the tank' }
+  return { gallons, price: gallons * FUEL_PRICE_PER_GALLON }
 }

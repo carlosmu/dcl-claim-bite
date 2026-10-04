@@ -15,11 +15,13 @@ import {
     sendEquip
 } from './net/economy-link'
 import { buyItem, closeStorePanel, currentPrice, getSelectedProduct, isStorePanelOpen, selectProduct, whyUnavailable } from './shop/shop'
-import { isPlayerAtMule, refuelMule } from './mule/mule'
+import { isPlayerAtMule } from './mule/mule'
 import {
     activePick,
     CATALOGUE,
     findItem,
+    fuelOrder,
+    fuelTankGallons,
     itemsOf,
     nextTier,
     PICKS,
@@ -28,7 +30,7 @@ import {
 } from './shared/economy/catalogue'
 import {
     FUEL_MAX_DAYS,
-    FUEL_PRICE_PER_DAY,
+    FUEL_PRICE_PER_GALLON,
     MULE_ORE_PER_HOUR,
     MARKET_WINDOW_SECONDS,
     RATE_BASE,
@@ -696,16 +698,21 @@ const EQUIPPED_COLOR = Color4.create(0.42, 0.52, 0.24, 1)
 const EQUIPPED_TEXT = Color4.create(0.88, 0.95, 0.75, 1)
 const COMING_SOON_TINT = Color4.create(1, 1, 1, 0.35)
 
-/** Whether `days` more fuel fit in the rigs. The server checks this again; this only greys the button. */
-function fuelFits(days: number): boolean {
-    return getMuleFuelHours() + days * 24 <= FUEL_MAX_DAYS * 24 + 1e-6
+/** Gallons in the tank, worked out from the autonomy the server reports: hours × rigs ÷ 24. */
+function fuelGallonsNow(): number {
+    return (getMuleFuelHours() * getMuleCount()) / 24
 }
 
 /** Why the buy button for this item is off, or null when it can be pressed. */
 function buyBlocker(item: ShopItem): string | null {
+    if (item.line === 'fuel') {
+        // Priced by the same rule the server charges with, against what is in the tank now.
+        const order = fuelOrder(item, getMuleCount(), fuelGallonsNow())
+        if ('reason' in order) return order.reason
+        return getCoins() < order.price ? 'Not enough coins' : null
+    }
     const reason = whyUnavailable(item)
     if (reason !== null) return reason
-    if (item.fuelDays !== undefined && !fuelFits(item.fuelDays)) return 'Tank full'
     const price = currentPrice(item)
     if (price !== null && getCoins() < price) return 'Not enough coins'
     return null
@@ -725,7 +732,7 @@ const PICK_COPY: Record<string, { description: string; perDay: number; benefits:
 
 // --- Products ---
 
-type ProductKey = ShopItemId | 'storage' | 'horse' | 'revolver'
+type ProductKey = ShopItemId | 'fuel' | 'storage' | 'horse' | 'revolver'
 
 type Status = { text: string; color: Color4 }
 
@@ -775,7 +782,7 @@ function storeProducts(): Product[] {
             status: mules > 0 ? ownedStatus(mules) : STATUS_BUY,
             muted: false
         },
-        { key: 'fuel', title: 'Fuel', icon: ICON_FUEL, hint: '12h / 1 / 3 / 7 days', status: mules > 0 ? null : STATUS_LOCKED, muted: false },
+        { key: 'fuel', title: 'Fuel', icon: ICON_FUEL, hint: `${FUEL_PRICE_PER_GALLON} Coins / Gallon`, status: mules > 0 ? null : STATUS_LOCKED, muted: false },
         { key: 'storage', title: 'Storage', icon: ICON_WAREHOUSE, hint: `${withCommas(getCarryCapacity())} Ore`, status: null, muted: false },
         { key: 'horse', title: 'Horse', icon: ICON_LOCK, hint: '', status: STATUS_SOON, muted: true },
         { key: 'revolver', title: 'Revolver', icon: ICON_SHERIFF, hint: '', status: STATUS_SOON, muted: true }
@@ -869,11 +876,27 @@ const detailNote = (text: string, color: Color4 = BANK_CREAM) => (
     <Label key={text} value={text} fontSize={16} color={color} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 24 }} />
 )
 
+/** A price with the coin icon in front of it — never "c", which reads as cents. */
+const coinAmount = (amount: number, color: Color4, size: number) => (
+    <UiEntity uiTransform={{ flexDirection: 'row', alignItems: 'center' }}>
+        <UiEntity
+            uiTransform={{ width: size, height: size, margin: { right: 6 }, flexShrink: 0 }}
+            uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: ICON_COINS }}
+        />
+        <BitmapText value={withCommas(amount)} fontSize={size} color={color} />
+    </UiEntity>
+)
+
 /** Price as a stat: gold when it can be paid, red when it cannot — but always shown. */
 function priceStat(price: number | null, label: string = 'Price'): ReactEcs.JSX.Element {
     if (price === null) return detailStat(label, '-', MUTED_COLOR)
     if (price === 0) return detailStat(label, 'FREE', COIN_COLOR)
-    return detailStat(label, `${withCommas(price)} COINS`, getCoins() >= price ? COIN_COLOR : SHORT_COLOR)
+    return (
+        <UiEntity key={label} uiTransform={{ flexDirection: 'column', margin: { bottom: 10 } }}>
+            <Label value={label} fontSize={14} color={BANK_CAPTION} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 20 }} />
+            {coinAmount(price, getCoins() >= price ? COIN_COLOR : SHORT_COLOR, 28)}
+        </UiEntity>
+    )
 }
 
 /** The buy action for an item: live when it can be bought, off (price still shown above) when not. */
@@ -927,22 +950,17 @@ function muleDetail(): Detail {
     }
 }
 
-/** A pack's length: "12 HOURS" / "3 DAYS", or "12H" / "3D" when short. */
-function fuelDuration(pack: ShopItem, short: boolean): string {
-    const days = pack.fuelDays ?? 0
-    if (days < 1) return short ? `${days * 24}H` : `${days * 24} HOURS`
-    return short ? `${days}D` : `${days} ${days === 1 ? 'DAY' : 'DAYS'}`
-}
-
-const fuelOption = (pack: ShopItem) => {
-    const live = buyBlocker(pack) === null
-    const price = currentPrice(pack) ?? pack.price
+// One fuel order: what it adds, what it costs (coin icon, never "c"), and its button.
+const fuelOption = (item: ShopItem) => {
+    const order = fuelOrder(item, getMuleCount(), fuelGallonsNow())
+    const blocker = buyBlocker(item)
+    const live = blocker === null
     return (
         <UiEntity
-            key={pack.id}
+            key={item.id}
             uiTransform={{
                 width: '100%',
-                height: 52,
+                height: 50,
                 flexDirection: 'row',
                 alignItems: 'center',
                 padding: { left: 14, right: 6 },
@@ -953,45 +971,51 @@ const fuelOption = (pack: ShopItem) => {
             }}
             uiBackground={{ color: BANK_WOOD }}
         >
-            <BitmapText value={fuelDuration(pack, false)} fontSize={26} color={BANK_CREAM} uiTransform={{ width: 130 }} />
-            <Label
-                value={`${price} Coins`}
-                fontSize={16}
-                color={getCoins() >= price ? COIN_COLOR : SHORT_COLOR}
-                textAlign="middle-left"
-                uiTransform={{ flexGrow: 1, height: 40 }}
-            />
+            <BitmapText value={item.label.toUpperCase()} fontSize={24} color={BANK_CREAM} uiTransform={{ width: 170 }} />
+            <UiEntity uiTransform={{ flexGrow: 1 }}>
+                {'price' in order ? (
+                    coinAmount(order.price, getCoins() >= order.price ? COIN_COLOR : SHORT_COLOR, 24)
+                ) : (
+                    <Label value={order.reason} fontSize={14} color={MUTED_COLOR} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 40 }} />
+                )}
+            </UiEntity>
             <UiEntity
-                uiTransform={{ width: 96, height: 40, justifyContent: 'center', alignItems: 'center', borderRadius: 8 }}
+                uiTransform={{ width: 90, height: 38, justifyContent: 'center', alignItems: 'center', borderRadius: 8 }}
                 uiBackground={{ color: live ? BANK_GOLD : DISABLED_COLOR }}
                 onMouseDown={() => {
-                    if (live) buyItem(pack.id)
+                    if (live) buyItem(item.id)
                 }}
             >
-                <BitmapText value="BUY" fontSize={24} color={live ? BANK_INK : MUTED_COLOR} />
+                <BitmapText value="BUY" fontSize={22} color={live ? BANK_INK : MUTED_COLOR} />
             </UiEntity>
         </UiEntity>
     )
 }
 
+// The store sells fuel as a resource: gallons and their price. How long they keep the rigs
+// running is the M.U.L.E. panel's business.
 function fuelDetail(): Detail {
     const mules = getMuleCount()
+    const description = 'Keeps your M.U.L.E.s running.'
     if (mules <= 0) {
         return {
             title: 'Fuel',
-            description: 'Keeps your M.U.L.E.s running.',
+            description,
             icon: ICON_FUEL,
-            stats: [],
+            stats: [detailStat('Price', `${FUEL_PRICE_PER_GALLON} COINS / GALLON`, BANK_CREAM)],
             notes: [detailNote('Requires a M.U.L.E.', SHORT_COLOR)],
             actions: [storeActionButton({ label: 'LOCKED', kind: 'off' })]
         }
     }
     return {
         title: 'Fuel',
-        description: 'Keeps your M.U.L.E.s running.',
+        description,
         icon: ICON_FUEL,
-        stats: [detailStat('Fuel left', fuelLeftText().toUpperCase(), getMuleFuelHours() > 0 ? BANK_CREAM : SHORT_COLOR)],
-        notes: [detailNote(`${FUEL_PRICE_PER_DAY} Coins a day for each M.U.L.E.`, BANK_CAPTION), detailNote(`You own ${mules}`, BANK_CAPTION)],
+        stats: [
+            detailStat('Price', `${FUEL_PRICE_PER_GALLON} COINS / GALLON`, BANK_CREAM),
+            detailStat('In your tank', `${Math.floor(fuelGallonsNow())} / ${fuelTankGallons(mules)} GALLONS`, BANK_CREAM)
+        ],
+        notes: [detailNote('1 Gallon runs 1 M.U.L.E. for 1 day', BANK_CAPTION)],
         actions: itemsOf('fuel').map(fuelOption)
     }
 }
@@ -1398,18 +1422,24 @@ function fuelLeftText(): string {
 }
 
 /** What the rigs are doing right now, by the same rules the server settles them with. */
-function muleStatus(): { text: string; color: Color4 } {
-    if (getMuleFuelHours() <= 0) return { text: 'Paused: no fuel', color: SHORT_COLOR }
-    if (getOre() >= getCarryCapacity()) return { text: 'Paused: storage full', color: SHORT_COLOR }
-    return { text: 'Running', color: PRICE_GOOD_COLOR }
+function muleStatus(): { running: boolean; reason: string } {
+    if (getMuleFuelHours() <= 0) return { running: false, reason: 'No fuel' }
+    if (getOre() >= getCarryCapacity()) return { running: false, reason: 'Storage full' }
+    return { running: true, reason: '' }
 }
 
+const FUEL_BAR_HEIGHT = 16
+const FUEL_BAR_TRACK = Color4.create(0.12, 0.1, 0.06, 1)
+
 // The rigs' panel, at your own rig. They dig straight into storage, so there is nothing to
-// collect: this is where you see how they are doing and fuel them.
+// collect, and fuel is bought at the General Store: this is where gallons turn into time.
 const mulePanel = () => {
     const mules = getMuleCount()
     const status = muleStatus()
     const perDay = Math.round(MULE_ORE_PER_HOUR * 24 * mules)
+    const gallons = fuelGallonsNow()
+    const tank = fuelTankGallons(mules)
+    const share = tank > 0 ? Math.max(0, Math.min(1, gallons / tank)) : 0
 
     return (
         <UiEntity
@@ -1425,28 +1455,30 @@ const mulePanel = () => {
             <BitmapText value="Mining Utility Labor Engine" fontSize={28} align="center" uiTransform={{ width: '100%', margin: { bottom: 8 } }} />
             {infoRow('M.U.L.E.s', `${mules}`, ORE_COLOR)}
             {infoRow('Produces', `${perDay} ore/day`, ORE_COLOR)}
-            {infoRow('Status', status.text, status.color)}
-            {infoRow('Fuel left', fuelLeftText(), getMuleFuelHours() > 0 ? COIN_COLOR : MUTED_COLOR)}
-            <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', justifyContent: 'space-between', margin: { top: 12 } }}>
-                {itemsOf('fuel').map((pack) => {
-                    const blocker = buyBlocker(pack)
-                    const enabled = blocker === null
-                    return (
-                        <Button
-                            key={pack.id}
-                            value={enabled ? `${fuelDuration(pack, true)}  ${currentPrice(pack)}c` : blocker}
-                            fontSize={enabled ? 18 : 14}
-                            color={enabled ? Color4.White() : MUTED_COLOR}
-                            disabled={!enabled}
-                            uiTransform={{ width: '24%', height: 46, borderRadius: 8 }}
-                            uiBackground={{ color: enabled ? MAGENTA : DISABLED_COLOR }}
-                            onMouseDown={() => {
-                                if (enabled) refuelMule(pack.id)
-                            }}
-                        />
-                    )
-                })}
+            {infoRow('Status', status.running ? 'Running' : 'Paused', status.running ? PRICE_GOOD_COLOR : SHORT_COLOR)}
+            {status.running ? null : infoRow('Reason', status.reason, SHORT_COLOR)}
+
+            <UiEntity uiTransform={{ width: '100%', height: 1, margin: { top: 10, bottom: 6 } }} uiBackground={{ color: HUD_DIVIDER }} />
+            {infoRow('Fuel in tank', `${Math.floor(gallons)} / ${tank} Gallons`, gallons > 0 ? COIN_COLOR : SHORT_COLOR)}
+            <UiEntity
+                uiTransform={{ width: '100%', height: FUEL_BAR_HEIGHT, margin: { top: 2, bottom: 6 }, borderRadius: FUEL_BAR_HEIGHT / 2 }}
+                uiBackground={{ color: FUEL_BAR_TRACK }}
+            >
+                <UiEntity
+                    uiTransform={{ width: `${share * 100}%`, height: '100%', borderRadius: FUEL_BAR_HEIGHT / 2 }}
+                    uiBackground={{ color: COIN_COLOR }}
+                />
             </UiEntity>
+            {infoRow('Consumption', `${mules} Gallons/day`, ORE_COLOR)}
+            {infoRow('Autonomy left', fuelLeftText(), gallons > 0 ? ORE_COLOR : SHORT_COLOR)}
+            {infoRow('Max autonomy', `${FUEL_MAX_DAYS} days`, MUTED_COLOR)}
+            <Label
+                value="Buy fuel at the General Store"
+                fontSize={15}
+                color={MUTED_COLOR}
+                textAlign="middle-center"
+                uiTransform={{ width: '100%', height: 24, margin: { top: 8 } }}
+            />
         </UiEntity>
     )
 }

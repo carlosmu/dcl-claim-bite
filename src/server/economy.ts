@@ -34,12 +34,14 @@ import {
   bestHitsPerRock,
   carryCapacity,
   findItem,
+  fuelOrder,
   muleCount,
   priceOf,
+  ShopItem,
   ShopItemId,
   unavailableReason
 } from '../shared/economy/catalogue'
-import { addFuel, fuelHoursLeft, settleMule } from './mule'
+import { addFuelGallons, fuelGallons, fuelHoursLeft, settleMule } from './mule'
 import { TUTORIAL_ROCK_SEQS } from '../shared/net/rock-sync'
 import { advanceRock, getRockSeqs, hasFinishedRock, isRock, isRockStarted, markFinished, otherFinishers } from './rock'
 
@@ -170,7 +172,7 @@ function beginLoad(address: string): void {
 
       // A rig bought before fuel existed has never been filled. It gets the day every new
       // rig comes with, so the update does not greet its owner with a stalled rig.
-      if (stored !== null && stored.muleFuel === undefined) addFuel(purse, muleCount(owned), 1)
+      if (stored !== null && stored.muleFuel === undefined) addFuelGallons(purse, muleCount(owned), muleCount(owned))
 
       // Settled the moment it is read, so the wallet the player is about to be shown already
       // includes everything the rigs dug while they were away.
@@ -346,6 +348,10 @@ function handleBuy(address: string, itemId: string): void {
   }
 
   const owned = (id: ShopItemId) => purse.owned[id] ?? 0
+  if (item.line === 'fuel') {
+    buyFuel(address, purse, item)
+    return
+  }
   const price = priceOf(item, owned)
   if (price === null) {
     sendResult(address, 'buy', false, unavailableReason(item, owned) ?? 'not for sale')
@@ -361,19 +367,10 @@ function handleBuy(address: string, itemId: string): void {
   const mules = muleCount(owned)
   settleMule(purse, mules, carryCapacity(owned))
 
-  if (item.fuelDays !== undefined) {
-    // Fuel goes into the rigs, not the inventory.
-    if (!addFuel(purse, mules, item.fuelDays)) {
-      sendResult(address, 'buy', false, 'tank full')
-      return
-    }
-    purse.coins -= price
-  } else {
-    purse.coins -= price
-    purse.owned[item.id] = (purse.owned[item.id] ?? 0) + 1
-    // The first rig comes with a day of fuel; later ones share what is in the tank.
-    if (item.id === 'mule' && mules === 0) addFuel(purse, 1, 1)
-  }
+  purse.coins -= price
+  purse.owned[item.id] = (purse.owned[item.id] ?? 0) + 1
+  // The first rig comes with a gallon, a day of running; later ones share what is in the tank.
+  if (item.id === 'mule' && mules === 0) addFuelGallons(purse, 1, 1)
   // A pick just bought goes straight into the hand; the inventory can swap it back.
   if (item.hitsPerRock !== undefined) purse.equipped = item.id
   dirty.add(address)
@@ -381,6 +378,35 @@ function handleBuy(address: string, itemId: string): void {
   sendWallet(address)
   sendResult(address, 'buy', true, item.id)
   console.log(`[Server] ${address} bought ${item.label} for ${price} · balance ${purse.coins}`)
+}
+
+// Fuel goes into the rigs, not the inventory, and its price depends on what is already in the
+// tank, so it is bought on its own path.
+function buyFuel(address: string, purse: Purse, item: ShopItem): void {
+  const owned = (id: ShopItemId) => purse.owned[id] ?? 0
+  const mules = muleCount(owned)
+  // Settled first, so the order is priced against what is really left in the tank.
+  settleMule(purse, mules, carryCapacity(owned))
+
+  const order = fuelOrder(item, mules, fuelGallons(purse))
+  if ('reason' in order) {
+    sendResult(address, 'buy', false, order.reason)
+    return
+  }
+  if (purse.coins < order.price) {
+    sendResult(address, 'buy', false, `needs ${order.price - purse.coins} more coins`)
+    return
+  }
+  if (!addFuelGallons(purse, mules, order.gallons)) {
+    sendResult(address, 'buy', false, 'Tank full')
+    return
+  }
+  purse.coins -= order.price
+  dirty.add(address)
+
+  sendWallet(address)
+  sendResult(address, 'buy', true, item.id)
+  console.log(`[Server] ${address} bought ${order.gallons.toFixed(1)} gallons for ${order.price} · balance ${purse.coins}`)
 }
 
 function handleEquip(address: string, itemId: string): void {
