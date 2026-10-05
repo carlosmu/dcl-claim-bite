@@ -17,6 +17,10 @@ export const DEBUG_ADD_ORE = true
  * coins, nothing owned, an empty M.U.L.E. The server refuses the wipe while this is false. */
 export const DEBUG_RESET_PROGRESS = true
 
+/** Shows every M.U.L.E. panel alert at once — storage full, out of fuel, fuel low — whatever the
+ * rigs are actually doing, so their wording and layout can be checked without draining a tank. */
+export const DEBUG_SHOW_MULE_ALERTS = false
+
 /** The most a single debug grant can add, so a typo cannot overflow a purse. */
 export const DEBUG_MAX_COINS = 1_000_000
 
