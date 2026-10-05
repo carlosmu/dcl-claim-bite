@@ -735,10 +735,10 @@ function withCommas(value: number): string {
 }
 
 // What the detail panel says about each pick, beyond the catalogue's numbers.
-const PICK_COPY: Record<string, { description: string; perDay: number; benefits: string[] }> = {
-    pick: { description: 'A borrowed pick. It gets the job done.', perDay: 20, benefits: ['Free starting tool', 'Mines every rock'] },
-    'steel-pick': { description: 'Better hits. Faster mining.', perDay: 30, benefits: ['Faster mining', 'Better hits'] },
-    'miners-pick': { description: 'The finest pick in the territory.', perDay: 40, benefits: ['Fastest mining', 'Strongest hits', 'Brightest sparks'] }
+const PICK_COPY: Record<string, { description: string; benefits: string[] }> = {
+    pick: { description: 'A borrowed pick. It gets the job done.', benefits: ['Free starting tool', 'Mines every rock'] },
+    'steel-pick': { description: 'Better hits. Faster mining.', benefits: ['Faster mining', 'Better hits'] },
+    'miners-pick': { description: 'The finest pick in the territory.', benefits: ['Fastest mining', 'Strongest hits', 'Brightest sparks'] }
 }
 
 // --- Products ---
@@ -938,7 +938,7 @@ function pickDetail(item: ShopItem): Detail {
         title: item.label,
         description: copy.description,
         icon: PICK_ICONS[item.id] ?? ICON_PICK_IRON,
-        stats: [priceStat(item.price), detailStat('Manual mining output', `~${copy.perDay} COINS/DAY`, BANK_CREAM)],
+        stats: [priceStat(item.price), detailStat('Breaks a rock in', `${item.hitsPerRock} HITS`, BANK_CREAM)],
         notes,
         actions: [storeActionButton(action)]
     }
