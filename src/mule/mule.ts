@@ -1,11 +1,14 @@
 import {
   Billboard,
   BillboardMode,
+  ColliderLayer,
   engine,
   Entity,
   GltfContainer,
+  InputAction,
   Material,
   MeshRenderer,
+  pointerEventsSystem,
   TextShape,
   Transform,
   Tween
@@ -28,15 +31,26 @@ export function isPlayerAtMule(): boolean {
   return atOwnMule
 }
 
-// Closing the panel only hides it for this visit: walking away from the rig and back opens it again.
+// The panel opens by walking up to your rig, or by clicking it from further off. Closing it only
+// hides it for this visit: walking into or out of the rig's zone, or clicking it, opens it again.
 let panelClosed = false
+let openedByClick = false
+
+/** How far you can be from your rig and still click it open. */
+const CLICK_REACH_METERS = 12
+
+/** A panel opened by a click stays up until you wander this far from the rig. */
+const CLICK_KEEP_METERS = 16
 
 export function isMulePanelOpen(): boolean {
-  return atOwnMule && !panelClosed
+  return (atOwnMule || openedByClick) && !panelClosed
 }
 
 export function closeMulePanel(): void {
   panelClosed = true
+  // Otherwise stepping out of the zone, which reopens a closed panel, would bring back one that
+  // was opened by a click and then closed.
+  openedByClick = false
 }
 
 
@@ -130,7 +144,13 @@ function park(address: string): ParkedMule {
   const root = engine.addEntity()
   Transform.create(root, { parent: yardRoot ?? undefined })
   if (muleModel !== '') {
-    GltfContainer.create(root, { src: muleModel, visibleMeshesCollisionMask: 0, invisibleMeshesCollisionMask: 3 })
+    // Visible meshes on the pointer layer only, so the rig can be clicked; physics stays on the
+    // invisible collision meshes as before.
+    GltfContainer.create(root, {
+      src: muleModel,
+      visibleMeshesCollisionMask: ColliderLayer.CL_POINTER,
+      invisibleMeshesCollisionMask: ColliderLayer.CL_POINTER | ColliderLayer.CL_PHYSICS
+    })
   }
   // The owner's face. It starts on the fallback picture and switches to the avatar texture once
   // the player's profile shows they have one (see resolveFace).
@@ -207,6 +227,25 @@ function syncYard(): void {
   for (const [address, mule] of parked) {
     if (!seen.has(address)) unpark(address, mule)
   }
+  makeClickable(ownMule)
+}
+
+// Only your own rig answers a click: the panel shows your fleet, not a neighbour's.
+let clickable: Entity | null = null
+
+function makeClickable(mule: Entity | null): void {
+  if (mule === clickable) return
+  // The old one may be gone already (unpark removes it), so only a live one is unhooked.
+  if (clickable !== null && Transform.getOrNull(clickable) !== null) pointerEventsSystem.removeOnPointerDown(clickable)
+  clickable = mule
+  if (mule === null) return
+  pointerEventsSystem.onPointerDown(
+    { entity: mule, opts: { button: InputAction.IA_POINTER, hoverText: 'Open M.U.L.E.', maxDistance: CLICK_REACH_METERS } },
+    () => {
+      openedByClick = true
+      panelClosed = false
+    }
+  )
 }
 
 // While the rig's panel is up, a ring turns under the player's own rig, so with a neighbour's
@@ -234,7 +273,7 @@ function showIndicator(mule: Entity | null): void {
 
 // Distance to the player's own rig, measured every frame like the other proximity zones.
 function checkOwnMule(): void {
-  let inside = false
+  let distance = Infinity
   if (ownMule !== null) {
     const player = Transform.getOrNull(engine.PlayerEntity)
     if (player !== null) {
@@ -242,14 +281,16 @@ function checkOwnMule(): void {
       const root = yardRoot !== null ? Transform.getOrNull(yardRoot)?.position : undefined
       if (mulePosition !== undefined && root !== undefined) {
         // The yard root hangs off the scene root, so root + local is world space.
-        inside = Vector3.distance(player.position, Vector3.add(root, mulePosition)) <= MULE_RADIUS_METERS
+        distance = Vector3.distance(player.position, Vector3.add(root, mulePosition))
       }
     }
   }
-  showIndicator(inside ? ownMule : null)
+  const inside = distance <= MULE_RADIUS_METERS
+  if (openedByClick && distance > CLICK_KEEP_METERS) openedByClick = false
+  showIndicator(isMulePanelOpen() ? ownMule : null)
   if (inside === atOwnMule) return
   atOwnMule = inside
-  if (!inside) panelClosed = false
+  panelClosed = false
   console.log(`[mule] player ${inside ? 'reached' : 'left'} their M.U.L.E.`)
 }
 
