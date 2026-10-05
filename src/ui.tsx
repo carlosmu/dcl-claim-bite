@@ -1457,7 +1457,38 @@ function durationText(hours: number): string {
     return `${Math.floor(hours / 24)}d ${Math.floor(hours % 24)}h`
 }
 
-type MuleStat = { caption: string; value: string; unit?: string; color?: Color4; note?: string }
+type MuleStat = {
+    caption: string
+    value: string
+    unit?: string
+    color?: Color4
+    note?: string
+    /** A status dot before the value; `pulse` breathes it while the thing is active. */
+    dot?: { color: Color4; pulse: boolean }
+}
+
+// The status dot. While running it breathes slowly — a touch bigger and fainter, then back —
+// so the fleet reads as alive without pulling the eye. It sits in a fixed box, so the pulse
+// never nudges the word next to it.
+const STATUS_DOT_SIZE = 12
+const STATUS_DOT_GROWTH = 5
+const STATUS_DOT_FADE = 0.5
+const STATUS_DOT_BOX = STATUS_DOT_SIZE + STATUS_DOT_GROWTH
+const STATUS_PULSE_SECONDS = 1.4
+
+const statusDot = (dot: { color: Color4; pulse: boolean }) => {
+    // 0 → 1 → 0 over one loop, eased by the cosine so it never snaps.
+    const phase = dot.pulse ? 0.5 - 0.5 * Math.cos(((uiClock % STATUS_PULSE_SECONDS) / STATUS_PULSE_SECONDS) * 2 * Math.PI) : 0
+    const size = STATUS_DOT_SIZE + STATUS_DOT_GROWTH * phase
+    const color = Color4.create(dot.color.r, dot.color.g, dot.color.b, 1 - STATUS_DOT_FADE * phase)
+    return (
+        <UiEntity
+            uiTransform={{ width: STATUS_DOT_BOX, height: STATUS_DOT_BOX, margin: { right: 8, bottom: 2 }, justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}
+        >
+            <UiEntity uiTransform={{ width: size, height: size, borderRadius: size / 2 }} uiBackground={{ color }} />
+        </UiEntity>
+    )
+}
 
 /**
  * One figure: a small caption, the value under it, and an optional note under that. A `unit`
@@ -1467,6 +1498,7 @@ const muleStat = (stat: MuleStat) => (
     <UiEntity key={stat.caption} uiTransform={{ width: '100%', flexDirection: 'column', margin: { bottom: 12 } }}>
         <Label value={stat.caption} fontSize={15} color={BANK_CAPTION} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 20 }} />
         <UiEntity uiTransform={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+            {stat.dot !== undefined ? statusDot(stat.dot) : null}
             <BitmapText value={stat.value.toUpperCase()} fontSize={22} color={stat.color ?? BANK_CREAM} />
             {stat.unit !== undefined ? (
                 <BitmapText value={stat.unit.toUpperCase()} fontSize={15} color={stat.color ?? BANK_CREAM} uiTransform={{ margin: { left: 6 } }} />
@@ -1549,8 +1581,8 @@ function fleetColumn(): ReactEcs.JSX.Element[] {
         </UiEntity>,
         muleStat(
             status.running
-                ? { caption: 'Status', value: 'Running', color: PRICE_GOOD_COLOR }
-                : { caption: 'Status', value: 'Paused', color: SHORT_COLOR, note: status.reason }
+                ? { caption: 'Status', value: 'Running', color: PRICE_GOOD_COLOR, dot: { color: PRICE_GOOD_COLOR, pulse: true } }
+                : { caption: 'Status', value: 'Paused', color: SHORT_COLOR, note: status.reason, dot: { color: SHORT_COLOR, pulse: false } }
         ),
         muleStat({ caption: 'Total output', value: `${withCommas(MULE_ORE_PER_HOUR * 24 * mules)} Ore/day` }),        
     ]
