@@ -75,6 +75,11 @@ export function getMuleFuelHours(): number {
   return muleFuelHours
 }
 
+/** Whether the server has sent this player's purse yet. Until then every figure above is a placeholder. */
+export function hasWallet(): boolean {
+  return walletReceived
+}
+
 /** What selling `amount` would pay at the synced price — for display only. */
 export function quoteSaleForDisplay(amount: number): number {
   return quoteSaleAt(price, amount)

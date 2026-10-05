@@ -42,15 +42,25 @@ import { getServerTick, isServerOnline } from './net/server-link'
 import { getMiningStatus } from './mining/rocks'
 import { setupRollingCounters, shownCoins, shownOre } from './ui/rolling-counter'
 import { getOrePopup, RISE_SHARE, setupOrePopup } from './ui/ore-popup'
-import { DEBUG_ADD_COINS, DEBUG_ADD_ORE, DEBUG_RESET_PROGRESS, DEBUG_SERVER_STATUS } from './shared/debug-flags'
+import { DEBUG_ADD_COINS, DEBUG_ADD_ORE, DEBUG_RESET_PROGRESS, DEBUG_SERVER_STATUS, DEBUG_SHOW_MULE_ALERTS } from './shared/debug-flags'
 import { quotedRate } from './shared/state/market'
 import { BitmapText } from './ui/bitmap-text'
 import { introScreen } from './ui/intro-screen'
 import { welcomeOverlay } from './ui/welcome-overlay'
+import {
+    closeNotifications,
+    getNotifications,
+    isNotificationsOpen,
+    Notification,
+    openNotifications,
+    setupNotifications,
+    unreadCount
+} from './ui/notifications'
 
 export function setupUi() {
     setupRollingCounters()
     setupOrePopup()
+    setupNotifications()
 
     // No screen inset: the SDK's default ('device') pulls the whole UI in by the phone's safe
     // margins. The game is landscape and everything sits in the centred column, where no notch
@@ -1243,14 +1253,14 @@ const debugGrantTool = (grant: DebugGrant, label: string) => (
 
 // --- Debug box --------------------------------------------------------------------------
 //
-// One labelled panel at the bottom-left that groups every debug tool, so they read as a set
+// One labelled panel on the right edge of the screen, 30vh from the top, that groups every debug tool, so they read as a set
 // and not as stray game buttons.
 
 const debugBox = () => (
     <UiEntity
         uiTransform={{
             positionType: 'absolute',
-            position: { bottom: 56, left: 0 },
+            position: { top: '30vh', right: 0 },
             flexDirection: 'column',
             alignItems: 'flex-start',
             padding: 10,
@@ -1258,7 +1268,7 @@ const debugBox = () => (
         }}
         uiBackground={{ color: PANEL_BACKGROUND }}
     >
-        <Label value="DEBUG PLANEL" fontSize={14} color={MUTED_COLOR} uiTransform={{ height: 18 }} />
+        <Label value="DEBUG PANEL" fontSize={14} color={MUTED_COLOR} uiTransform={{ height: 18 }} />
         {DEBUG_RESET_PROGRESS ? debugResetTool() : null}
         {DEBUG_ADD_COINS ? debugGrantTool('coins', 'Free coins') : null}
         {DEBUG_ADD_ORE ? debugGrantTool('ore', 'Free ore') : null}
@@ -1588,6 +1598,22 @@ function fleetColumn(): ReactEcs.JSX.Element[] {
     ]
 }
 
+/**
+ * A warning at the foot of a column: what stopped (or is about to stop) the rigs, and what to do.
+ * Wraps, since a column is narrow. DEBUG_SHOW_MULE_ALERTS shows them all regardless.
+ */
+const muleAlert = (key: string, text: string, color: Color4 = SHORT_COLOR) => (
+    <Label
+        key={key}
+        value={text}
+        fontSize={14}
+        color={color}
+        textAlign="top-left"
+        textWrap="wrap"
+        uiTransform={{ width: '100%', height: 58, margin: { bottom: 8 } }}
+    />
+)
+
 function fuelColumn(): ReactEcs.JSX.Element[] {
     const mules = getMuleCount()
     const gallons = fuelGallonsNow()
@@ -1602,8 +1628,15 @@ function fuelColumn(): ReactEcs.JSX.Element[] {
         muleStat({ caption: 'Fuel in tank', value: `${Math.floor(gallons)} / ${tank}`, unit: 'Gallons', color: low ? SHORT_COLOR : COIN_COLOR }),
         muleBar('fuel-bar', blinkOff ? 0 : share, low ? SHORT_COLOR : COIN_COLOR, low && !blinkOff ? SHORT_COLOR : BANK_CAPTION),
         muleStat({ caption: 'Fuel left', value: fuelLeftText(), color: gallons > 0 ? BANK_CREAM : SHORT_COLOR }),
-        muleStat({ caption: 'Fuel use', value: `${fuelUse} ${fuelUse === 1 ? 'Gallon' : 'Gallons'}/day` })
-    ]
+        muleStat({ caption: 'Fuel use', value: `${fuelUse} ${fuelUse === 1 ? 'Gallon' : 'Gallons'}/day` }),
+        // Empty outranks low: only one of the two is a real state at a time.
+        DEBUG_SHOW_MULE_ALERTS || gallons <= 0
+            ? muleAlert('fuel-empty', 'Out of fuel. Buy fuel at the General Store to keep producing.')
+            : null,
+        DEBUG_SHOW_MULE_ALERTS || (low && gallons > 0)
+            ? muleAlert('fuel-low', 'Fuel is running low. Refill soon to keep producing.', COIN_COLOR)
+            : null
+    ].filter((element): element is ReactEcs.JSX.Element => element !== null)
 }
 
 function storageColumn(): ReactEcs.JSX.Element[] {
@@ -1632,8 +1665,11 @@ function storageColumn(): ReactEcs.JSX.Element[] {
             next === null
                 ? { caption: 'Capacity', value: 'Max', color: BANK_GOLD_LIGHT }
                 : { caption: 'Next upgrade', value: `${withCommas(next.storage ?? 0)} Ore` }
-        )
-    ]
+        ),
+        DEBUG_SHOW_MULE_ALERTS || ore >= capacity
+            ? muleAlert('storage-full', 'Storage is full. Sell your ore at the Bank to keep producing.')
+            : null
+    ].filter((element): element is ReactEcs.JSX.Element => element !== null)
 }
 
 const mulePanel = () => (
@@ -1800,7 +1836,7 @@ const inventoryPanel = () => {
 }
 
 const inventoryButton = () => (
-    <UiEntity uiTransform={{ positionType: 'absolute', position: { bottom: 56, right: 0 } }}>
+    <UiEntity uiTransform={{ positionType: 'absolute', position: { bottom: 56, right: NOTIFICATION_BUTTON_SIZE + BOTTOM_BUTTON_GAP } }}>
         <Button
             value={inventoryOpen ? 'Close' : 'Inventory'}
             fontSize={18}
@@ -1809,7 +1845,10 @@ const inventoryButton = () => (
             uiBackground={{ color: STEP_BUTTON_COLOR }}
             onMouseDown={() => {
                 inventoryOpen = !inventoryOpen
-                if (inventoryOpen) mapOpen = false
+                if (inventoryOpen) {
+                    mapOpen = false
+                    closeNotifications()
+                }
             }}
         />
     </UiEntity>
@@ -1863,7 +1902,7 @@ const mapButton = () => (
     <UiEntity
         uiTransform={{
             positionType: 'absolute',
-            position: { bottom: 56, right: 158 },
+            position: { bottom: 56, right: NOTIFICATION_BUTTON_SIZE + BOTTOM_BUTTON_GAP + 150 + BOTTOM_BUTTON_GAP },
             width: 150,
             height: 44,
             borderRadius: 8,
@@ -1874,7 +1913,10 @@ const mapButton = () => (
         uiBackground={{ color: STEP_BUTTON_COLOR }}
         onMouseDown={() => {
             mapOpen = !mapOpen
-            if (mapOpen) inventoryOpen = false
+            if (mapOpen) {
+                inventoryOpen = false
+                closeNotifications()
+            }
         }}
     >
         <UiEntity
@@ -1884,6 +1926,147 @@ const mapButton = () => (
         <Label value="Map" fontSize={18} color={Color4.White()} textAlign="middle-center" uiTransform={{ height: 44 }} />
     </UiEntity>
 )
+
+// --- Notifications ------------------------------------------------------------------------
+//
+// A bell to the right of the inventory, with a red count of what is unread. Its panel only says
+// what happened and where to go — the bank, the store and the rig are still walked to. Same
+// wood-and-gold dress as the M.U.L.E. panel. Unread notes carry a gold frame and dot; opening
+// the panel clears the badge, and they settle into the plain look on the next visit.
+
+const NOTIFICATION_BUTTON_SIZE = 44
+const BOTTOM_BUTTON_GAP = 8
+const NOTIFICATION_BADGE_SIZE = 24
+const NOTIFICATION_BADGE_COLOR = Color4.create(0.88, 0.12, 0.12, 1)
+const NOTIFICATION_ROW_HEIGHT = 72
+const NOTIFICATION_DOT_SIZE = 10
+
+const notificationButton = () => {
+    const unread = unreadCount()
+    return (
+        <UiEntity
+            uiTransform={{
+                positionType: 'absolute',
+                position: { bottom: 56, right: 0 },
+                width: NOTIFICATION_BUTTON_SIZE,
+                height: NOTIFICATION_BUTTON_SIZE,
+                borderRadius: 8,
+                justifyContent: 'center',
+                alignItems: 'center'
+            }}
+            uiBackground={{ color: STEP_BUTTON_COLOR }}
+            onMouseDown={() => {
+                if (isNotificationsOpen()) {
+                    closeNotifications()
+                    return
+                }
+                openNotifications()
+                mapOpen = false
+                inventoryOpen = false
+            }}
+        >
+            <UiEntity
+                uiTransform={{ width: 32, height: 32 }}
+                uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: ICON_NOTIFICATION }}
+            />
+            {unread > 0 ? (
+                <Label
+                    value={unread > 9 ? '9+' : `${unread}`}
+                    fontSize={14}
+                    color={Color4.White()}
+                    textAlign="middle-center"
+                    uiTransform={{
+                        positionType: 'absolute',
+                        position: { top: -NOTIFICATION_BADGE_SIZE / 3, right: -NOTIFICATION_BADGE_SIZE / 3 },
+                        width: NOTIFICATION_BADGE_SIZE,
+                        height: NOTIFICATION_BADGE_SIZE,
+                        borderRadius: NOTIFICATION_BADGE_SIZE / 2
+                    }}
+                    uiBackground={{ color: NOTIFICATION_BADGE_COLOR }}
+                />
+            ) : null}
+        </UiEntity>
+    )
+}
+
+const notificationRow = (note: Notification) => {
+    const unread = !note.read
+    return (
+        <UiEntity
+            key={`${note.id}`}
+            uiTransform={{
+                width: '100%',
+                height: NOTIFICATION_ROW_HEIGHT,
+                flexDirection: 'row',
+                alignItems: 'center',
+                padding: { left: 14, right: 14 },
+                margin: { bottom: 8 },
+                borderRadius: 10,
+                borderWidth: unread ? 3 : 2,
+                borderColor: unread ? BANK_GOLD : BANK_TRIM
+            }}
+            uiBackground={{ color: BANK_WOOD }}
+        >
+            {/* The dot keeps its slot on read rows too, so the text lines up down the list. */}
+            <UiEntity
+                uiTransform={{ width: NOTIFICATION_DOT_SIZE, height: NOTIFICATION_DOT_SIZE, margin: { right: 12 }, flexShrink: 0, borderRadius: NOTIFICATION_DOT_SIZE / 2 }}
+                uiBackground={{ color: unread ? BANK_GOLD_LIGHT : Color4.Clear() }}
+            />
+            <UiEntity uiTransform={{ flexGrow: 1, flexDirection: 'column', justifyContent: 'center' }}>
+                <BitmapText value={note.title.toUpperCase()} fontSize={20} color={unread ? BANK_GOLD_LIGHT : BANK_CREAM} />
+                <Label
+                    value={note.body}
+                    fontSize={15}
+                    color={unread ? BANK_CREAM : BANK_CAPTION}
+                    textAlign="middle-left"
+                    textWrap="nowrap"
+                    uiTransform={{ height: 22, margin: { top: 2 } }}
+                />
+            </UiEntity>
+        </UiEntity>
+    )
+}
+
+const notificationsPanel = () => {
+    const notes = getNotifications()
+    return (
+        <UiEntity
+            uiTransform={{
+                width: '100%',
+                flexDirection: 'column',
+                padding: BANK_PANEL_PADDING,
+                borderRadius: PANEL_RADIUS,
+                borderWidth: 3,
+                borderColor: BANK_TRIM
+            }}
+            uiBackground={{ color: BANK_WOOD_DARK }}
+        >
+            {/* Title centred; the close button sits apart in the corner, as on the M.U.L.E. panel. */}
+            <UiEntity uiTransform={{ width: '100%', height: 56, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', margin: { bottom: 12 } }}>
+                <BitmapText value="NOTIFICATIONS" fontSize={42} color={BANK_GOLD_LIGHT} />
+                <Button
+                    value="X"
+                    fontSize={30}
+                    color={Color4.White()}
+                    uiTransform={{ positionType: 'absolute', position: { top: 0, right: 0 }, width: 48, height: 48, borderRadius: PANEL_RADIUS }}
+                    uiBackground={{ color: MAP_CLOSE_COLOR }}
+                    onMouseDown={closeNotifications}
+                />
+            </UiEntity>
+            {notes.length === 0 ? (
+                <Label
+                    value="Nothing new. All quiet in town."
+                    fontSize={18}
+                    color={BANK_CAPTION}
+                    textAlign="middle-center"
+                    uiTransform={{ width: '100%', height: 48 }}
+                />
+            ) : (
+                notes.map(notificationRow)
+            )}
+        </UiEntity>
+    )
+}
 
 export const uiMenu = () => (
     <UiEntity
@@ -1911,14 +2094,17 @@ export const uiMenu = () => (
             {orePopup()}
             {mapOpen ? mapPanel() : null}
             {inventoryOpen ? inventoryPanel() : null}
-            {!mapOpen && !inventoryOpen && isBankPanelOpen() ? bankPanel() : null}
-            {!mapOpen && !inventoryOpen && isStorePanelOpen() ? storePanel() : null}
-            {!mapOpen && !inventoryOpen && isMulePanelOpen() && getMuleCount() > 0 ? mulePanel() : null}
+            {isNotificationsOpen() ? notificationsPanel() : null}
+            {!mapOpen && !inventoryOpen && !isNotificationsOpen() && isBankPanelOpen() ? bankPanel() : null}
+            {!mapOpen && !inventoryOpen && !isNotificationsOpen() && isStorePanelOpen() ? storePanel() : null}
+            {!mapOpen && !inventoryOpen && !isNotificationsOpen() && isMulePanelOpen() && getMuleCount() > 0 ? mulePanel() : null}
             {mapButton()}
             {inventoryButton()}
+            {notificationButton()}
             {DEBUG_SERVER_STATUS ? serverStatus() : null}
-            {DEBUG_RESET_PROGRESS || DEBUG_ADD_COINS || DEBUG_ADD_ORE ? debugBox() : null}
         </UiEntity>
+        {/* the debug box sits outside main-container so it anchors to the screen edge */}
+        {DEBUG_RESET_PROGRESS || DEBUG_ADD_COINS || DEBUG_ADD_ORE ? debugBox() : null}
         {welcomeOverlay()}
         {introScreen()}
     </UiEntity>
