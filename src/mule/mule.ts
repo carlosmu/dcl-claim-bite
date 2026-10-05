@@ -28,6 +28,17 @@ export function isPlayerAtMule(): boolean {
   return atOwnMule
 }
 
+// Closing the panel only hides it for this visit: walking away from the rig and back opens it again.
+let panelClosed = false
+
+export function isMulePanelOpen(): boolean {
+  return atOwnMule && !panelClosed
+}
+
+export function closeMulePanel(): void {
+  panelClosed = true
+}
+
 
 // --- The yard ------------------------------------------------------------------------------
 //
@@ -238,6 +249,7 @@ function checkOwnMule(): void {
   showIndicator(inside ? ownMule : null)
   if (inside === atOwnMule) return
   atOwnMule = inside
+  if (!inside) panelClosed = false
   console.log(`[mule] player ${inside ? 'reached' : 'left'} their M.U.L.E.`)
 }
 

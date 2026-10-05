@@ -15,7 +15,7 @@ import {
     sendEquip
 } from './net/economy-link'
 import { buyItem, closeStorePanel, currentPrice, getSelectedProduct, isStorePanelOpen, selectProduct, whyUnavailable } from './shop/shop'
-import { isPlayerAtMule } from './mule/mule'
+import { closeMulePanel, isMulePanelOpen } from './mule/mule'
 import {
     activePick,
     CATALOGUE,
@@ -973,12 +973,12 @@ const fuelOption = (item: ShopItem) => {
             uiBackground={{ color: BANK_WOOD }}
         >
             <BitmapText value={item.label.toUpperCase()} fontSize={24} color={BANK_CREAM} uiTransform={{ width: 170 }} />
+            {/* An order the tank cannot take keeps its price, muted, and its button goes grey:
+                that says enough without a warning line. */}
             <UiEntity uiTransform={{ flexGrow: 1 }}>
-                {'price' in order ? (
-                    coinAmount(order.price, getCoins() >= order.price ? COIN_COLOR : SHORT_COLOR, 24)
-                ) : (
-                    <Label value={order.reason} fontSize={14} color={MUTED_COLOR} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 40 }} />
-                )}
+                {'price' in order
+                    ? coinAmount(order.price, getCoins() >= order.price ? COIN_COLOR : SHORT_COLOR, 24)
+                    : coinAmount(item.price, MUTED_COLOR, 24)}
             </UiEntity>
             <UiEntity
                 uiTransform={{ width: 90, height: 38, justifyContent: 'center', alignItems: 'center', borderRadius: 8 }}
@@ -1431,31 +1431,24 @@ function muleStatus(): { running: boolean; reason: string } {
 
 // --- M.U.L.E. panel -------------------------------------------------------------------------
 //
-// At your own rig. Four tabs, one question each, so no screen carries everything:
+// At your own rig. Three columns side by side, one question each, and nothing shown in two:
 //
-//   Overview  how is the whole system doing right now?
-//   Fuel      how much fuel, how fast it goes, and refilling it
-//   Storage   how much ore has piled up, and when it stops for lack of room
-//   Fleet     the fleet's numbers and how they are worked out
+//   Fleet     what is my fleet doing?
+//   Fuel      how much fuel do I have left?
+//   Storage   how much ore have I stored, and when it stops for lack of room
 //
-// Same wood-and-gold dress as the bank and the store. The rigs dig straight into storage, so
-// there is nothing to collect here.
+// Same wood-and-gold dress as the bank and the store. Nothing is bought here: fuel and storage
+// come from the General Store, which a line under the columns points to. The rigs dig straight
+// into storage, so there is nothing to collect either.
 
-type MuleTab = 'overview' | 'fuel' | 'storage' | 'fleet'
-
-const MULE_TABS: { id: MuleTab; label: string; icon: number[] }[] = [
-    { id: 'overview', label: 'Overview', icon: ICON_MAP },
-    { id: 'fuel', label: 'Fuel', icon: ICON_FUEL },
-    { id: 'storage', label: 'Storage', icon: ICON_WAREHOUSE },
-    { id: 'fleet', label: 'Fleet', icon: ICON_MULE }
-]
-
-let muleTab: MuleTab = 'overview'
-
-const MULE_TAB_HEIGHT = 58
-const MULE_ROW_HEIGHT = 40
-const MULE_BAR_HEIGHT = 18
+const MULE_HEADER_HEIGHT = 52
+const MULE_COLUMN_GAP = 10
+const MULE_BAR_HEIGHT = 16
 const MULE_BAR_TRACK = Color4.create(0.12, 0.1, 0.06, 1)
+
+// Under this share of the tank the fuel turns red and blinks, so a nearly dry rig is noticed.
+const FUEL_LOW_SHARE = 0.1
+const FUEL_BLINK_SECONDS = 0.5
 
 /** "3d 9h", "21h", "40 min" — however long, in the units that read best. */
 function durationText(hours: number): string {
@@ -1464,54 +1457,39 @@ function durationText(hours: number): string {
     return `${Math.floor(hours / 24)}d ${Math.floor(hours % 24)}h`
 }
 
-const muleTabButton = (tab: { id: MuleTab; label: string; icon: number[] }) => {
-    const active = muleTab === tab.id
-    return (
-        <UiEntity
-            key={tab.id}
-            uiTransform={{
-                width: '24%',
-                height: MULE_TAB_HEIGHT,
-                flexDirection: 'row',
-                justifyContent: 'center',
-                alignItems: 'center',
-                borderRadius: 10,
-                borderWidth: active ? 3 : 2,
-                borderColor: active ? BANK_GOLD : BANK_TRIM
-            }}
-            uiBackground={{ color: active ? BANK_TRIM : BANK_WOOD }}
-            onMouseDown={() => {
-                muleTab = tab.id
-            }}
-        >
-            <UiEntity
-                uiTransform={{ width: 32, height: 32, margin: { right: 6 }, flexShrink: 0 }}
-                uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: tab.icon }}
-            />
-            <BitmapText value={tab.label.toUpperCase()} fontSize={20} color={active ? BANK_GOLD_LIGHT : BANK_CREAM} />
-        </UiEntity>
-    )
-}
+type MuleStat = { caption: string; value: string; unit?: string; color?: Color4; note?: string }
 
-/** One line of a tab: a caption on the left, its value on the right. */
-const muleRow = (label: string, value: ReactEcs.JSX.Element | string, color: Color4 = BANK_CREAM) => (
-    <UiEntity
-        key={label}
-        uiTransform={{ width: '100%', height: MULE_ROW_HEIGHT, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
-    >
-        <Label value={label} fontSize={18} color={BANK_CAPTION} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: MULE_ROW_HEIGHT }} />
-        {typeof value === 'string' ? <BitmapText value={value.toUpperCase()} fontSize={26} color={color} /> : value}
+/**
+ * One figure: a small caption, the value under it, and an optional note under that. A `unit`
+ * follows the value on the same line, smaller, so "18 / 21 GALLONS" fits a column.
+ */
+const muleStat = (stat: MuleStat) => (
+    <UiEntity key={stat.caption} uiTransform={{ width: '100%', flexDirection: 'column', margin: { bottom: 12 } }}>
+        <Label value={stat.caption} fontSize={15} color={BANK_CAPTION} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 20 }} />
+        <UiEntity uiTransform={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+            <BitmapText value={stat.value.toUpperCase()} fontSize={22} color={stat.color ?? BANK_CREAM} />
+            {stat.unit !== undefined ? (
+                <BitmapText value={stat.unit.toUpperCase()} fontSize={15} color={stat.color ?? BANK_CREAM} uiTransform={{ margin: { left: 6 } }} />
+            ) : null}
+        </UiEntity>
+        {stat.note !== undefined ? (
+            <Label value={stat.note} fontSize={14} color={stat.color ?? MUTED_COLOR} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 18 }} />
+        ) : null}
     </UiEntity>
 )
 
-const muleDivider = (key: string) => (
-    <UiEntity key={key} uiTransform={{ width: '100%', height: 2, margin: { top: 6, bottom: 6 } }} uiBackground={{ color: BANK_TRIM }} />
-)
-
-const muleBar = (key: string, share: number, color: Color4) => (
+// The track carries a border so the full capacity reads at a glance, however little is in it.
+const muleBar = (key: string, share: number, color: Color4, border: Color4 = BANK_CAPTION) => (
     <UiEntity
         key={key}
-        uiTransform={{ width: '100%', height: MULE_BAR_HEIGHT, margin: { top: 2, bottom: 8 }, borderRadius: MULE_BAR_HEIGHT / 2 }}
+        uiTransform={{
+            width: '100%',
+            height: MULE_BAR_HEIGHT,
+            margin: { bottom: 12 },
+            borderRadius: MULE_BAR_HEIGHT / 2,
+            borderWidth: 2,
+            borderColor: border
+        }}
         uiBackground={{ color: MULE_BAR_TRACK }}
     >
         <UiEntity
@@ -1521,40 +1499,82 @@ const muleBar = (key: string, share: number, color: Color4) => (
     </UiEntity>
 )
 
-const muleHint = (text: string) => (
-    <Label key={text} value={text} fontSize={15} color={BANK_CAPTION} textAlign="middle-center" uiTransform={{ width: '100%', height: 24, margin: { top: 6 } }} />
+/** A column: a header like the old tabs (icon and title), and its figures stacked under it. */
+const muleColumn = (title: string, icon: number[], children: ReactEcs.JSX.Element[], last: boolean) => (
+    <UiEntity
+        key={title}
+        uiTransform={{
+            width: 0,
+            flexGrow: 1,
+            flexDirection: 'column',
+            margin: { right: last ? 0 : MULE_COLUMN_GAP },
+            borderRadius: PANEL_RADIUS,
+            borderWidth: 2,
+            borderColor: BANK_TRIM
+        }}
+        uiBackground={{ color: BANK_WOOD }}
+    >
+        <UiEntity
+            uiTransform={{
+                width: '100%',
+                height: MULE_HEADER_HEIGHT,
+                flexDirection: 'row',
+                justifyContent: 'center',
+                alignItems: 'center',
+                // No fill of its own: only a line under it, where the figures start, in the
+                // column frame's own colour.
+                borderWidth: { top: 0, left: 0, right: 0, bottom: 2 },
+                borderColor: BANK_TRIM
+            }}
+        >
+            <UiEntity
+                uiTransform={{ width: 32, height: 32, margin: { right: 6 }, flexShrink: 0 }}
+                uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: icon }}
+            />
+            <BitmapText value={title.toUpperCase()} fontSize={22} color={BANK_GOLD_LIGHT} />
+        </UiEntity>
+        <UiEntity uiTransform={{ width: '100%', flexDirection: 'column', padding: { left: 14, right: 14, top: 12, bottom: 4 } }}>
+            {children}
+        </UiEntity>
+    </UiEntity>
 )
 
-function overviewTab(): ReactEcs.JSX.Element[] {
+function fleetColumn(): ReactEcs.JSX.Element[] {
     const mules = getMuleCount()
     const status = muleStatus()
-    const perHour = status.running ? MULE_ORE_PER_HOUR * mules : 0
     return [
-        muleRow('M.U.L.E.s', `${mules}`),
-        muleRow('Status', status.running ? 'Running' : `Paused: ${status.reason}`, status.running ? PRICE_GOOD_COLOR : SHORT_COLOR),
-        muleRow('Total output', `${withCommas(MULE_ORE_PER_HOUR * 24 * mules)} Ore/day`),
-        muleRow('Producing now', `+${Math.round(perHour)} Ore/hour`, status.running ? PRICE_GOOD_COLOR : MUTED_COLOR),
-        muleRow('Stored ore', `${withCommas(getOre())} / ${withCommas(getCarryCapacity())}`),
-        muleRow('Autonomy left', fuelLeftText(), getMuleFuelHours() > 0 ? BANK_CREAM : SHORT_COLOR)
+        <UiEntity key="fleet-count" uiTransform={{ width: '100%', flexDirection: 'row', alignItems: 'flex-end', margin: { bottom: 12 } }}>
+            <BitmapText value={`${mules}`} fontSize={56} color={BANK_GOLD_LIGHT} />
+            <BitmapText value={mules === 1 ? 'M.U.L.E.' : 'M.U.L.E.S'} fontSize={22} color={BANK_CREAM} uiTransform={{ margin: { left: 10, bottom: 6 } }} />
+        </UiEntity>,
+        muleStat(
+            status.running
+                ? { caption: 'Status', value: 'Running', color: PRICE_GOOD_COLOR }
+                : { caption: 'Status', value: 'Paused', color: SHORT_COLOR, note: status.reason }
+        ),
+        muleStat({ caption: 'Total output', value: `${withCommas(MULE_ORE_PER_HOUR * 24 * mules)} Ore/day` }),        
     ]
 }
 
-function fuelTab(): ReactEcs.JSX.Element[] {
+function fuelColumn(): ReactEcs.JSX.Element[] {
     const mules = getMuleCount()
     const gallons = fuelGallonsNow()
-    const tank = fuelTankGallons(mules)
+    const tank = fuelTankGallons(getMuleCount())
+    const fuelUse = FUEL_GALLONS_PER_RIG_DAY * mules
+    const share = tank > 0 ? gallons / tank : 0
+    const low = share < FUEL_LOW_SHARE
+    // Low fuel blinks: the fill and the frame flash red on the UI clock. The frame too, since
+    // under a tenth of the tank the fill alone is a sliver.
+    const blinkOff = low && Math.floor(uiClock / FUEL_BLINK_SECONDS) % 2 === 1
     return [
-        muleRow('Fuel in tank', `${Math.floor(gallons)} / ${tank} Gallons`, gallons > 0 ? COIN_COLOR : SHORT_COLOR),
-        muleBar('fuel-bar', tank > 0 ? gallons / tank : 0, COIN_COLOR),
-        muleRow('Consumption', `${mules} Gallons/day`),
-        muleRow('Autonomy left', fuelLeftText(), gallons > 0 ? BANK_CREAM : SHORT_COLOR),
-        muleRow('Max autonomy', `${FUEL_MAX_DAYS} days`, MUTED_COLOR),
-        muleDivider('fuel-divider'),
-        ...itemsOf('fuel').map(fuelOption)
+        muleStat({ caption: 'Fuel in tank', value: `${Math.floor(gallons)} / ${tank}`, unit: 'Gallons', color: low ? SHORT_COLOR : COIN_COLOR }),
+        muleBar('fuel-bar', blinkOff ? 0 : share, low ? SHORT_COLOR : COIN_COLOR, low && !blinkOff ? SHORT_COLOR : BANK_CAPTION),
+        muleStat({ caption: 'Fuel left', value: fuelLeftText(), color: gallons > 0 ? BANK_CREAM : SHORT_COLOR }),
+        muleStat({ caption: 'Fuel use', value: `${fuelUse} ${fuelUse === 1 ? 'Gallon' : 'Gallons'}/day` })
     ]
 }
 
-function storageTab(): ReactEcs.JSX.Element[] {
+function storageColumn(): ReactEcs.JSX.Element[] {
     const ore = getOre()
     const capacity = getCarryCapacity()
     const perHour = MULE_ORE_PER_HOUR * getMuleCount()
@@ -1563,41 +1583,25 @@ function storageTab(): ReactEcs.JSX.Element[] {
 
     // When the storage fills at the current pace — unless the fuel runs out first, which
     // pauses the rigs before it can.
-    let fullIn = 'Full now'
-    let fullColor = SHORT_COLOR
+    let fullIn: MuleStat = { caption: 'Storage full in', value: 'Full now', color: SHORT_COLOR }
     if (ore < capacity) {
         const hours = (capacity - ore) / perHour
-        if (perHour <= 0 || fuelHours <= 0) [fullIn, fullColor] = ['Not filling', MUTED_COLOR]
-        else if (fuelHours < hours) [fullIn, fullColor] = ['Fuel runs out first', MUTED_COLOR]
-        else [fullIn, fullColor] = [durationText(hours), BANK_CREAM]
+        if (perHour <= 0 || fuelHours <= 0) fullIn = { caption: 'Storage full in', value: '-', color: MUTED_COLOR, note: 'not filling' }
+        else if (fuelHours < hours) fullIn = { caption: 'Storage full in', value: '-', color: MUTED_COLOR, note: 'fuel runs out first' }
+        else fullIn = { caption: 'Storage full in', value: durationText(hours) }
     }
 
     return [
-        muleRow('Stored ore', `${withCommas(ore)} / ${withCommas(capacity)}`),
+        muleStat({ caption: 'Stored ore', value: `${withCommas(ore)} / ${withCommas(capacity)}` }),
         muleBar('storage-bar', capacity > 0 ? ore / capacity : 0, ore >= capacity ? SHORT_COLOR : ORE_COLOR),
-        muleRow('Storage full in', fullIn, fullColor),
-        muleRow('Next upgrade', next === null ? 'Max capacity' : `${withCommas(next.storage ?? 0)} Ore`, next === null ? MUTED_COLOR : BANK_CREAM),
-        muleHint(next === null ? 'Your storage is at its largest' : 'Increase storage capacity at the General Store')
+        muleStat(fullIn),
+        // At the top tier there is nothing to upgrade to, so it only says so.
+        muleStat(
+            next === null
+                ? { caption: 'Capacity', value: 'Max', color: BANK_GOLD_LIGHT }
+                : { caption: 'Next upgrade', value: `${withCommas(next.storage ?? 0)} Ore` }
+        )
     ]
-}
-
-function fleetTab(): ReactEcs.JSX.Element[] {
-    const mules = getMuleCount()
-    const perRig = MULE_ORE_PER_HOUR * 24
-    return [
-        muleRow('M.U.L.E.s owned', `${mules}`),
-        muleRow('Per M.U.L.E.', `${withCommas(perRig)} Ore/day`),
-        muleRow('Total output', `${withCommas(perRig * mules)} Ore/day`),
-        muleRow('Fuel per M.U.L.E.', `${FUEL_GALLONS_PER_RIG_DAY} Gallon/day`),
-        muleRow('Fuel cost per Gallon', coinAmount(FUEL_PRICE_PER_GALLON, COIN_COLOR, 26))
-    ]
-}
-
-const MULE_TAB_CONTENT: Record<MuleTab, () => ReactEcs.JSX.Element[]> = {
-    overview: overviewTab,
-    fuel: fuelTab,
-    storage: storageTab,
-    fleet: fleetTab
 }
 
 const mulePanel = () => (
@@ -1612,24 +1616,33 @@ const mulePanel = () => (
         }}
         uiBackground={{ color: BANK_WOOD_DARK }}
     >
-        <BitmapText value="MINING UTILITY LABOR ENGINE" fontSize={36} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%', margin: { bottom: 12 } }} />
-        <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', justifyContent: 'space-between' }}>
-            {MULE_TABS.map(muleTabButton)}
+        {/* The name centred: the acronym, with what it stands for under it, smaller. The close
+            button sits apart in the top-right corner, so it does not pull the title off centre. */}
+        <UiEntity uiTransform={{ width: '100%', height: 72, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', margin: { bottom: 12 } }}>
+            <BitmapText value="M.U.L.E." fontSize={46} color={BANK_GOLD_LIGHT} />
+            <Label value="Mining Utility Labor Engine" fontSize={16} color={BANK_CAPTION} textAlign="middle-center" textWrap="nowrap" uiTransform={{ width: '100%', height: 22 }} />
+            <Button
+                value="X"
+                fontSize={30}
+                color={Color4.White()}
+                uiTransform={{ positionType: 'absolute', position: { top: 0, right: 0 }, width: 48, height: 48, borderRadius: PANEL_RADIUS }}
+                uiBackground={{ color: MAP_CLOSE_COLOR }}
+                onMouseDown={closeMulePanel}
+            />
         </UiEntity>
-        <UiEntity
-            uiTransform={{
-                width: '100%',
-                flexDirection: 'column',
-                padding: { left: 20, right: 20, top: 12, bottom: 16 },
-                margin: { top: 10 },
-                borderRadius: PANEL_RADIUS,
-                borderWidth: 2,
-                borderColor: BANK_GOLD
-            }}
-            uiBackground={{ color: BANK_WOOD }}
-        >
-            {MULE_TAB_CONTENT[muleTab]()}
+        {/* The columns stretch to the tallest, so their frames line up at the bottom. */}
+        <UiEntity uiTransform={{ width: '100%', flexDirection: 'row' }}>
+            {muleColumn('Fleet', ICON_MULE, fleetColumn(), false)}
+            {muleColumn('Fuel', ICON_FUEL, fuelColumn(), false)}
+            {muleColumn('Storage', ICON_WAREHOUSE, storageColumn(), true)}
         </UiEntity>
+        <Label
+            value="Get Fuel and Storage at the General Store"
+            fontSize={16}
+            color={BANK_CAPTION}
+            textAlign="middle-center"
+            uiTransform={{ width: '100%', height: 24, margin: { top: 10 } }}
+        />
     </UiEntity>
 )
 
@@ -1868,7 +1881,7 @@ export const uiMenu = () => (
             {inventoryOpen ? inventoryPanel() : null}
             {!mapOpen && !inventoryOpen && isBankPanelOpen() ? bankPanel() : null}
             {!mapOpen && !inventoryOpen && isStorePanelOpen() ? storePanel() : null}
-            {!mapOpen && !inventoryOpen && isPlayerAtMule() && getMuleCount() > 0 ? mulePanel() : null}
+            {!mapOpen && !inventoryOpen && isMulePanelOpen() && getMuleCount() > 0 ? mulePanel() : null}
             {mapButton()}
             {inventoryButton()}
             {DEBUG_SERVER_STATUS ? serverStatus() : null}
