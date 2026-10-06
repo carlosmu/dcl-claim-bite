@@ -16,6 +16,7 @@ import {
 import { Color4, Quaternion, Vector3 } from '@dcl/sdk/math'
 import { getPlayer } from '@dcl/sdk/players'
 
+import { focusPanel, registerPanel } from '../world/panel-focus'
 import { MULE_YARD_SPACING_X, MULE_YARD_SPACING_Z, MuleYard } from '../shared/net/mule-yard-sync'
 
 // The idle rigs standing in the world. They dig straight into the player's storage; walking up
@@ -244,6 +245,7 @@ function makeClickable(mule: Entity | null): void {
     () => {
       openedByClick = true
       panelClosed = false
+      focusPanel('mule')
     }
   )
 }
@@ -291,10 +293,12 @@ function checkOwnMule(): void {
   if (inside === atOwnMule) return
   atOwnMule = inside
   panelClosed = false
+  if (isMulePanelOpen()) focusPanel('mule')
   console.log(`[mule] player ${inside ? 'reached' : 'left'} their M.U.L.E.`)
 }
 
 export function setupMule(): void {
+  registerPanel('mule', closeMulePanel)
   adoptTemplate()
   buildGrid()
   engine.addSystem(syncYard, undefined, 'client:mule-yard')

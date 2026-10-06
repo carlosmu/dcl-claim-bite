@@ -1,10 +1,14 @@
-import { createProximityZone, ProximityZone } from '../world/proximity-zone'
+import { createClickCube } from '../world/click-cube'
+import { focusPanel, registerPanel } from '../world/panel-focus'
+import { createProximityZone, Footprint, ProximityZone } from '../world/proximity-zone'
 import { getOre } from '../shared/state/wallet'
 import { getSyncedRate, quoteSaleForDisplay, sendSell } from '../net/economy-link'
 import { oreForCoins } from '../shared/state/market'
 
 export const BANK_ENTITY_NAME = 'Bank'
 export const BANK_RADIUS_METERS = 5
+/** The building's ground plan, from House 7 M Train Station.glb (glTF X is mirrored on import). */
+const BANK_FOOTPRINT: Footprint = { minX: -7.27, maxX: 0.27, minZ: -9.27, maxZ: 0.13 }
 
 let zone: ProximityZone | null = null
 
@@ -21,7 +25,8 @@ export function isPlayerAtBank(): boolean {
   return zone !== null && zone.isPlayerInside()
 }
 
-// Closing the panel only hides it for this visit: walking out and back in opens it again.
+// Closing the panel only hides it for this visit: walking out and back in, or clicking the
+// building, opens it again.
 let panelClosed = false
 
 export function isBankPanelOpen(): boolean {
@@ -30,6 +35,8 @@ export function isBankPanelOpen(): boolean {
 
 export function closeBankPanel(): void {
   panelClosed = true
+  // Otherwise a click would keep the player "at" the bank and walking back in would not reopen it.
+  zone?.release()
 }
 
 /** Coins the selection buys, clamped to what the bag can pay for at the rate right now. */
@@ -76,15 +83,27 @@ export function sellSelectedOre(): void {
 }
 
 export function setupBank(): void {
+  // The sign above the door is a TextShape the Creator Hub names 'Text'.
+  const cube = createClickCube(BANK_ENTITY_NAME, 'Text')
   zone = createProximityZone({
     entityName: BANK_ENTITY_NAME,
     radiusMeters: BANK_RADIUS_METERS,
+    footprint: BANK_FOOTPRINT,
     // Walking in with a full bag, the common move is to sell it — so it starts selected.
+    click: cube !== null ? { entity: cube, hoverText: 'Open Bank' } : undefined,
     onEnter: () => {
       panelClosed = false
       setSellCoins(maxSellCoins())
+      focusPanel('bank')
+    },
+    onClick: () => {
+      if (!panelClosed) return
+      panelClosed = false
+      setSellCoins(maxSellCoins())
+      focusPanel('bank')
     }
   })
+  registerPanel('bank', closeBankPanel)
 
   // The price recovery system moved to the server: one town, one price, one clock.
 }

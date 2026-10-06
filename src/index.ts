@@ -19,6 +19,7 @@ import { setupMule } from './mule/mule'
 import { setupMayor } from './mayor/mayor'
 import { setupHeldPicks } from './player/held-pick'
 import { setupMusic } from './world/music'
+import { setupTumbleweeds } from './world/tumbleweeds'
 import { setupIsometricCamera } from './world/isometric-camera'
 import { setupServerLink } from './net/server-link'
 import { setupEconomyLink } from './net/economy-link'
@@ -45,6 +46,7 @@ export async function main() {
     setupLandOffice()
     setupMule()
     setupMayor()
+    setupTumbleweeds()
     setupHeldPicks()
     setupUi()
 }

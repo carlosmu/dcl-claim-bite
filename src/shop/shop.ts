@@ -1,4 +1,6 @@
-import { createProximityZone, ProximityZone } from '../world/proximity-zone'
+import { createClickCube } from '../world/click-cube'
+import { focusPanel, registerPanel } from '../world/panel-focus'
+import { createProximityZone, Footprint, ProximityZone } from '../world/proximity-zone'
 import { getOwned } from '../shared/state/inventory'
 import { CATALOGUE, priceOf, ShopItem, ShopItemId, unavailableReason } from '../shared/economy/catalogue'
 import { getCoins } from '../shared/state/wallet'
@@ -9,10 +11,12 @@ import { sendBuy } from '../net/economy-link'
 
 export const SHOP_ENTITY_NAME = 'Market'
 export const SHOP_RADIUS_METERS = 5
+/** The building's ground plan, from House 7 M Gray.glb (glTF X is mirrored on import). */
+const SHOP_FOOTPRINT: Footprint = { minX: -7.29, maxX: 0.25, minZ: -9.27, maxZ: 0.13 }
 let zone: ProximityZone | null = null
 
 // Closing the store only hides it for this visit, and the selection only lasts the visit too:
-// walking out and back in opens it again on its default product.
+// walking out and back in, or clicking the building, opens it again on its default product.
 let closed = false
 let selected: string | null = null
 
@@ -26,6 +30,8 @@ export function isStorePanelOpen(): boolean {
 
 export function closeStorePanel(): void {
   closed = true
+  // Otherwise a click would keep the player "at" the store and walking back in would not reopen it.
+  zone?.release()
 }
 
 /** The product shown in the detail panel, or null for the store's default. */
@@ -66,14 +72,26 @@ export function buyItem(id: ShopItemId): void {
 }
 
 export function setupShop(): void {
+  // The sign above the door is a TextShape the Creator Hub names 'Text_2'.
+  const cube = createClickCube(SHOP_ENTITY_NAME, 'Text_2')
   zone = createProximityZone({
     entityName: SHOP_ENTITY_NAME,
     radiusMeters: SHOP_RADIUS_METERS,
+    footprint: SHOP_FOOTPRINT,
+    click: cube !== null ? { entity: cube, hoverText: 'Open General Store' } : undefined,
     onEnter: () => {
       closed = false
       selected = null
+      focusPanel('store')
+    },
+    onClick: () => {
+      if (!closed) return
+      closed = false
+      selected = null
+      focusPanel('store')
     }
   })
+  registerPanel('store', closeStorePanel)
 
   console.log(`[shop] catalogue: ${CATALOGUE.map((i) => `${i.label} ${i.price}c`).join(' · ')}`)
 }
