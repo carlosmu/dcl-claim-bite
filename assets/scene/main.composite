@@ -863,16 +863,37 @@
               "y": 0,
               "z": -3.5
             },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
             "rotation": {
               "x": 0,
               "y": 0,
               "z": 0,
               "w": 1
             },
+            "parent": 0
+          }
+        },
+        "552": {
+          "json": {
+            "position": {
+              "x": -12.75,
+              "y": 4.25,
+              "z": -4.75
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0.7071067690849304,
+              "z": 0,
+              "w": -0.7071067690849304
+            },
             "scale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
+              "x": 0.800000011920929,
+              "y": 0.800000011920929,
+              "z": 0.800000011920929
             },
             "parent": 0
           }
@@ -969,6 +990,12 @@
           "json": {
             "networkId": 0,
             "entityId": 8003
+          }
+        },
+        "552": {
+          "json": {
+            "networkId": 0,
+            "entityId": 8004
           }
         }
       }
@@ -1460,7 +1487,7 @@
         },
         "545": {
           "json": {
-            "value": "House 7 M Blue_4"
+            "value": "Land Office"
           }
         },
         "546": {
@@ -1491,6 +1518,11 @@
         "551": {
           "json": {
             "value": "Street Straw"
+          }
+        },
+        "552": {
+          "json": {
+            "value": "Text_3"
           }
         },
         "1558": {
@@ -1542,6 +1574,14 @@
               1081
             ]
           }
+        },
+        "552": {
+          "json": {
+            "componentIds": [
+              1030,
+              1081
+            ]
+          }
         }
       }
     },
@@ -1566,6 +1606,15 @@
         "537": {
           "json": {
             "text": "GENERAL\nSTORE",
+            "font": 0,
+            "fontSize": 4,
+            "fontAutoSize": true,
+            "textAlign": 4
+          }
+        },
+        "552": {
+          "json": {
+            "text": "Land & Claims \nOffice",
             "font": 0,
             "fontSize": 4,
             "fontAutoSize": true,
@@ -1694,6 +1743,7 @@
                   535,
                   536,
                   537,
+                  552,
                   550,
                   551
                 ]
@@ -1895,6 +1945,10 @@
               {
                 "entity": 551,
                 "children": []
+              },
+              {
+                "entity": 552,
+                "children": []
               }
             ]
           }
@@ -2030,6 +2084,9 @@
           "json": {}
         },
         "550": {
+          "json": {}
+        },
+        "552": {
           "json": {}
         },
         "1558": {
@@ -2572,6 +2629,105 @@
           }
         },
         "537": {
+          "json": {
+            "isBasicViewEnabled": true,
+            "componentName": "",
+            "fields": [],
+            "assetId": "dd0d51c1-f16f-41c2-9bf1-735fe5b17dc4",
+            "label": "Text Settings",
+            "sections": [
+              {
+                "id": "text-settings",
+                "items": [
+                  {
+                    "component": "core::TextShape",
+                    "widget": "TextArea",
+                    "label": "Text",
+                    "type": "text",
+                    "path": "text"
+                  }
+                ]
+              },
+              {
+                "id": "font-size-settings",
+                "items": [
+                  {
+                    "component": "core::TextShape",
+                    "widget": "Dropdown",
+                    "label": "Font",
+                    "type": "text",
+                    "path": "font",
+                    "dataSource": {
+                      "kind": "fonts"
+                    }
+                  },
+                  {
+                    "component": "core::TextShape",
+                    "widget": "TextField",
+                    "label": "Font Size",
+                    "type": "number",
+                    "path": "fontSize"
+                  },
+                  {
+                    "component": "core::TextShape",
+                    "widget": "CheckboxField",
+                    "label": "Auto-Size",
+                    "type": "boolean",
+                    "path": "fontAutoSize"
+                  }
+                ],
+                "columns": 2
+              },
+              {
+                "id": "color-align-settings",
+                "items": [
+                  {
+                    "component": "core::TextShape",
+                    "widget": "ColorField",
+                    "label": "Color",
+                    "type": "Color4",
+                    "path": "textColor",
+                    "props": {
+                      "basic": true
+                    },
+                    "transform": {
+                      "in": {
+                        "steps": [
+                          {
+                            "op": "toHex"
+                          }
+                        ]
+                      },
+                      "out": {
+                        "steps": [
+                          {
+                            "op": "toColor4"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "component": "core::TextShape",
+                    "widget": "Dropdown",
+                    "label": "Text align",
+                    "type": "text",
+                    "path": "textAlign",
+                    "dataSource": {
+                      "kind": "textAlign"
+                    }
+                  }
+                ],
+                "columns": 2
+              }
+            ],
+            "helpTooltip": {
+              "text": "2D text that can be placed at any position and orientation, not limited to surfaces."
+            },
+            "version": 2
+          }
+        },
+        "552": {
           "json": {
             "isBasicViewEnabled": true,
             "componentName": "",
