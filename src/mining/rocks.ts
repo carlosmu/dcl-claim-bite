@@ -2,7 +2,7 @@ import { Entity, engine, GltfContainer, Material, MaterialTransparencyMode, Mesh
 import { Color3, Quaternion, Vector3 } from '@dcl/sdk/math'
 import { movePlayerTo } from '~system/RestrictedActions'
 
-import { MINE_FACING_DEGREES, MINE_REACH_METERS, ORE_PER_ROCK, SWING_SECONDS } from '../shared/economy/constants'
+import { MINE_REACH_METERS, ORE_PER_ROCK, SWING_SECONDS } from '../shared/economy/constants'
 import { getCarryCapacity, getHitsPerRock, sendRockDone, sendSwing } from '../net/economy-link'
 import { getOre } from '../shared/state/wallet'
 import { startMineEmote, stopMineEmote } from '../player/mine-emote'
@@ -83,6 +83,20 @@ export function getMiningStatus(): MiningStatus | null {
  */
 const STANDING_SPEED = 0.3
 
+/**
+ * How long the player must have stood still before the swings (re)start, in seconds. Started
+ * the frame they stop, the emote fights the locomotion still blending out and comes out broken.
+ */
+const STAND_SETTLE_SECONDS = 0.3
+
+/**
+ * How far the player may drift from where the swings started before they count as moved, in
+ * metres. Even a nudge too slow to break STANDING_SPEED ends the emote on the explorer's side,
+ * which left the avatar idle while the hits kept landing; past this the loop is stopped and,
+ * once they settle again, triggered afresh.
+ */
+const SWING_DRIFT_METERS = 0.05
+
 let area: Area | null = null
 let rocks: Rock[] = []
 
@@ -97,7 +111,10 @@ function allRocks(): Rock[] {
   return tutorial === null ? rocks : [...rocks, tutorial]
 }
 let lastPosition: Vector3 | null = null
-let standing = false
+/** Seconds the player has been standing still; 0 while moving. */
+let stillSeconds = 0
+/** Where the player stood when the current swing loop started; null while not swinging. */
+let swingAnchor: Vector3 | null = null
 
 /** Whether the server's rocks have been seen. Until then the rocks are this client's own. */
 let synced = false
@@ -243,14 +260,14 @@ function followSharedRocks(dt: number): void {
   }
 }
 
-/** The nearest unfinished rock the player is at and facing, as an index; -1 if none. */
+/** The nearest unfinished rock in the player's reach, as an index; -1 if none. */
 function rockAtPlayer(): number {
   const candidates = allRocks()
   let best = -1
   let bestDistance = Infinity
   for (let i = 0; i < candidates.length; i++) {
     if (candidates[i].finished) continue
-    const distance = distanceIfFacing(candidates[i].spot)
+    const distance = distanceIfInReach(candidates[i].spot)
     if (distance < bestDistance) {
       best = i
       bestDistance = distance
@@ -259,8 +276,12 @@ function rockAtPlayer(): number {
   return best
 }
 
-/** Flat distance to `spot` if the player is in reach of it and facing it; Infinity if not. */
-function distanceIfFacing(spot: Vector3): number {
+/**
+ * Flat distance to `spot` if the player is in reach of it; Infinity if not. Which way they face
+ * does not matter: the swings turn them to the rock (faceRock), so turning a little while
+ * pressed against it no longer drops them out of mining.
+ */
+function distanceIfInReach(spot: Vector3): number {
   const player = Transform.getOrNull(engine.PlayerEntity)
   if (player === null) return Infinity
   // Flat on the ground: a tall rock's origin can sit well above or below the player's feet.
@@ -268,25 +289,13 @@ function distanceIfFacing(spot: Vector3): number {
   const dz = spot.z - player.position.z
   const distanceSquared = dx * dx + dz * dz
   if (distanceSquared > MINE_REACH_METERS * MINE_REACH_METERS) return Infinity
-
-  // Standing on the rock's origin leaves no direction to face; count it as facing.
-  if (distanceSquared < 0.0001) return 0
-
-  // The avatar's forward, flattened, against the flat direction to the rock. Both are unit
-  // length after this, so their dot product is the cosine of the angle between them.
-  const forward = Vector3.rotate(Vector3.Forward(), player.rotation)
-  const forwardLength = Math.sqrt(forward.x * forward.x + forward.z * forward.z)
-  if (forwardLength < 0.0001) return Infinity
-
-  const distance = Math.sqrt(distanceSquared)
-  const cosine = (forward.x * dx + forward.z * dz) / (forwardLength * distance)
-  return cosine >= Math.cos((MINE_FACING_DEGREES * Math.PI) / 180) ? distance : Infinity
+  return Math.sqrt(distanceSquared)
 }
 
 /**
- * Turns the avatar square to the rock, where it stands, as the swings start. The facing check
- * lets a player in at an angle, and from there the pick would land beside the rock. The
- * player's Transform cannot be written, so the turn goes through movePlayerTo; the camera is
+ * Turns the avatar square to the rock, where it stands, as the swings start (and again each
+ * time they restart after a nudge). Reach alone lets a player in at any angle, and from there
+ * the pick would land beside the rock. The player's Transform cannot be written, so the turn goes through movePlayerTo; the camera is
  * left where it is.
  */
 function faceRock(rock: Rock): void {
@@ -301,6 +310,7 @@ function faceRock(rock: Rock): void {
 /** Ends the swing loop and forgets the swing in flight. The hits already on the rock stay. */
 function stopSwinging(): void {
   swingTimer = -1
+  swingAnchor = null
   stopMineEmote()
 }
 
@@ -311,9 +321,12 @@ function trackStanding(dt: number): void {
 
   if (lastPosition !== null && dt > 0) {
     const moved = Vector3.distance(player.position, lastPosition)
-    standing = moved / dt < STANDING_SPEED
+    stillSeconds = moved / dt < STANDING_SPEED ? stillSeconds + dt : 0
   }
   lastPosition = Vector3.clone(player.position)
+
+  // A drift since the loop started counts as moving, however slow it was.
+  if (swingAnchor !== null && Vector3.distance(player.position, swingAnchor) > SWING_DRIFT_METERS) stillSeconds = 0
 }
 
 function update(dt: number): void {
@@ -350,9 +363,12 @@ function update(dt: number): void {
 
   // Walking cancels the swing in flight rather than letting it pay for a hit that was never
   // animated; the hits already in stay on the rock.
-  if (!standing) {
+  if (stillSeconds < STAND_SETTLE_SECONDS) {
     stopSwinging()
-    status = { hits: rock.hits, needed, blocked: 'Stand still to mine', practice: rock === tutorial }
+    // Only while actually moving: the short settle after stopping keeps the bar up, so a nudge
+    // does not flash the panel.
+    const blocked = stillSeconds === 0 ? 'Stand still to mine' : ''
+    status = { hits: rock.hits, needed, blocked, practice: rock === tutorial }
     return
   }
 
@@ -362,6 +378,7 @@ function update(dt: number): void {
     faceRock(rock)
     startMineEmote()
     swingTimer = SWING_SECONDS
+    swingAnchor = Vector3.clone(Transform.get(engine.PlayerEntity).position)
   }
 
   const before = swingTimer
