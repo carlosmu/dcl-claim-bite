@@ -18,6 +18,7 @@ import { syncEntity } from '@dcl/sdk/network'
 
 import { MARKET_ENTITY_ENUM_ID, OreMarket } from '../shared/net/market-sync'
 import { MULE_YARD_ENTITY_ENUM_ID, MULE_YARD_MAX_SLOTS, MuleYard } from '../shared/net/mule-yard-sync'
+import { HELD_PICKS_ENTITY_ENUM_ID, HeldPicks } from '../shared/net/held-picks-sync'
 import { room } from '../shared/net/protocol'
 import { applySale, getRate, getSettledRate, oreForCoins, quoteSale, restoreRate, tickMarket } from '../shared/state/market'
 import { loadMarketPrice, loadPurse, savePurse, saveMarketPrice } from './persistence'
@@ -702,6 +703,36 @@ function publishYard(dt: number) {
   MuleYard.getMutable(yardEntity).mules = mules
 }
 
+// --- Held picks ---------------------------------------------------------------------------
+//
+// So everyone sees the pick in everyone else's hand. Same cadence as the yard: arrivals and
+// purchases can wait a beat.
+
+let heldPicksEntity = engine.RootEntity
+let lastPublishedPicks = ''
+let sinceLastPicksPublish = 0
+
+function publishHeldPicks(dt: number) {
+  sinceLastPicksPublish += dt
+  if (sinceLastPicksPublish < PRESENCE_CHECK_PERIOD_SECONDS) return
+  sinceLastPicksPublish = 0
+
+  const picks: { address: string; pickId: string }[] = []
+  for (const address of present) {
+    const purse = purses.get(address)
+    if (purse === undefined) continue
+    const pick = activePick((id) => purse.owned[id] ?? 0, purse.equipped)
+    if (pick === null) continue
+    picks.push({ address, pickId: pick.id })
+  }
+  picks.sort((a, b) => (a.address < b.address ? -1 : a.address > b.address ? 1 : 0))
+
+  const encoded = JSON.stringify(picks)
+  if (encoded === lastPublishedPicks) return
+  lastPublishedPicks = encoded
+  HeldPicks.getMutable(heldPicksEntity).picks = picks
+}
+
 function advanceClock(dt: number) {
   serverClock += dt
 }
@@ -763,6 +794,10 @@ export function setupEconomy(): void {
   MuleYard.create(yardEntity, { mules: [] })
   syncEntity(yardEntity, [MuleYard.componentId], MULE_YARD_ENTITY_ENUM_ID)
 
+  heldPicksEntity = engine.addEntity()
+  HeldPicks.create(heldPicksEntity, { picks: [] })
+  syncEntity(heldPicksEntity, [HeldPicks.componentId], HELD_PICKS_ENTITY_ENUM_ID)
+
   room.onMessage('hello', (_data, context) => {
     if (!context) return
     // purseOf starts the read if it has not happened yet; the load's own completion sends the
@@ -823,5 +858,6 @@ export function setupEconomy(): void {
   engine.addSystem(settlePresentMules, undefined, 'server:mule-settle')
   engine.addSystem(checkPresence, undefined, 'server:presence')
   engine.addSystem(publishYard, undefined, 'server:mule-yard')
+  engine.addSystem(publishHeldPicks, undefined, 'server:held-picks')
   engine.addSystem(moveSpentRocks, undefined, 'server:rock-move')
 }

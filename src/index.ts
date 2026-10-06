@@ -7,6 +7,7 @@ import { isServer } from '@dcl/sdk/network'
 import './shared/net/heartbeat'
 import './shared/net/market-sync'
 import './shared/net/mule-yard-sync'
+import './shared/net/held-picks-sync'
 import './shared/net/protocol'
 
 import { setupUi } from './ui'
@@ -15,6 +16,7 @@ import { setupBank } from './bank/bank'
 import { setupShop } from './shop/shop'
 import { setupMule } from './mule/mule'
 import { setupMayor } from './mayor/mayor'
+import { setupHeldPicks } from './player/held-pick'
 import { setupMusic } from './world/music'
 import { setupIsometricCamera } from './world/isometric-camera'
 import { setupServerLink } from './net/server-link'
@@ -41,5 +43,6 @@ export async function main() {
     setupShop()
     setupMule()
     setupMayor()
+    setupHeldPicks()
     setupUi()
 }

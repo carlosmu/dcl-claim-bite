@@ -1,5 +1,8 @@
 import { AvatarAnchorPointType, AvatarAttach, ColliderLayer, Entity, engine, GltfContainer, Transform } from '@dcl/sdk/ecs'
 import { Quaternion, Vector3 } from '@dcl/sdk/math'
+import { getPlayer } from '@dcl/sdk/players'
+
+import { HeldPicks } from '../shared/net/held-picks-sync'
 
 // The pick the player carries once they own one.
 //
@@ -50,22 +53,74 @@ export function equipPick(pickId: string): void {
     return
   }
 
-  anchor = engine.addEntity()
-  AvatarAttach.create(anchor, { anchorPointId: AvatarAnchorPointType.AAPT_RIGHT_HAND })
+  const held = hang(src)
+  anchor = held.anchor
+  model = held.model
 
-  model = engine.addEntity()
+  console.log('[player] pick equipped to the right hand')
+}
+
+/** Builds the anchor + model pair. No avatarId means the local player. */
+function hang(src: string, avatarId?: string): { anchor: Entity; model: Entity } {
+  const anchor = engine.addEntity()
+  AvatarAttach.create(anchor, { avatarId, anchorPointId: AvatarAnchorPointType.AAPT_RIGHT_HAND })
+
+  const model = engine.addEntity()
   Transform.create(model, {
     position: HELD_POSITION,
     rotation: HELD_ROTATION,
     scale: HELD_SCALE,
     parent: anchor
   })
-  // A pick in your own hand should never block your movement or eat a pointer click.
+  // A pick in a hand should never block anyone's movement or eat a pointer click.
   GltfContainer.create(model, {
     src,
     visibleMeshesCollisionMask: ColliderLayer.CL_NONE,
     invisibleMeshesCollisionMask: ColliderLayer.CL_NONE
   })
+  return { anchor, model }
+}
 
-  console.log('[player] pick equipped to the right hand')
+// --- Other players' picks ------------------------------------------------------------------
+//
+// The server lists who holds what (HeldPicks); this mirrors that list onto the other avatars.
+// Our own entry is skipped — the wallet already put our pick in our hand, without the wait.
+
+type OtherPick = { anchor: Entity; model: Entity; src: string }
+const others = new Map<string, OtherPick>()
+let myAddress = ''
+
+function syncOtherPicks(): void {
+  if (myAddress === '') myAddress = (getPlayer()?.userId ?? '').toLowerCase()
+  if (myAddress === '') return
+
+  let entries: readonly { address: string; pickId: string }[] = []
+  for (const [, held] of engine.getEntitiesWith(HeldPicks)) entries = held.picks
+
+  const seen = new Set<string>()
+  for (const entry of entries) {
+    const address = entry.address.toLowerCase()
+    if (address === myAddress) continue
+    seen.add(address)
+
+    const src = PICK_MODELS[entry.pickId] ?? PICK_MODELS.pick
+    const current = others.get(address)
+    if (current === undefined) {
+      others.set(address, { ...hang(src, entry.address), src })
+    } else if (current.src !== src) {
+      GltfContainer.getMutable(current.model).src = src
+      current.src = src
+    }
+  }
+
+  for (const [address, held] of others) {
+    if (seen.has(address)) continue
+    engine.removeEntity(held.anchor)
+    engine.removeEntity(held.model)
+    others.delete(address)
+  }
+}
+
+export function setupHeldPicks(): void {
+  engine.addSystem(syncOtherPicks, undefined, 'client:held-picks')
 }
