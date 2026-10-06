@@ -40,7 +40,8 @@ import {
   priceOf,
   ShopItem,
   ShopItemId,
-  unavailableReason
+  unavailableReason,
+  STARTING_ITEMS
 } from '../shared/economy/catalogue'
 import { addFuelGallons, fuelGallons, fuelHoursLeft, settleMule } from './mule'
 import { TUTORIAL_ROCK_SEQS } from '../shared/net/rock-sync'
@@ -169,6 +170,7 @@ function beginLoad(address: string): void {
         muleFuel: stored?.muleFuel ?? 0,
         equipped: stored?.equipped ?? ''
       }
+      grantStartingItems(purse)
       const owned = (id: ShopItemId) => purse.owned[id] ?? 0
 
       // A rig bought before fuel existed has never been filled. It gets the day every new
@@ -189,6 +191,11 @@ function beginLoad(address: string): void {
       loadRetryAt.set(address, serverClock + LOAD_RETRY_SECONDS)
       console.log(`[Server] purse load failed for ${address}, retrying in ${LOAD_RETRY_SECONDS}s: ${error}`)
     })
+}
+
+/** Gives the purse what every player owns from the start, if it lacks it — old saves included. */
+function grantStartingItems(purse: Purse): void {
+  for (const item of STARTING_ITEMS) if ((purse.owned[item.id] ?? 0) <= 0) purse.owned[item.id] = 1
 }
 
 /** The player's purse, or null while it is still being read. */
@@ -528,6 +535,7 @@ function handleDebugReset(address: string): void {
   purse.ore = 0
   purse.coins = 0
   purse.owned = {}
+  grantStartingItems(purse)
   purse.muleOre = 0
   purse.muleAt = 0
   purse.muleFuel = 0

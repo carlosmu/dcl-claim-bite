@@ -53,6 +53,8 @@ export type ShopItem = {
   requires?: ShopItemId
   /** Never sold: the mayor hands it out. */
   starter?: boolean
+  /** Never sold: every player owns it from the start (the server grants it on load). */
+  startsOwned?: boolean
   /** Hits a rock takes while this pick is in use — fewer is better. Only picks carry it. */
   hitsPerRock?: number
   /** Gallons this fuel order adds. Only fuel carries it, except Fill Tank, which tops up. */
@@ -75,13 +77,16 @@ export const CATALOGUE: ShopItem[] = [
   { id: 'fuel-fill', label: 'Fill Tank', line: 'fuel', price: 0, fillTank: true, benefit: 'Tops the tank up' },
   { id: 'warehouse', label: 'Storage I', line: 'storage', price: 30, storage: STORAGE_TIER_1, benefit: `Holds ${STORAGE_TIER_1} ore` },
   { id: 'warehouse-2', label: 'Storage II', line: 'storage', price: 60, requires: 'warehouse', storage: STORAGE_TIER_2, benefit: `Holds ${STORAGE_TIER_2} ore` },
-  // Housing is sold at the Land & Claim Office, not the Market. The Wagon is free but still
-  // claimed there, once, like any other property.
-  { id: 'wagon', label: 'Wagon', line: 'housing', price: 0, benefit: 'A roof on wheels' },
+  // Housing is sold at the Land & Claim Office, not the Market. The Wagon is every player's
+  // from the start; the office only shows it, as the first step of the line.
+  { id: 'wagon', label: 'Wagon', line: 'housing', price: 0, startsOwned: true, benefit: 'A roof on wheels' },
   { id: 'cabin', label: 'Cabin', line: 'housing', price: 300, requires: 'wagon', benefit: 'Your first real home' },
   { id: 'house', label: 'House', line: 'housing', price: 700, requires: 'cabin', benefit: 'A house in town' },
   { id: 'ranch', label: 'Ranch', line: 'housing', price: 2000, requires: 'house', benefit: 'The finest claim in town' }
 ]
+
+/** What every player owns from the start, whatever their save says. */
+export const STARTING_ITEMS: ShopItem[] = CATALOGUE.filter((item) => item.startsOwned === true)
 
 export function findItem(id: ShopItemId): ShopItem | null {
   return CATALOGUE.find((item) => item.id === id) ?? null
@@ -154,6 +159,7 @@ export function muleCount(ownedCount: (id: ShopItemId) => number): number {
  */
 export function unavailableReason(item: ShopItem, ownedCount: (id: ShopItemId) => number): string | null {
   if (item.starter === true) return ownedCount(item.id) > 0 ? 'Owned' : 'Free from the Mayor'
+  if (item.startsOwned === true) return 'Owned'
   if (item.line === 'fuel') return muleCount(ownedCount) > 0 ? null : 'Requires a M.U.L.E.'
   if (item.line === 'mule') return muleCount(ownedCount) >= MULE_MAX_COUNT ? 'Max reached' : null
   if (ownedCount(item.id) > 0) return 'Owned'

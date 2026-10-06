@@ -1248,13 +1248,24 @@ const counterPanel = (title: string, onClose: () => void, products: Product[], k
 // --- Land & Claim Office ----------------------------------------------------------------
 //
 // The store's layout and dress, selling housing: Wagon → Cabin → House → Ranch. Each one is
-// owned once; the Wagon is free but still claimed here. Ownership only — nothing is placed
+// owned once; the Wagon is every player's from the start. Ownership only — nothing is placed
 // in the world yet.
+//
+// The best property owned is the Active one, the home lived in, tagged green like an equipped
+// pick; the ones before it stay owned, as Previous.
+
+const STATUS_ACTIVE: Status = { text: 'Active', color: PRICE_GOOD_COLOR }
+const STATUS_PREVIOUS: Status = { text: 'Previous', color: MUTED_COLOR }
+
+/** The home the player lives in: the best property owned. */
+function activeHome(): ShopItem | null {
+    return ownedTier('housing', (id) => getOwned(id))
+}
 
 function propertyStatus(item: ShopItem): Status {
-    if (getOwned(item.id) > 0) return ownedStatus(1)
-    if (whyUnavailable(item) !== null) return STATUS_LOCKED
-    return item.price === 0 ? { text: 'Claim', color: BANK_GOLD_LIGHT } : STATUS_BUY
+    if (item.id === activeHome()?.id) return STATUS_ACTIVE
+    if (getOwned(item.id) > 0) return STATUS_PREVIOUS
+    return whyUnavailable(item) === null ? STATUS_BUY : STATUS_LOCKED
 }
 
 function landOfficeProducts(): Product[] {
@@ -1278,14 +1289,15 @@ function selectedPropertyKey(): ShopItemId {
 
 function propertyDetail(item: ShopItem): Detail {
     const owned = getOwned(item.id) > 0
-    const why = whyUnavailable(item)
+    const active = item.id === activeHome()?.id
     let action: Action
-    if (owned) action = { label: 'OWNED', kind: 'equipped' }
-    else if (why !== null) action = { label: 'LOCKED', kind: 'off' }
-    else action = { label: item.price === 0 ? 'CLAIM' : 'BUY', kind: buyBlocker(item) === null ? 'buy' : 'off', onClick: () => buyItem(item.id) }
+    if (active) action = { label: 'ACTIVE', kind: 'equipped' }
+    else if (owned) action = { label: 'PREVIOUS', kind: 'off' }
+    else action = buyAction(item)
 
     const notes: ReactEcs.JSX.Element[] = []
-    if (owned) notes.push(detailNote('You own this property', BANK_CAPTION))
+    if (active) notes.push(detailNote('Your current home', PRICE_GOOD_COLOR))
+    else if (owned) notes.push(detailNote('You moved up from here', BANK_CAPTION))
     else if (item.requires !== undefined && getOwned(item.requires) <= 0) notes.push(detailNote(`Requires ${findItem(item.requires)?.label ?? ''}`, SHORT_COLOR))
     return {
         title: item.label,
@@ -1893,14 +1905,13 @@ const mulePanel = () => (
 let inventoryOpen = false
 
 // Tools work the ore (picks and rigs), utilities keep the operation going (storage and fuel),
-// transport moves the player (nothing yet), property is where the player lives.
-type InventoryTab = 'all' | 'tools' | 'utilities' | 'transport' | 'property'
+// property is where the player lives.
+type InventoryTab = 'all' | 'tools' | 'utilities' | 'property'
 
 const INVENTORY_TABS: { id: InventoryTab; label: string }[] = [
     { id: 'all', label: 'All' },
     { id: 'tools', label: 'Tools' },
     { id: 'utilities', label: 'Utilities' },
-    { id: 'transport', label: 'Transport' },
     { id: 'property', label: 'Property' }
 ]
 
@@ -1926,6 +1937,8 @@ type InventoryEntry = {
     /** The card's one short line: hits, a count, a level. */
     status: string
     equipped: boolean
+    /** The green tag's text when `equipped`; 'Equipped' unless said otherwise. */
+    badge?: string
     /** The detail panel's lines, under the title. */
     details: string[]
 }
@@ -1991,16 +2004,24 @@ function inventoryEntries(): InventoryEntry[] {
         ]
     })
 
+    // The home lived in carries the green tag, the way the pick in use does.
+    const home = activeHome()
     for (const property of itemsOf('housing')) {
         if (getOwned(property.id) <= 0) continue
+        const active = property.id === home?.id
         entries.push({
             key: property.id,
             tab: 'property',
             title: property.label,
             icon: ICON_PROPERTY,
-            status: 'Owned',
-            equipped: false,
-            details: [property.benefit, property.price > 0 ? `Bought for ${withCommas(property.price)} coins` : 'Claimed for free']
+            status: property.benefit,
+            equipped: active,
+            badge: 'Active',
+            details: [
+                property.benefit,
+                property.startsOwned === true ? 'Yours from the start' : `Bought for ${withCommas(property.price)} coins`,
+                active ? 'Your current home' : 'You moved up from here'
+            ]
         })
     }
 
@@ -2085,7 +2106,7 @@ const inventoryCard = (entry: InventoryEntry, index: number) => {
             />
             {entry.equipped ? (
                 <Label
-                    value="Equipped"
+                    value={entry.badge ?? 'Equipped'}
                     fontSize={12}
                     color={EQUIPPED_TEXT}
                     textAlign="middle-center"
