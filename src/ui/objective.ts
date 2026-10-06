@@ -63,9 +63,41 @@ let lastMiners = 0
 let socialAlertUntil = 0
 let current: Objective | null = null
 
+/** One message the tracker showed, and when (seconds on this client's clock). */
+export type PastObjective = Objective & { at: number }
+
+/** How many past messages the notifications screen keeps. */
+const HISTORY_LENGTH = 5
+
+/** The tracker's recent messages, newest first. */
+let history: PastObjective[] = []
+
 /** What the tracker shows right now, or null to hide it. */
 export function getObjective(): Objective | null {
   return current
+}
+
+/** The tracker's last few messages, newest first. */
+export function getObjectiveHistory(): readonly PastObjective[] {
+  return history
+}
+
+export function clearObjectiveHistory(): void {
+  history = []
+}
+
+/** Seconds on the same clock as PastObjective.at, for "how long ago". */
+export function getObjectiveClock(): number {
+  return clock
+}
+
+// A message counts as new when its title or its line changes. The detail does not count: it
+// carries running numbers (ore so far, hours left) that would log the same message every tick.
+function record(objective: Objective | null): void {
+  if (objective === null) return
+  const last = history[0]
+  if (last !== undefined && last.title === objective.title && last.message === objective.message) return
+  history = [{ ...objective, at: clock }, ...history].slice(0, HISTORY_LENGTH)
 }
 
 function alert(title: string, message: string, detail: string = ''): Objective {
@@ -147,6 +179,7 @@ function update(dt: number): void {
   lastMiners = miners
 
   current = pick()
+  record(current)
 }
 
 export function setupObjective(): void {

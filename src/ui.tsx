@@ -52,7 +52,7 @@ import { quotedRate } from './shared/state/market'
 import { BitmapText } from './ui/bitmap-text'
 import { introScreen } from './ui/intro-screen'
 import { welcomeOverlay } from './ui/welcome-overlay'
-import { getObjective, Objective, setupObjective } from './ui/objective'
+import { clearObjectiveHistory, getObjective, getObjectiveClock, getObjectiveHistory, Objective, PastObjective, setupObjective } from './ui/objective'
 
 export function setupUi() {
     setupRollingCounters()
@@ -2286,6 +2286,7 @@ const inventoryButton = () => (
         onMouseDown={() => {
             inventoryOpen = !inventoryOpen
             if (inventoryOpen) {
+                notificationsOpen = false
                 mapOpen = false
                 pickSelectorOpen = false
             }
@@ -2348,6 +2349,7 @@ const mapButton = () => (
         onMouseDown={() => {
             mapOpen = !mapOpen
             if (mapOpen) {
+                notificationsOpen = false
                 inventoryOpen = false
                 pickSelectorOpen = false
             }
@@ -2560,6 +2562,132 @@ const objectiveTracker = () => {
     )
 }
 
+// --- Notifications ------------------------------------------------------------------------
+//
+// A bell just above the tracker's top-right corner opens the tracker's last few messages
+// (ui/objective.ts keeps them), newest first, with a Clear that empties the list. Dressed like
+// the inventory, and like it, one screen at a time: opening it closes the map and the inventory.
+
+const NOTIFY_BUTTON_SIZE = 40
+const NOTIFY_BUTTON_GAP = 6
+const NOTIFY_PANEL_WIDTH = 560
+
+let notificationsOpen = false
+
+/** "just now", "3 min ago", "2 h ago". */
+function timeAgo(at: number): string {
+    const seconds = Math.max(0, getObjectiveClock() - at)
+    if (seconds < 60) return 'just now'
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`
+    return `${Math.floor(seconds / 3600)} h ago`
+}
+
+const notificationsButton = () => (
+    <UiEntity
+        uiTransform={{
+            positionType: 'absolute',
+            position: { top: OBJECTIVE_TOP, right: HUD_MARGIN },
+            // Lifted clear of the tracker, which starts at OBJECTIVE_TOP; the units do not add.
+            margin: { top: -(NOTIFY_BUTTON_SIZE + NOTIFY_BUTTON_GAP) },
+            width: NOTIFY_BUTTON_SIZE,
+            height: NOTIFY_BUTTON_SIZE,
+            justifyContent: 'center',
+            alignItems: 'center',
+            borderRadius: 8,
+            borderWidth: 2,
+            borderColor: notificationsOpen ? BANK_GOLD : BANK_TRIM
+        }}
+        uiBackground={{ color: HUD_BACKGROUND }}
+        onMouseDown={() => {
+            notificationsOpen = !notificationsOpen
+            if (notificationsOpen) {
+                mapOpen = false
+                inventoryOpen = false
+                pickSelectorOpen = false
+            }
+        }}
+    >
+        <UiEntity uiTransform={{ width: NOTIFY_BUTTON_SIZE - 12, height: NOTIFY_BUTTON_SIZE - 12 }} uiBackground={iconBackground(ICON_NOTIFICATION)} />
+    </UiEntity>
+)
+
+const notificationRow = (entry: PastObjective, index: number) => (
+    <UiEntity
+        key={`${index}`}
+        uiTransform={{
+            width: '100%',
+            flexDirection: 'column',
+            padding: { left: 14, right: 14, top: 8, bottom: 10 },
+            margin: { bottom: 8 },
+            borderRadius: 10,
+            borderWidth: 2,
+            borderColor: entry.alert ? SHORT_COLOR : BANK_TRIM
+        }}
+        uiBackground={{ color: BANK_WOOD }}
+    >
+        <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <BitmapText value={entry.title} fontSize={20} color={entry.alert ? STORAGE_FULL_COLOR : BANK_GOLD_LIGHT} />
+            <Label value={timeAgo(entry.at)} fontSize={13} color={BANK_CAPTION} textAlign="middle-right" textWrap="nowrap" uiTransform={{ height: 20 }} />
+        </UiEntity>
+        <Label value={entry.message} fontSize={16} color={BANK_CREAM} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 22 }} />
+        {entry.detail !== '' ? (
+            <Label value={entry.detail} fontSize={14} color={BANK_CAPTION} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 20 }} />
+        ) : null}
+    </UiEntity>
+)
+
+const notificationsPanel = () => {
+    const history = getObjectiveHistory()
+    return (
+        <UiEntity
+            uiTransform={{
+                width: NOTIFY_PANEL_WIDTH,
+                flexDirection: 'column',
+                alignItems: 'center',
+                padding: BANK_PANEL_PADDING,
+                borderRadius: PANEL_RADIUS,
+                borderWidth: 3,
+                borderColor: BANK_TRIM
+            }}
+            uiBackground={{ color: BANK_WOOD_DARK }}
+        >
+            <BitmapText value="NOTIFICATIONS" fontSize={40} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%', margin: { bottom: 12 } }} />
+            {/* Closed from the corner, like the other screens. */}
+            <Button
+                value="X"
+                fontSize={30}
+                color={Color4.White()}
+                uiTransform={{ positionType: 'absolute', position: { top: BANK_PANEL_PADDING, right: BANK_PANEL_PADDING }, width: 48, height: 48, borderRadius: PANEL_RADIUS }}
+                uiBackground={{ color: MAP_CLOSE_COLOR }}
+                onMouseDown={() => {
+                    notificationsOpen = false
+                }}
+            />
+            {history.length === 0 ? (
+                <Label value="No notifications" fontSize={16} color={BANK_CAPTION} textAlign="middle-center" uiTransform={{ width: '100%', height: 60 }} />
+            ) : (
+                <UiEntity uiTransform={{ width: '100%', flexDirection: 'column' }}>{history.map(notificationRow)}</UiEntity>
+            )}
+            <UiEntity
+                uiTransform={{
+                    width: 160,
+                    height: 44,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    margin: { top: 4 },
+                    borderRadius: 8,
+                    borderWidth: 2,
+                    borderColor: BANK_TRIM
+                }}
+                uiBackground={{ color: history.length > 0 ? BANK_GOLD : DISABLED_COLOR }}
+                onMouseDown={clearObjectiveHistory}
+            >
+                <BitmapText value="CLEAR" fontSize={24} color={history.length > 0 ? BANK_INK : MUTED_COLOR} />
+            </UiEntity>
+        </UiEntity>
+    )
+}
+
 export const uiMenu = () => (
     <UiEntity
         uiTransform={{
@@ -2573,6 +2701,7 @@ export const uiMenu = () => (
         {/* the tracker and the debug box sit outside main-container so they anchor to the screen
             edge. They come first because later siblings draw on top: an open panel covers them. */}
         {objectiveTracker()}
+        {notificationsButton()}
         {DEBUG_RESET_PROGRESS || DEBUG_ADD_COINS || DEBUG_ADD_ORE ? debugBox() : null}
         {/* main-container: every piece of UI goes in here */}
         <UiEntity
@@ -2596,10 +2725,11 @@ export const uiMenu = () => (
                 they are tall enough to reach both. */}
             {mapOpen ? mapPanel() : null}
             {inventoryOpen ? inventoryPanel() : null}
-            {!mapOpen && !inventoryOpen && isBankPanelOpen() ? bankPanel() : null}
-            {!mapOpen && !inventoryOpen && isStorePanelOpen() ? storePanel() : null}
-            {!mapOpen && !inventoryOpen && isLandOfficePanelOpen() ? landOfficePanel() : null}
-            {!mapOpen && !inventoryOpen && isMulePanelOpen() && getMuleCount() > 0 ? mulePanel() : null}
+            {notificationsOpen ? notificationsPanel() : null}
+            {!mapOpen && !inventoryOpen && !notificationsOpen && isBankPanelOpen() ? bankPanel() : null}
+            {!mapOpen && !inventoryOpen && !notificationsOpen && isStorePanelOpen() ? storePanel() : null}
+            {!mapOpen && !inventoryOpen && !notificationsOpen && isLandOfficePanelOpen() ? landOfficePanel() : null}
+            {!mapOpen && !inventoryOpen && !notificationsOpen && isMulePanelOpen() && getMuleCount() > 0 ? mulePanel() : null}
             {pickSelector()}
         </UiEntity>
         {welcomeOverlay()}
