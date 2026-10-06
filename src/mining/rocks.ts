@@ -386,7 +386,6 @@ function update(dt: number): void {
       const finishedAfter = rock.hits
       hideRock(rock)
       rock.finished = true
-      finishedAny = true
       if (!synced) rock.reshow = OFFLINE_RESHOW_SECONDS
       status = null
       sendRockDone(rock.seq)
@@ -460,8 +459,9 @@ function removeTutorialRock(): void {
 // actual reach, so walking into it is what starts the swings:
 //
 //   far       nothing
-//   near      the ring lies still: "come into this"
-//   mining    it turns: "you are in, and mining" (the mining bar shows too)
+//   near      the ring swells and shrinks, 1 to 1.3 and back: "come into this", with a
+//             "Move closer to mine" hint where the mining panel will be
+//   mining    it turns, at its own size: "you are in, and mining" (the mining bar shows too)
 //
 // The ring is spinner.png, gold rays on a flat plane, as wide as the reach.
 //
@@ -477,13 +477,22 @@ const RING_COLOR = Color3.create(1, 0.78, 0.25)
 /** One turn of the ring while mining, in seconds. */
 const RING_TURN_SECONDS = 6
 
+/** While near: the scale it swells to from 1, and the seconds for one 1 → max → 1 round. */
+const RING_NEAR_MAX_SCALE = 1.3
+const RING_NEAR_CYCLE_SECONDS = 1.2
+
 let ring: Entity | null = null
 let ringTurning = false
-/** Whether a rock has been finished this visit; the "move closer" hint is for before that. */
-let finishedAny = false
+let ringClock = 0
 let hintCloser = false
 
-/** True while the ring shows under a rock the player is not mining yet, before their first rock. */
+/** Where the near ring is in its swell: 0 at its own size, 1 at the biggest. For the hint to beat with it. */
+export function getRingPulse(): number {
+  const phase = (ringClock % RING_NEAR_CYCLE_SECONDS) / RING_NEAR_CYCLE_SECONDS
+  return 1 - Math.abs(phase * 2 - 1)
+}
+
+/** True while the ring shows still under a rock the player is not mining yet. */
 export function showMoveCloserHint(): boolean {
   return hintCloser
 }
@@ -507,11 +516,14 @@ function nearestRock(): Rock | null {
 
 function updateRing(dt: number): void {
   if (ring === null) return
+  ringClock += dt
 
   const at = mining >= 0 ? allRocks()[mining] : undefined
   const active = at !== undefined && at !== tutorial && status !== null && status.blocked === ''
   const target = active ? at : nearestRock()
-  hintCloser = !finishedAny && !active && target !== null && status === null
+  // Not while the mining panel is up instead: in reach but held back (not standing still, no
+  // pick, storage full), it says why, in the same spot.
+  hintCloser = !active && target !== null && status === null
 
   const transform = Transform.getMutable(ring)
   if (target === null || target === undefined) {
@@ -519,7 +531,9 @@ function updateRing(dt: number): void {
     return
   }
   transform.position = Vector3.create(target.spot.x, target.spot.y + 0.02, target.spot.z)
-  transform.scale = Vector3.One()
+  // Near: a zigzag, straight up to the max and straight back. Mining: still at 1, only turning.
+  const size = active ? 1 : 1 + (RING_NEAR_MAX_SCALE - 1) * getRingPulse()
+  transform.scale = Vector3.create(size, 1, size)
 
   if (active !== ringTurning) {
     ringTurning = active

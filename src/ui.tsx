@@ -44,7 +44,7 @@ import {
 import { getActiveMiners } from './shared/net/social-sync'
 import { getDurability, getEquipped, getOwned } from './shared/state/inventory'
 import { getServerTick, isServerOnline } from './net/server-link'
-import { getMiningStatus, showMoveCloserHint } from './mining/rocks'
+import { getMiningStatus, getRingPulse, showMoveCloserHint } from './mining/rocks'
 import { setupRollingCounters, shownCoins, shownOre } from './ui/rolling-counter'
 import { getOrePopup, setupOrePopup } from './ui/ore-popup'
 import { DEBUG_ADD_COINS, DEBUG_ADD_ORE, DEBUG_RESET_PROGRESS, DEBUG_SERVER_STATUS, DEBUG_SHOW_MULE_ALERTS } from './shared/debug-flags'
@@ -1519,19 +1519,26 @@ const MINING_TRACK_COLOR = Color4.create(0.12, 0.1, 0.06, 1)
 /** The Social Bonus, on the mining panel and under the ore popup. */
 const SOCIAL_BONUS_COLOR = Color4.create(0.55, 0.9, 0.45, 1)
 
-// Before the first rock, a ring under a rock the player is near but not mining comes with a
-// nudge, where the mining panel will appear once they step in.
-const moveCloserHint = () =>
-    showMoveCloserHint() ? (
+// While the ring lies under a rock the player is near but not mining, a nudge where the mining
+// panel will appear once they step in. It jumps between 1 and 1.1, no transition, in step with
+// the ring: big while the ring is in the upper half of its swell. UI has no scale, so the text
+// and the padding grow instead.
+const HINT_MAX_SCALE = 1.1
+
+const moveCloserHint = () => {
+    if (!showMoveCloserHint()) return null
+    const k = getRingPulse() >= 0.5 ? HINT_MAX_SCALE : 1
+    return (
         <UiEntity uiTransform={{ positionType: 'absolute', position: { top: MINING_PANEL_TOP }, margin: { top: MINING_PANEL_DROP }, width: '100%', flexDirection: 'row', justifyContent: 'center' }}>
             <UiEntity
-                uiTransform={{ padding: { left: 18, right: 18, top: 8, bottom: 8 }, borderRadius: PANEL_RADIUS, borderWidth: 2, borderColor: MINING_FILL_COLOR }}
+                uiTransform={{ padding: { left: 18 * k, right: 18 * k, top: 8 * k, bottom: 8 * k }, borderRadius: PANEL_RADIUS, borderWidth: 2, borderColor: MINING_FILL_COLOR }}
                 uiBackground={{ color: HUD_BACKGROUND }}
             >
-                <Label value="Move closer to mine" fontSize={18} color={Color4.White()} textAlign="middle-center" textWrap="nowrap" uiTransform={{ height: 26 }} />
+                <Label value="Move closer to mine" fontSize={18 * k} color={Color4.White()} textAlign="middle-center" textWrap="nowrap" uiTransform={{ height: 26 * k }} />
             </UiEntity>
         </UiEntity>
-    ) : null
+    )
+}
 
 const miningBar = () => {
     const status = getMiningStatus()
