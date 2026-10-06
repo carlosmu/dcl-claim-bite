@@ -42,7 +42,7 @@ import {
     socialBonus
 } from './shared/economy/constants'
 import { getActiveMiners } from './shared/net/social-sync'
-import { getEquipped, getOwned } from './shared/state/inventory'
+import { getDurability, getEquipped, getOwned } from './shared/state/inventory'
 import { getServerTick, isServerOnline } from './net/server-link'
 import { getMiningStatus } from './mining/rocks'
 import { setupRollingCounters, shownCoins, shownOre } from './ui/rolling-counter'
@@ -856,6 +856,16 @@ function withCommas(value: number): string {
     return `${Math.round(value)}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 }
 
+/** A pick's durability as rocks left of rocks it starts with: "173 / 200". */
+function durabilityText(pick: ShopItem): string {
+    return `${getDurability(pick.id)} / ${pick.durability ?? 0}`
+}
+
+/** Red once a pick is down to its last tenth, so a break does not come out of nowhere. */
+function durabilityColor(pick: ShopItem, normal: Color4): Color4 {
+    return getDurability(pick.id) <= (pick.durability ?? 0) * 0.1 ? SHORT_COLOR : normal
+}
+
 // What the detail panel says about each pick, beyond the catalogue's numbers.
 const PICK_COPY: Record<string, { description: string; benefits: string[] }> = {
     pick: { description: 'A borrowed pick. It gets the job done.', benefits: ['Free starting tool', 'Mines every rock'] },
@@ -1063,7 +1073,14 @@ function pickDetail(item: ShopItem): Detail {
         title: item.label,
         description: copy.description,
         icon: PICK_ICONS[item.id] ?? ICON_PICK_IRON,
-        stats: [priceStat(item.price), detailStat('Breaks a rock in', `${item.hitsPerRock} HITS`, BANK_CREAM)],
+        stats: [
+            priceStat(item.price),
+            detailStat('Breaks a rock in', `${item.hitsPerRock} HITS`, BANK_CREAM),
+            // Owned: what is left. Not owned: what a new one lasts.
+            getOwned(item.id) > 0
+                ? detailStat('Durability', `${durabilityText(item)} ROCKS`, durabilityColor(item, BANK_CREAM))
+                : detailStat('Lasts', `${item.durability ?? 0} ROCKS`, BANK_CREAM)
+        ],
         notes,
         actions: [storeActionButton(action)]
     }
@@ -2025,7 +2042,7 @@ function inventoryEntries(): InventoryEntry[] {
             equipped,
             details: [
                 `${pick.hitsPerRock} hits per rock`,
-                pick.benefit,
+                `Durability: ${durabilityText(pick)} rocks left`,
                 equipped ? 'Currently equipped' : 'Switch picks from the tool button'
             ]
         })
@@ -2414,14 +2431,22 @@ const pickButton = () => {
                 uiTransform={{ width: 32, height: 32, margin: { right: 8 } }}
                 uiBackground={iconBackground((pick && PICK_ICONS[pick.id]) ?? ICON_PICK_IRON, pick === null ? LOCKED_TINT : Color4.White())}
             />
-            <Label
-                value={pick?.label ?? 'No pick'}
-                fontSize={18}
-                color={pick === null ? MUTED_COLOR : Color4.White()}
-                textAlign="middle-left"
-                textWrap="nowrap"
-                uiTransform={{ height: BOTTOM_BUTTON_HEIGHT }}
-            />
+            {pick === null ? (
+                <Label value="No pick" fontSize={18} color={MUTED_COLOR} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: BOTTOM_BUTTON_HEIGHT }} />
+            ) : (
+                // The pick in hand, and how many rocks it has left before it breaks.
+                <UiEntity uiTransform={{ flexDirection: 'column', justifyContent: 'center' }}>
+                    <Label value={pick.label} fontSize={16} color={Color4.White()} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 20 }} />
+                    <Label
+                        value={`Pickaxe: ${durabilityText(pick)}`}
+                        fontSize={13}
+                        color={durabilityColor(pick, MUTED_COLOR)}
+                        textAlign="middle-left"
+                        textWrap="nowrap"
+                        uiTransform={{ height: 16 }}
+                    />
+                </UiEntity>
+            )}
         </UiEntity>
     )
 }
@@ -2461,7 +2486,16 @@ const pickRow = (item: ShopItem, inUse: boolean) => {
                 textWrap="nowrap"
                 uiTransform={{ flexGrow: 1, height: PICK_ROW_HEIGHT }}
             />
-            {owned ? null : (
+            {owned ? (
+                <Label
+                    value={durabilityText(item)}
+                    fontSize={13}
+                    color={durabilityColor(item, BANK_CAPTION)}
+                    textAlign="middle-right"
+                    textWrap="nowrap"
+                    uiTransform={{ height: PICK_ROW_HEIGHT, flexShrink: 0 }}
+                />
+            ) : (
                 <UiEntity
                     uiTransform={{ width: 24, height: 24, flexShrink: 0 }}
                     uiBackground={iconBackground(ICON_LOCK, LOCKED_TINT)}

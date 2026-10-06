@@ -57,6 +57,12 @@ export type ShopItem = {
   startsOwned?: boolean
   /** Hits a rock takes while this pick is in use — fewer is better. Only picks carry it. */
   hitsPerRock?: number
+  /**
+   * Rocks this pick destroys before it breaks. Only picks carry it. One finished rock is one
+   * point, whatever it paid; hits, time and ore earned do not wear it. A broken pick is gone
+   * from the inventory and has to be got again (the free one from the Mayor), starting full.
+   */
+  durability?: number
   /** Gallons this fuel order adds. Only fuel carries it, except Fill Tank, which tops up. */
   fuelGallons?: number
   /** Fuel only: buy exactly what the tank is missing. */
@@ -65,11 +71,11 @@ export type ShopItem = {
   storage?: number
 }
 
-// Picks: 12 / 8 / 6 hits a rock is 20 / 30 / 40 coins a day for the same time at the rocks.
+// Picks: 12 / 8 / 5 hits a rock, lasting 50 / 200 / 400 rocks.
 export const CATALOGUE: ShopItem[] = [
-  { id: 'pick', label: "Stranger's Pick", line: 'pick', price: 0, starter: true, hitsPerRock: 12, benefit: 'Mining output ~20 coins/day' },
-  { id: 'steel-pick', label: "Miner's Pick", line: 'pick', price: 20, requires: 'pick', hitsPerRock: 8, benefit: 'Mining output ~30 coins/day' },
-  { id: 'miners-pick', label: 'Master Pick', line: 'pick', price: 70, requires: 'steel-pick', hitsPerRock: 6, benefit: 'Mining output ~40 coins/day' },
+  { id: 'pick', label: "Stranger's Pick", line: 'pick', price: 0, starter: true, hitsPerRock: 12, durability: 50, benefit: 'Mining output ~20 coins/day' },
+  { id: 'steel-pick', label: "Miner's Pick", line: 'pick', price: 20, requires: 'pick', hitsPerRock: 8, durability: 200, benefit: 'Mining output ~30 coins/day' },
+  { id: 'miners-pick', label: 'Master Pick', line: 'pick', price: 50, requires: 'steel-pick', hitsPerRock: 5, durability: 400, benefit: 'Mining output ~40 coins/day' },
   { id: 'mule', label: 'M.U.L.E.', line: 'mule', price: 100, benefit: 'Produces 200 ore/day · needs fuel' },
   { id: 'fuel-10', label: '+10 Gallons', line: 'fuel', price: 10 * FUEL_PRICE_PER_GALLON, fuelGallons: 10, benefit: '10 rig-days of fuel' },
   { id: 'fuel-25', label: '+25 Gallons', line: 'fuel', price: 25 * FUEL_PRICE_PER_GALLON, fuelGallons: 25, benefit: '25 rig-days of fuel' },

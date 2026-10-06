@@ -55,6 +55,8 @@ export const Messages = {
     // The id of the pick in use — the one chosen in the inventory, or the best owned. Empty
     // means no pick.
     equipped: Schemas.String,
+    // Rocks each owned pick has left before it breaks, as `id:rocksLeft` pairs like `owned`.
+    pickDurability: Schemas.String,
     // How many rigs the player owns. They dig straight into storage, so there is no load to show.
     mules: Schemas.Number,
     // Hours the rigs keep running on their fuel. Zero means they have stopped.

@@ -13,7 +13,7 @@ import { room } from '../shared/net/protocol'
 import { OreMarket } from '../shared/net/market-sync'
 import { showSocialBonus } from '../ui/ore-popup'
 import { applyServerWallet } from '../shared/state/wallet'
-import { applyServerEquipped, applyServerOwned } from '../shared/state/inventory'
+import { applyServerDurability, applyServerEquipped, applyServerOwned } from '../shared/state/inventory'
 import { RATE_BASE } from '../shared/economy/constants'
 import { quoteSaleAt } from '../shared/state/market'
 import { playSfx } from '../world/sfx'
@@ -43,9 +43,17 @@ let hitsPerRock = 0
 let muleCount = 0
 let muleFuelHours = 0
 let walletReceived = false
+/** The id of the last pick that broke, and how many have broken this visit (so a repeat is news). */
+let brokenPick = ''
+let brokenPickCount = 0
 let sinceLastHello = HELLO_RETRY_SECONDS
 
 /** The town's rate as the server last published it, in ore per coin. */
+/** The last pick that broke this visit, with a count that goes up each time one does. */
+export function getBrokenPick(): { id: string; count: number } {
+  return { id: brokenPick, count: brokenPickCount }
+}
+
 export function getSyncedRate(): number {
   return price
 }
@@ -177,6 +185,7 @@ export function setupEconomyLink(): void {
     muleFuelHours = data.muleFuelHours
     applyServerWallet(data.ore, data.coins)
     applyServerOwned(data.owned)
+    applyServerDurability(data.pickDurability)
     applyServerEquipped(data.equipped)
 
     // Gear follows what is OWNED, not the moment of purchase. After a reload the purchase is
@@ -222,6 +231,10 @@ export function setupEconomyLink(): void {
     if (data.action === 'claimPick') {
       celebratePick()
       onMayorPickGiven()
+    }
+    if (data.action === 'pickBroken') {
+      brokenPick = data.detail
+      brokenPickCount += 1
     }
     console.log(`[economy] ${data.action}: ${data.detail}`)
   })

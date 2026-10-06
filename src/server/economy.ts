@@ -39,6 +39,7 @@ import {
   findItem,
   fuelOrder,
   muleCount,
+  PICKS,
   priceOf,
   ShopItem,
   ShopItemId,
@@ -60,6 +61,8 @@ type Purse = {
   muleFuel: number
   /** The pick chosen in the inventory; see activePick for what happens when it is not owned. */
   equipped: string
+  /** Rocks each owned pick has left; a pick missing here is full (see durabilityLeft). */
+  pickDurability: Record<string, number>
 }
 
 const purses = new Map<string, Purse>()
@@ -190,7 +193,8 @@ function beginLoad(address: string): void {
         muleOre: stored?.muleOre ?? 0,
         muleAt: stored?.muleAt ?? 0,
         muleFuel: stored?.muleFuel ?? 0,
-        equipped: stored?.equipped ?? ''
+        equipped: stored?.equipped ?? '',
+        pickDurability: stored?.pickDurability ?? {}
       }
       grantStartingItems(purse)
       const owned = (id: ShopItemId) => purse.owned[id] ?? 0
@@ -229,6 +233,41 @@ function purseOf(address: string): Purse | null {
 }
 
 /** Serialises the inventory as the `id:count` pairs the wallet message carries. */
+/** Rocks a pick has left: what is stored, or full when nothing is (old saves, a pick just got). */
+function durabilityLeft(purse: Purse, pick: ShopItem): number {
+  return purse.pickDurability[pick.id] ?? pick.durability ?? 0
+}
+
+/** The owned picks' durability as `id:rocksLeft` pairs, for the wallet. */
+function encodeDurability(purse: Purse): string {
+  return PICKS.filter((pick) => (purse.owned[pick.id] ?? 0) > 0)
+    .map((pick) => `${pick.id}:${durabilityLeft(purse, pick)}`)
+    .join(',')
+}
+
+/** A pick just got, by the Mayor or the Store, always starts at full durability. */
+function giveFreshPick(purse: Purse, pick: ShopItem): void {
+  purse.owned[pick.id] = 1
+  purse.pickDurability[pick.id] = pick.durability ?? 0
+}
+
+/**
+ * One destroyed rock off the pick that destroyed it. At zero the pick breaks: it leaves the
+ * inventory, so it can be got again — and if it was the one chosen, the best pick left takes
+ * over (activePick), or none, and the Mayor hands out another. True when it broke.
+ */
+function wearPick(purse: Purse, pick: ShopItem): boolean {
+  const left = durabilityLeft(purse, pick) - 1
+  if (left > 0) {
+    purse.pickDurability[pick.id] = left
+    return false
+  }
+  delete purse.owned[pick.id]
+  delete purse.pickDurability[pick.id]
+  if (purse.equipped === pick.id) purse.equipped = ''
+  return true
+}
+
 function encodeOwned(purse: Purse): string {
   return Object.keys(purse.owned)
     .map((id) => `${id}:${purse.owned[id]}`)
@@ -255,6 +294,7 @@ function sendWallet(address: string): void {
       capacity: carryCapacity(owned),
       hitsPerRock: activePick(owned, purse.equipped)?.hitsPerRock ?? 0,
       equipped: activePick(owned, purse.equipped)?.id ?? '',
+      pickDurability: encodeDurability(purse),
       mules: muleCount(owned),
       muleFuelHours: fuelHoursLeft(purse, muleCount(owned))
     },
@@ -280,8 +320,9 @@ function handleRockDone(address: string, seq: number): void {
   // OWNS, which is server state — so the tier cannot be claimed by a client, only earned.
   // No pick, no rock.
   const owned = (id: ShopItemId) => purse.owned[id] ?? 0
-  const hits = activePick(owned, purse.equipped)?.hitsPerRock ?? 0
-  if (hits <= 0) return
+  const pick = activePick(owned, purse.equipped)
+  const hits = pick?.hitsPerRock ?? 0
+  if (pick === null || hits <= 0) return
 
   // Each rock pays each player once. The client hides a rock it has finished, so this is only
   // reached by a modified client or a message racing a move — as is a rock that is not there.
@@ -316,9 +357,16 @@ function handleRockDone(address: string, seq: number): void {
   const paid = Math.min(ORE_PER_ROCK + bonus, space)
   purse.ore += paid
 
+  // Durability counts destroyed rocks and nothing else: one rock, one point, whatever it paid.
+  const broke = wearPick(purse, pick)
+
   dirty.add(address)
   sendWallet(address)
   room.send('rockPaid', { ore: paid, bonus: Math.max(0, paid - ORE_PER_ROCK) }, { to: [address] })
+  if (broke) {
+    sendResult(address, 'pickBroken', true, pick.id)
+    console.log(`[Server] ${address}'s ${pick.label} broke`)
+  }
 }
 
 function handleSell(address: string, requested: number): void {
@@ -398,7 +446,8 @@ function handleBuy(address: string, itemId: string): void {
   settleMule(purse, mules, carryCapacity(owned))
 
   purse.coins -= price
-  purse.owned[item.id] = (purse.owned[item.id] ?? 0) + 1
+  if (item.line === 'pick') giveFreshPick(purse, item)
+  else purse.owned[item.id] = (purse.owned[item.id] ?? 0) + 1
   // The first rig comes with a gallon, a day of running; later ones share what is in the tank.
   if (item.id === 'mule' && mules === 0) addFuelGallons(purse, 1, 1)
   // A pick just bought goes straight into the hand; the inventory can swap it back.
@@ -477,7 +526,8 @@ function handleClaimPick(address: string): void {
     return
   }
 
-  purse.owned['pick'] = 1
+  const starter = findItem('pick')
+  if (starter !== null) giveFreshPick(purse, starter)
   dirty.add(address)
   sendWallet(address)
   sendResult(address, 'claimPick', true, 'pick')
@@ -562,6 +612,7 @@ function handleDebugReset(address: string): void {
   purse.muleAt = 0
   purse.muleFuel = 0
   purse.equipped = ''
+  purse.pickDurability = {}
   lastRockAt.delete(address)
   lastSwing.delete(address)
   lastMinedAt.delete(address)
@@ -633,7 +684,8 @@ function flushPurse(address: string): void {
     muleOre: purse.muleOre,
     muleAt: purse.muleAt,
     muleFuel: purse.muleFuel,
-    equipped: purse.equipped
+    equipped: purse.equipped,
+    pickDurability: purse.pickDurability
   })
   // A failed write puts the purse back in the queue for the next flush rather than losing it.
   saved

@@ -35,6 +35,11 @@ export type StoredPurse = {
   muleFuel?: number
   /** The pick chosen in the inventory. Missing or not owned means the best one owned. */
   equipped?: string
+  /**
+   * Rocks each owned pick has left. A pick missing here is at full durability: saves from before
+   * durability existed, and a pick just got, which is set full anyway.
+   */
+  pickDurability?: Record<string, number>
 }
 
 /**

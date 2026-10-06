@@ -11,6 +11,7 @@ import { ShopItemId } from '../economy/catalogue'
 
 const owned: Partial<Record<ShopItemId, number>> = {}
 let equipped = ''
+const durability: Partial<Record<ShopItemId, number>> = {}
 
 export function getOwned(id: ShopItemId): number {
   return owned[id] ?? 0
@@ -23,6 +24,21 @@ export function getEquipped(): string {
 
 export function applyServerEquipped(id: string): void {
   equipped = id
+}
+
+/** Rocks this pick has left before it breaks, as the server last said. Zero for a pick not owned. */
+export function getDurability(id: ShopItemId): number {
+  return durability[id] ?? 0
+}
+
+/** Replaces the picks' durability from the `id:rocksLeft` pairs the server sends. */
+export function applyServerDurability(encoded: string): void {
+  for (const id of Object.keys(durability)) delete durability[id as ShopItemId]
+  if (encoded === '') return
+  for (const pair of encoded.split(',')) {
+    const [id, left] = pair.split(':')
+    durability[id as ShopItemId] = Number(left)
+  }
 }
 
 /** Replaces the inventory from the `id:count` pairs the server sends. */

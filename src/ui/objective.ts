@@ -17,9 +17,10 @@ import {
   getMuleCount,
   getMuleFuelHours,
   getSyncedRate,
+  getBrokenPick,
   hasWallet
 } from '../net/economy-link'
-import { findItem, fuelTankGallons, nextTier } from '../shared/economy/catalogue'
+import { findItem, fuelTankGallons, nextTier, ShopItemId } from '../shared/economy/catalogue'
 import { getOwned } from '../shared/state/inventory'
 import { quotedRate } from '../shared/state/market'
 import { getCoins, getOre } from '../shared/state/wallet'
@@ -50,6 +51,9 @@ const FIRST_ORE_GOAL = 10
 /** How long a price move stays on the tracker before it gives way again. */
 const PRICE_ALERT_SECONDS = 6
 
+/** How long the note that a pick broke stays up. */
+const PICK_BROKEN_SECONDS = 8
+
 /**
  * How long the Social Bonus note stays up once two or more are mining, or their number changes.
  * Not for as long as the crowd lasts: it would sit on top of the upgrade alerts the whole time.
@@ -60,6 +64,8 @@ let clock = 0
 let lastRate = -1
 let priceAlertUntil = 0
 let lastMiners = 0
+let lastBrokenCount = 0
+let pickBrokenUntil = 0
 let socialAlertUntil = 0
 let current: Objective | null = null
 
@@ -118,6 +124,13 @@ function pick(): Objective | null {
   const mules = getMuleCount()
   const rate = quotedRate(getSyncedRate())
 
+  // A pick just wore out. Said even when another pick took over, so the switch is not a mystery.
+  if (clock < pickBrokenUntil) {
+    const broken = findItem(getBrokenPick().id as ShopItemId)
+    const next = getHitsPerRock() > 0 ? 'Using your next best pick' : 'The Mayor has a free one for you'
+    return alert('PICK BROKEN', `${broken?.label ?? 'Your pick'} is worn out`, next)
+  }
+
   // Nothing to mine with: the mayor is the whole first step.
   if (getHitsPerRock() <= 0) return goal('Talk to the Mayor', 'He has a free pick for you')
 
@@ -173,6 +186,10 @@ function update(dt: number): void {
   const rate = quotedRate(getSyncedRate())
   if (lastRate >= 0 && rate !== lastRate) priceAlertUntil = clock + PRICE_ALERT_SECONDS
   lastRate = rate
+
+  const broken = getBrokenPick().count
+  if (broken !== lastBrokenCount) pickBrokenUntil = clock + PICK_BROKEN_SECONDS
+  lastBrokenCount = broken
 
   const miners = getActiveMiners()
   if (miners >= 2 && miners !== lastMiners) socialAlertUntil = clock + SOCIAL_ALERT_SECONDS
