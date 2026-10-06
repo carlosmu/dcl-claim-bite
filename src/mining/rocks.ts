@@ -27,6 +27,8 @@ import { ActiveRock, pickRockSpot, ROCKS_AT_ONCE, } from '../shared/net/rock-syn
 const MINING_AREA_NAME = 'Mining_Area'
 
 const ROCK_MODEL = 'assets/models/mining-rocks.glb'
+/** How far the rock model, and the ring under it, sit above the spot. Distances still use the spot. */
+const ROCK_LIFT_METERS = 0.1
 
 // The ring on the ground around the practice rock, turning a full circle every few seconds.
 const INDICATOR_MODEL = 'assets/models/circle-indicator.glb'
@@ -115,9 +117,11 @@ const OFFLINE_RESHOW_SECONDS = 3
 // back to 1 over the time below (10 frames at 30 fps).
 const HIT_BUMP_SECONDS = 10 / 30
 
-// How long before the hit lands the jolt starts, so it meets the pick in the swing animation
-// rather than the moment the hit is counted.
-const HIT_BUMP_LEAD_SECONDS = 0.35
+// The frame of the mining emote (30 fps) where the pick meets the rock: the jolt starts there
+// rather than the moment the hit is counted, at the end of the swing.
+const HIT_BUMP_EMOTE_FRAME = 30
+// The same moment as the time left on the swing timer, which counts down from SWING_SECONDS.
+const HIT_BUMP_LEAD_SECONDS = SWING_SECONDS - HIT_BUMP_EMOTE_FRAME / 30
 
 /** Seconds until the swing in progress lands. Negative while not swinging. */
 let swingTimer = -1
@@ -190,7 +194,7 @@ function showRock(rock: Rock, u: number, v: number, yaw: number, seq: number): v
   rock.bump = 0
   rock.spot = areaPoint(u, v)
   const t = Transform.getMutable(rock.entity)
-  t.position = rock.spot
+  t.position = Vector3.create(rock.spot.x, rock.spot.y + ROCK_LIFT_METERS, rock.spot.z)
   t.rotation = Quaternion.fromEulerDegrees(0, yaw, 0)
   t.scale = Vector3.One()
 }
@@ -415,7 +419,7 @@ export function placeTutorialRock(position: Vector3, seq: number, onDone?: () =>
   tutorialDone = onDone ?? null
 
   const entity = engine.addEntity()
-  Transform.create(entity, { position })
+  Transform.create(entity, { position: Vector3.create(position.x, position.y + ROCK_LIFT_METERS, position.z) })
   GltfContainer.create(entity, { src: ROCK_MODEL, visibleMeshesCollisionMask: 0, invisibleMeshesCollisionMask: 3 })
   tutorial = {
     entity,
@@ -476,13 +480,16 @@ const RING_COLOR = Color3.create(1, 0.78, 0.25)
 
 /** One turn of the ring while mining, in seconds. */
 const RING_TURN_SECONDS = 6
+/** One turn while only near: half the mining speed. */
+const RING_NEAR_TURN_SECONDS = RING_TURN_SECONDS * 2
 
 /** While near: the scale it swells to from 1, and the seconds for one 1 → max → 1 round. */
 const RING_NEAR_MAX_SCALE = 1.3
 const RING_NEAR_CYCLE_SECONDS = 1.2
 
 let ring: Entity | null = null
-let ringTurning = false
+/** The turn time the ring's tween was last set to; 0 before it first turns. */
+let ringTurnSeconds = 0
 let ringClock = 0
 let hintCloser = false
 
@@ -530,15 +537,16 @@ function updateRing(dt: number): void {
     transform.scale = Vector3.Zero()
     return
   }
-  transform.position = Vector3.create(target.spot.x, target.spot.y + 0.02, target.spot.z)
-  // Near: a zigzag, straight up to the max and straight back. Mining: still at 1, only turning.
+  transform.position = Vector3.create(target.spot.x, target.spot.y + ROCK_LIFT_METERS + 0.02, target.spot.z)
+  // Near: a zigzag, straight up to the max and straight back, turning at half speed. Mining:
+  // still at 1, turning at full speed.
   const size = active ? 1 : 1 + (RING_NEAR_MAX_SCALE - 1) * getRingPulse()
   transform.scale = Vector3.create(size, 1, size)
 
-  if (active !== ringTurning) {
-    ringTurning = active
-    if (active) Tween.setRotateContinuous(ring, Quaternion.fromEulerDegrees(0, -1, 0), 360 / RING_TURN_SECONDS)
-    else Tween.deleteFrom(ring)
+  const turnSeconds = active ? RING_TURN_SECONDS : RING_NEAR_TURN_SECONDS
+  if (turnSeconds !== ringTurnSeconds) {
+    ringTurnSeconds = turnSeconds
+    Tween.setRotateContinuous(ring, Quaternion.fromEulerDegrees(0, -1, 0), 360 / turnSeconds)
   }
 }
 
