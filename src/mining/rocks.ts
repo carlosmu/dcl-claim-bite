@@ -1,5 +1,5 @@
-import { Entity, engine, GltfContainer, MeshCollider, MeshRenderer, Transform, Tween } from '@dcl/sdk/ecs'
-import { Quaternion, Vector3 } from '@dcl/sdk/math'
+import { Entity, engine, GltfContainer, Material, MaterialTransparencyMode, MeshCollider, MeshRenderer, Transform, Tween } from '@dcl/sdk/ecs'
+import { Color3, Quaternion, Vector3 } from '@dcl/sdk/math'
 import { movePlayerTo } from '~system/RestrictedActions'
 
 import { MINE_FACING_DEGREES, MINE_REACH_METERS, ORE_PER_ROCK, SWING_SECONDS } from '../shared/economy/constants'
@@ -386,6 +386,7 @@ function update(dt: number): void {
       const finishedAfter = rock.hits
       hideRock(rock)
       rock.finished = true
+      finishedAny = true
       if (!synced) rock.reshow = OFFLINE_RESHOW_SECONDS
       status = null
       sendRockDone(rock.seq)
@@ -452,7 +453,111 @@ function removeTutorialRock(): void {
   if (done !== null) done()
 }
 
+// --- Reach ring ---------------------------------------------------------------------------
+//
+// One ring on the ground, never more, so a cluster of rocks does not turn into a field of
+// circles. It sits under the nearest unfinished rock once the player is close, sized to the
+// actual reach, so walking into it is what starts the swings:
+//
+//   far       nothing
+//   near      the ring lies still: "come into this"
+//   mining    it turns: "you are in, and mining" (the mining bar shows too)
+//
+// The ring is spinner.png, gold rays on a flat plane, as wide as the reach.
+//
+// It reads the same state the swings do (rockAtPlayer, status), so it can never disagree with
+// them. The practice rocks are left out: they wear their own ring already.
+
+/** How close the player has to be for the ring to show under a rock. */
+const RING_SHOW_METERS = 5
+
+const RING_TEXTURE = 'assets/images/spinner.png'
+const RING_COLOR = Color3.create(1, 0.78, 0.25)
+
+/** One turn of the ring while mining, in seconds. */
+const RING_TURN_SECONDS = 6
+
+let ring: Entity | null = null
+let ringTurning = false
+/** Whether a rock has been finished this visit; the "move closer" hint is for before that. */
+let finishedAny = false
+let hintCloser = false
+
+/** True while the ring shows under a rock the player is not mining yet, before their first rock. */
+export function showMoveCloserHint(): boolean {
+  return hintCloser
+}
+
+/** The nearest unfinished shared rock within RING_SHOW_METERS, flat; null if none. */
+function nearestRock(): Rock | null {
+  const player = Transform.getOrNull(engine.PlayerEntity)
+  if (player === null) return null
+  let best: Rock | null = null
+  let bestDistance = RING_SHOW_METERS
+  for (const rock of rocks) {
+    if (rock.finished) continue
+    const distance = Math.hypot(rock.spot.x - player.position.x, rock.spot.z - player.position.z)
+    if (distance <= bestDistance) {
+      best = rock
+      bestDistance = distance
+    }
+  }
+  return best
+}
+
+function updateRing(dt: number): void {
+  if (ring === null) return
+
+  const at = mining >= 0 ? allRocks()[mining] : undefined
+  const active = at !== undefined && at !== tutorial && status !== null && status.blocked === ''
+  const target = active ? at : nearestRock()
+  hintCloser = !finishedAny && !active && target !== null && status === null
+
+  const transform = Transform.getMutable(ring)
+  if (target === null || target === undefined) {
+    transform.scale = Vector3.Zero()
+    return
+  }
+  transform.position = Vector3.create(target.spot.x, target.spot.y + 0.02, target.spot.z)
+  transform.scale = Vector3.One()
+
+  if (active !== ringTurning) {
+    ringTurning = active
+    if (active) Tween.setRotateContinuous(ring, Quaternion.fromEulerDegrees(0, -1, 0), 360 / RING_TURN_SECONDS)
+    else Tween.deleteFrom(ring)
+  }
+}
+
+function setupRing(): void {
+  // The parent turns about the vertical; the plane under it lies flat on the ground, as wide as
+  // the reach on either side.
+  ring = engine.addEntity()
+  Transform.create(ring, { scale: Vector3.Zero() })
+  const plane = engine.addEntity()
+  Transform.create(plane, {
+    parent: ring,
+    rotation: Quaternion.fromEulerDegrees(90, 0, 0),
+    scale: Vector3.create(MINE_REACH_METERS * 2, MINE_REACH_METERS * 2, 1)
+  })
+  MeshRenderer.setPlane(plane)
+  const texture = Material.Texture.Common({ src: RING_TEXTURE })
+  Material.setPbrMaterial(plane, {
+    texture,
+    emissiveTexture: texture,
+    emissiveColor: RING_COLOR,
+    emissiveIntensity: 1,
+    albedoColor: { r: RING_COLOR.r, g: RING_COLOR.g, b: RING_COLOR.b, a: 1 },
+    transparencyMode: MaterialTransparencyMode.MTM_ALPHA_BLEND,
+    metallic: 0,
+    roughness: 1,
+    // A mark on the ground, not a thing standing on it.
+    castShadows: false
+  })
+  engine.addSystem(updateRing, undefined, 'client:rock-ring')
+}
+
 export function setupRocks(): void {
   findArea()
   engine.addSystem(update, undefined, 'client:rocks')
+  setupRing()
 }
