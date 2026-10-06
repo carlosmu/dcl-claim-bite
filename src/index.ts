@@ -18,6 +18,7 @@ import { setupLandOffice } from './land-office/land-office'
 import { setupMule } from './mule/mule'
 import { setupMayor } from './mayor/mayor'
 import { setupHeldPicks } from './player/held-pick'
+import { setupNametags } from './player/nametags'
 import { setupMusic } from './world/music'
 import { setupTumbleweeds } from './world/tumbleweeds'
 import { setupIsometricCamera } from './world/isometric-camera'
@@ -48,5 +49,6 @@ export async function main() {
     setupMayor()
     setupTumbleweeds()
     setupHeldPicks()
+    setupNametags()
     setupUi()
 }
