@@ -125,6 +125,9 @@ const HIT_BURST: Burst = { count: 12, lifetime: 1.25, speed: 1.5 }
 
 type Burst = { count: number; lifetime: number; speed: number }
 
+/** Pull on the burst particles, as a share of real gravity: enough that they fall back down. */
+const BURST_GRAVITY = 1
+
 /** Fires `burst` at `spot`. */
 function fireBurst(spot: Vector3, burst: Burst): void {
   ParticleSystem.create(burstEntity(spot, burst.lifetime), {
@@ -132,7 +135,7 @@ function fireBurst(spot: Vector3, burst: Burst): void {
     rate: 0,
     lifetime: burst.lifetime,
     maxParticles: 150,
-    gravity: 0.3,
+    gravity: BURST_GRAVITY,
     blendMode: PBParticleSystem_BlendMode.PSB_ADD,
     simulationSpace: PBParticleSystem_SimulationSpace.PSS_WORLD,
     shape: ParticleSystem.Shape.Sphere({ radius: 0.3 }),
