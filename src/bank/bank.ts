@@ -1,14 +1,12 @@
 import { createClickCube } from '../world/click-cube'
 import { focusPanel, registerPanel } from '../world/panel-focus'
-import { createProximityZone, Footprint, ProximityZone } from '../world/proximity-zone'
+import { createProximityZone, ProximityZone } from '../world/proximity-zone'
 import { getOre } from '../shared/state/wallet'
 import { getSyncedRate, quoteSaleForDisplay, sendSell } from '../net/economy-link'
 import { oreForCoins } from '../shared/state/market'
 
 export const BANK_ENTITY_NAME = 'Bank'
-export const BANK_RADIUS_METERS = 5
-/** The building's ground plan, from House 7 M Train Station.glb (glTF X is mirrored on import). */
-const BANK_FOOTPRINT: Footprint = { minX: -7.27, maxX: 0.27, minZ: -9.27, maxZ: 0.13 }
+export const BANK_RADIUS_METERS = 4
 
 let zone: ProximityZone | null = null
 
@@ -88,7 +86,8 @@ export function setupBank(): void {
   zone = createProximityZone({
     entityName: BANK_ENTITY_NAME,
     radiusMeters: BANK_RADIUS_METERS,
-    footprint: BANK_FOOTPRINT,
+    // Measured from the cube by the door, not the building.
+    entity: cube ?? undefined,
     // Walking in with a full bag, the common move is to sell it — so it starts selected.
     click: cube !== null ? { entity: cube, hoverText: 'Open Bank' } : undefined,
     onEnter: () => {

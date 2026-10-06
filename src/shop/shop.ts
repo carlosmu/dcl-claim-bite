@@ -1,6 +1,6 @@
 import { createClickCube } from '../world/click-cube'
 import { focusPanel, registerPanel } from '../world/panel-focus'
-import { createProximityZone, Footprint, ProximityZone } from '../world/proximity-zone'
+import { createProximityZone, ProximityZone } from '../world/proximity-zone'
 import { getOwned } from '../shared/state/inventory'
 import { CATALOGUE, priceOf, ShopItem, ShopItemId, unavailableReason } from '../shared/economy/catalogue'
 import { getCoins } from '../shared/state/wallet'
@@ -10,9 +10,7 @@ import { sendBuy } from '../net/economy-link'
 // which is the town's ore *price* — this module is the shop the player walks into.
 
 export const SHOP_ENTITY_NAME = 'Market'
-export const SHOP_RADIUS_METERS = 5
-/** The building's ground plan, from House 7 M Gray.glb (glTF X is mirrored on import). */
-const SHOP_FOOTPRINT: Footprint = { minX: -7.29, maxX: 0.25, minZ: -9.27, maxZ: 0.13 }
+export const SHOP_RADIUS_METERS = 4
 let zone: ProximityZone | null = null
 
 // Closing the store only hides it for this visit, and the selection only lasts the visit too:
@@ -77,7 +75,8 @@ export function setupShop(): void {
   zone = createProximityZone({
     entityName: SHOP_ENTITY_NAME,
     radiusMeters: SHOP_RADIUS_METERS,
-    footprint: SHOP_FOOTPRINT,
+    // Measured from the cube by the door, not the building.
+    entity: cube ?? undefined,
     click: cube !== null ? { entity: cube, hoverText: 'Open General Store' } : undefined,
     onEnter: () => {
       closed = false
