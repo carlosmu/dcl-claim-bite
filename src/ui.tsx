@@ -1522,6 +1522,8 @@ const SOCIAL_BONUS_COLOR = Color4.create(0.55, 0.9, 0.45, 1)
 // have stopped paying instead of hammering on.
 const MINING_BLOCKED_COLOR = Color4.create(0.75, 0.1, 0.08, 0.95)
 const MINING_BLOCKED_BLINK_SECONDS = 0.4
+/** The toast under the mining panel while the player moves at a rock. */
+const MINING_WARNING_COLOR = Color4.create(1, 0.35, 0.3, 1)
 
 // While the ring lies under a rock the player is near but not mining, a nudge where the mining
 // panel will appear once they step in. It jumps between 1 and 1.1, no transition, in step with
@@ -1566,8 +1568,8 @@ const miningBar = () => {
                 // A further 10vh down, clear of the HUD; the units do not add, so it is a margin.
                 margin: { top: MINING_PANEL_DROP },
                 width: '100%',
-                flexDirection: 'row',
-                justifyContent: 'center'
+                flexDirection: 'column',
+                alignItems: 'center'
             }}
         >
             <UiEntity
@@ -1620,6 +1622,22 @@ const miningBar = () => {
                     />
                 )}
             </UiEntity>
+            {/* Moving while mining: a toast of its own under the panel, which stays as it is,
+                so the two never take turns. */}
+            {!blocked && status.warning !== '' ? (
+                <UiEntity
+                    uiTransform={{
+                        margin: { top: 8 },
+                        padding: { left: 16, right: 16, top: 6, bottom: 6 },
+                        borderRadius: PANEL_RADIUS,
+                        borderWidth: 2,
+                        borderColor: MINING_WARNING_COLOR
+                    }}
+                    uiBackground={{ color: HUD_BACKGROUND }}
+                >
+                    <Label value={status.warning} fontSize={16} color={MINING_WARNING_COLOR} textAlign="middle-center" textWrap="nowrap" uiTransform={{ height: 22 }} />
+                </UiEntity>
+            ) : null}
         </UiEntity>
     )
 }

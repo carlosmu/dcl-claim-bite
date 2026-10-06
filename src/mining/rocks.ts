@@ -65,7 +65,8 @@ type Rock = {
 
 /** What the HUD draws under itself while mining. Null while there is nothing to say. */
 /** `practice` is a mayor's practice rock, which pays no Social Bonus. */
-export type MiningStatus = { hits: number; needed: number; blocked: string; practice: boolean }
+/** `warning` is a note under the bar that does not stop it, such as moving while mining. */
+export type MiningStatus = { hits: number; needed: number; blocked: string; warning: string; practice: boolean }
 
 let status: MiningStatus | null = null
 
@@ -108,6 +109,19 @@ const SWING_DISTANCE_SLACK_METERS = 0.05
 
 /** While a move into swing distance is on its way; the swings wait for it. */
 let movingIn = false
+/** From that move until the swings start: the jump is ours, so it does not warn the player. */
+let settlingAfterMoveIn = false
+
+/**
+ * How long "Stand still to mine" stays up after the player last moved, in seconds. Held rather
+ * than shown only on the frames they move, which flickered it against the bar's own caption.
+ */
+const STAND_WARNING_HOLD_SECONDS = 1
+let standWarningSeconds = 0
+
+function standWarning(): string {
+  return standWarningSeconds > 0 ? 'Stand still to mine' : ''
+}
 
 let area: Area | null = null
 let rocks: Rock[] = []
@@ -336,6 +350,7 @@ function moveIntoSwingDistance(rock: Rock): boolean {
   const destination = Vector3.create(rock.spot.x + dx * k, player.position.y, rock.spot.z + dz * k)
   const target = Vector3.create(rock.spot.x, player.position.y, rock.spot.z)
   movingIn = true
+  settlingAfterMoveIn = true
   stillSeconds = 0
   movePlayerTo({ newRelativePosition: destination, avatarTarget: target })
     .catch((error) => {
@@ -369,6 +384,9 @@ function trackStanding(dt: number): void {
 
   // A drift since the loop started counts as moving, however slow it was.
   if (swingAnchor !== null && Vector3.distance(player.position, swingAnchor) > SWING_DRIFT_METERS) stillSeconds = 0
+
+  if (stillSeconds === 0 && !movingIn && !settlingAfterMoveIn) standWarningSeconds = STAND_WARNING_HOLD_SECONDS
+  else standWarningSeconds = Math.max(0, standWarningSeconds - dt)
 }
 
 function update(dt: number): void {
@@ -385,6 +403,7 @@ function update(dt: number): void {
   // At no rock, or only at ones this player has already mined.
   if (mining < 0) {
     status = null
+    settlingAfterMoveIn = false
     return
   }
   const rock = allRocks()[mining]
@@ -392,14 +411,14 @@ function update(dt: number): void {
   const needed = getHitsPerRock()
   if (needed <= 0) {
     stopSwinging()
-    status = { hits: 0, needed: 1, blocked: 'You need a pick — the mayor has one for you', practice: rock === tutorial }
+    status = { hits: 0, needed: 1, blocked: 'You need a pick — the mayor has one for you', warning: '', practice: rock === tutorial }
     return
   }
 
   const capacity = getCarryCapacity()
   if (capacity > 0 && getOre() >= capacity) {
     stopSwinging()
-    status = { hits: rock.hits, needed, blocked: 'Storage full — sell at the bank', practice: rock === tutorial }
+    status = { hits: rock.hits, needed, blocked: 'Storage full — sell at the bank', warning: '', practice: rock === tutorial }
     return
   }
 
@@ -407,10 +426,8 @@ function update(dt: number): void {
   // animated; the hits already in stay on the rock.
   if (stillSeconds < STAND_SETTLE_SECONDS) {
     stopSwinging()
-    // Only while actually moving: the short settle after stopping keeps the bar up, so a nudge
-    // does not flash the panel.
-    const blocked = stillSeconds === 0 ? 'Stand still to mine' : ''
-    status = { hits: rock.hits, needed, blocked, practice: rock === tutorial }
+    // The bar stays up; moving only adds a note under it, so the two never take turns.
+    status = { hits: rock.hits, needed, blocked: '', warning: standWarning(), practice: rock === tutorial }
     return
   }
 
@@ -418,9 +435,10 @@ function update(dt: number): void {
   // when each hit lands inside it.
   if (swingTimer < 0) {
     if (movingIn || moveIntoSwingDistance(rock)) {
-      status = { hits: rock.hits, needed, blocked: '', practice: rock === tutorial }
+      status = { hits: rock.hits, needed, blocked: '', warning: '', practice: rock === tutorial }
       return
     }
+    settlingAfterMoveIn = false
     faceRock(rock)
     startMineEmote()
     swingTimer = SWING_SECONDS
@@ -472,7 +490,7 @@ function update(dt: number): void {
     }
   }
 
-  status = { hits: rock.hits, needed, blocked: '', practice: rock === tutorial }
+  status = { hits: rock.hits, needed, blocked: '', warning: standWarning(), practice: rock === tutorial }
 }
 
 /**
