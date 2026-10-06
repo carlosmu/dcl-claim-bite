@@ -38,13 +38,15 @@ import {
     MULE_ORE_PER_HOUR,
     MARKET_WINDOW_SECONDS,
     RATE_BASE,
-    RATE_RECOVERY_PER_WINDOW
+    RATE_RECOVERY_PER_WINDOW,
+    socialBonus
 } from './shared/economy/constants'
+import { getActiveMiners } from './shared/net/social-sync'
 import { getEquipped, getOwned } from './shared/state/inventory'
 import { getServerTick, isServerOnline } from './net/server-link'
 import { getMiningStatus } from './mining/rocks'
 import { setupRollingCounters, shownCoins, shownOre } from './ui/rolling-counter'
-import { getOrePopup, RISE_SHARE, setupOrePopup } from './ui/ore-popup'
+import { getOrePopup, setupOrePopup } from './ui/ore-popup'
 import { DEBUG_ADD_COINS, DEBUG_ADD_ORE, DEBUG_RESET_PROGRESS, DEBUG_SERVER_STATUS, DEBUG_SHOW_MULE_ALERTS } from './shared/debug-flags'
 import { quotedRate } from './shared/state/market'
 import { BitmapText } from './ui/bitmap-text'
@@ -1486,12 +1488,19 @@ const debugBox = () => (
 // count, so nobody else sees it.
 //
 // The wording carries the rule that the bar is the payout: no ore until it fills.
+//
+// Under the bar, the Social Bonus the next rock would pay at the crowd mining now. The player
+// counts themselves even before the server has seen their first swing, so being alone reads +0
+// rather than flickering.
 
 const MINING_BAR_WIDTH = 320
 const MINING_BAR_HEIGHT = 14
 const MINING_PANEL_TOP = HUD_MARGIN + HUD_PILL_HEIGHT + 10
+const MINING_PANEL_DROP = '10vh'
 const MINING_FILL_COLOR = Color4.create(1, 198 / 255, 0, 1)
 const MINING_TRACK_COLOR = Color4.create(0.12, 0.1, 0.06, 1)
+/** The Social Bonus, on the mining panel and under the ore popup. */
+const SOCIAL_BONUS_COLOR = Color4.create(0.55, 0.9, 0.45, 1)
 
 const miningBar = () => {
     const status = getMiningStatus()
@@ -1499,6 +1508,7 @@ const miningBar = () => {
 
     const progress = status.needed > 0 ? Math.min(1, status.hits / status.needed) : 0
     const left = Math.max(0, status.needed - status.hits)
+    const bonus = socialBonus(Math.max(1, getActiveMiners()))
     const caption =
         status.blocked !== ''
             ? status.blocked
@@ -1509,6 +1519,8 @@ const miningBar = () => {
             uiTransform={{
                 positionType: 'absolute',
                 position: { top: MINING_PANEL_TOP },
+                // A further 10vh down, clear of the HUD; the units do not add, so it is a margin.
+                margin: { top: MINING_PANEL_DROP },
                 width: '100%',
                 flexDirection: 'row',
                 justifyContent: 'center'
@@ -1550,43 +1562,61 @@ const miningBar = () => {
                         uiBackground={{ color: MINING_FILL_COLOR }}
                     />
                 </UiEntity>
+                {/* The mayor's practice rocks pay no bonus, so they show none. */}
+                {status.practice ? null : (
+                    <Label
+                        value={`Social Bonus +${bonus}`}
+                        fontSize={16}
+                        color={bonus > 0 ? SOCIAL_BONUS_COLOR : MUTED_COLOR}
+                        textAlign="middle-center"
+                        textWrap="nowrap"
+                        uiTransform={{ height: 22, margin: { top: 6 } }}
+                    />
+                )}
             </UiEntity>
         </UiEntity>
     )
 }
 
-// --- The "+5 Ore" popup ------------------------------------------------------------------
+// --- The "+10 Ore" popup -----------------------------------------------------------------
 //
-// Big, centred, rising and fading: the payout of a finished rock, where the player is already
-// looking. Drawn in the scene's bitmap typeface, whose shadow is baked into the glyphs.
+// Centred, rising and fading: the payout of a finished rock. Drawn in the scene's bitmap
+// typeface, whose shadow is baked into the glyphs. It goes up where the mining panel sat before
+// it moved down, under the HUD, so the two do not cover each other.
+//
+// The first line is the rock's base ore; the Social Bonus follows on its own line once the
+// server has said.
 
 const POPUP_FONT_SIZE = 84
 const POPUP_FADE_STEPS = 4
 const POPUP_COLOR = Color4.create(1, 198 / 255, 0, 1)
-// The social bonus line under it: smaller, and magenta, the town's colour for what other
-// players bring (section 7).
+// The social bonus line under it: smaller, and green, like the bonus on the mining panel.
 const POPUP_BONUS_FONT_SIZE = 52
-const POPUP_BONUS_COLOR = MAGENTA
+const POPUP_BONUS_COLOR = SOCIAL_BONUS_COLOR
+/** How far it rises while it shows, in pixels, ending at MINING_PANEL_TOP (plus the drop). */
+const POPUP_RISE_PX = 40
+/** Where it shows, below MINING_PANEL_TOP; the units do not add, so it is a margin. */
+const POPUP_DROP = '5vh'
 
 const orePopup = () => {
     const popup = getOrePopup()
     if (popup === null) return null
 
     const text = `+${popup.amount} Ore`
-    // Fades over the second half only, so it is fully readable while it is rising. In a few
-    // steps rather than every frame: the fade recolours every glyph, and doing that each frame
-    // stalled mobile until the scene errored.
-    const alpha = Math.ceil(Math.min(1, (1 - popup.progress) * 2) * POPUP_FADE_STEPS) / POPUP_FADE_STEPS
-    const risen = popup.progress * RISE_SHARE * 100
+    // Fully opaque for the hold, then fades (ore-popup.ts sets both). In a few steps rather than
+    // every frame: the fade recolours every glyph, and doing that each frame stalled mobile until
+    // the scene errored.
+    const alpha = Math.ceil(popup.fade * POPUP_FADE_STEPS) / POPUP_FADE_STEPS
+    const top = MINING_PANEL_TOP + POPUP_RISE_PX * (1 - popup.progress)
 
     return (
-        <UiEntity uiTransform={{ positionType: 'absolute', width: '100%', height: '100%' }}>
+        <UiEntity uiTransform={{ positionType: 'absolute', width: '100%', height: '100%', margin: { top: POPUP_DROP } }}>
             <BitmapText
                 value={text}
                 fontSize={POPUP_FONT_SIZE}
                 color={Color4.create(POPUP_COLOR.r, POPUP_COLOR.g, POPUP_COLOR.b, alpha)}
                 align="center"
-                uiTransform={{ positionType: 'absolute', position: { top: `${40 - risen}%` }, width: '100%' }}
+                uiTransform={{ positionType: 'absolute', position: { top }, width: '100%' }}
             />
             {popup.bonus > 0 ? (
                 <BitmapText
@@ -1596,7 +1626,7 @@ const orePopup = () => {
                     align="center"
                     uiTransform={{
                         positionType: 'absolute',
-                        position: { top: `${40 - risen + (POPUP_FONT_SIZE / 1080) * 100}%` },
+                        position: { top: top + POPUP_FONT_SIZE },
                         width: '100%'
                     }}
                 />

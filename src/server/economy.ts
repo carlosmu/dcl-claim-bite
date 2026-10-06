@@ -19,14 +19,16 @@ import { syncEntity } from '@dcl/sdk/network'
 import { MARKET_ENTITY_ENUM_ID, OreMarket } from '../shared/net/market-sync'
 import { MULE_YARD_ENTITY_ENUM_ID, MULE_YARD_MAX_SLOTS, MuleYard } from '../shared/net/mule-yard-sync'
 import { HELD_PICKS_ENTITY_ENUM_ID, HeldPicks } from '../shared/net/held-picks-sync'
+import { SOCIAL_MINING_ENTITY_ENUM_ID, SocialMining } from '../shared/net/social-sync'
 import { room } from '../shared/net/protocol'
 import { applySale, getRate, getSettledRate, oreForCoins, quoteSale, restoreRate, tickMarket } from '../shared/state/market'
 import { loadMarketPrice, loadPurse, savePurse, saveMarketPrice } from './persistence'
 import {
-  BOOM_TOWN_ACTIVE_SECONDS,
-  BOOM_TOWN_BONUS_PER_MINER,
   ORE_PER_ROCK,
+  ROCK_ACTIVE_SECONDS,
   ROCK_TIME_TOLERANCE,
+  SOCIAL_ACTIVE_SECONDS,
+  socialBonus,
   SWING_SECONDS
 } from '../shared/economy/constants'
 import { DEBUG_ADD_COINS, DEBUG_ADD_ORE, DEBUG_MAX_COINS, DEBUG_RESET_PROGRESS } from '../shared/debug-flags'
@@ -45,7 +47,7 @@ import {
 } from '../shared/economy/catalogue'
 import { addFuelGallons, fuelGallons, fuelHoursLeft, settleMule } from './mule'
 import { TUTORIAL_ROCK_SEQS } from '../shared/net/rock-sync'
-import { advanceRock, getRockSeqs, hasFinishedRock, isRock, isRockStarted, markFinished, otherFinishers } from './rock'
+import { advanceRock, getRockSeqs, hasFinishedRock, isRock, isRockStarted, markFinished } from './rock'
 
 type Purse = {
   ore: number
@@ -116,9 +118,8 @@ let marketRetryAt = 0
 const lastRockAt = new Map<string, number>()
 
 /**
- * Each player's last hit: when, and on which rock. The boom-town bonus counts the others whose
- * last hit is recent and on the same rock. TBD: like rockDone, a client could report
- * swings it never made.
+ * Each player's last hit: when, and on which rock. A rock waits for the others whose last hit
+ * on it is recent. TBD: like rockDone, a client could report swings it never made.
  */
 const lastSwing = new Map<string, { at: number; seq: number }>()
 
@@ -127,7 +128,28 @@ function otherMinersOnRock(address: string, seq: number): number {
   let count = 0
   for (const [other, swing] of lastSwing) {
     if (other === address || hasFinishedRock(other, seq)) continue
-    if (swing.seq === seq && serverClock - swing.at <= BOOM_TOWN_ACTIVE_SECONDS) count += 1
+    if (swing.seq === seq && serverClock - swing.at <= ROCK_ACTIVE_SECONDS) count += 1
+  }
+  return count
+}
+
+/**
+ * When each player last mined a shared rock: a swing at one, or one finished. Being in the scene
+ * or standing in the area does not count, and the practice rocks by the mayor do not either.
+ * Dropped on leaving the scene.
+ */
+const lastMinedAt = new Map<string, number>()
+
+function noteMining(address: string): void {
+  lastMinedAt.set(address, serverClock)
+}
+
+/** Players mining right now: anyone who mined a shared rock within SOCIAL_ACTIVE_SECONDS. */
+function activeMiners(): number {
+  let count = 0
+  for (const [address, at] of lastMinedAt) {
+    if (serverClock - at <= SOCIAL_ACTIVE_SECONDS) count += 1
+    else lastMinedAt.delete(address)
   }
   return count
 }
@@ -276,10 +298,11 @@ function handleRockDone(address: string, seq: number): void {
   }
   lastRockAt.set(address, serverClock)
 
-  // The boom-town bonus: +1 per other player on this rock — still mining it, or already done
-  // with it. Counting the ones done is what gives the last of a group the same bonus as the
-  // first: three together pay 7 each, whoever finishes when.
-  const others = tutorial ? 0 : otherMinersOnRock(address, seq) + otherFinishers(address, seq)
+  // The Social Bonus: by how many players are mining anywhere in the area right now, this one
+  // included (it just finished, so it counts). Each finisher gets the whole bonus; nothing is
+  // split. The practice rocks pay the plain amount.
+  if (!tutorial) noteMining(address)
+  const bonus = tutorial ? 0 : socialBonus(activeMiners())
   if (tutorial) tutorialPaid.set(address, (tutorialPaid.get(address) ?? new Set<number>()).add(seq))
   else markFinished(address, seq)
   lastSwing.delete(address)
@@ -290,7 +313,6 @@ function handleRockDone(address: string, seq: number): void {
   // The bag is the ceiling. What does not fit is lost: the client stops swinging at capacity,
   // so reaching this means a rock slipped through.
   const space = Math.max(0, carryCapacity(owned) - purse.ore)
-  const bonus = others * BOOM_TOWN_BONUS_PER_MINER
   const paid = Math.min(ORE_PER_ROCK + bonus, space)
   purse.ore += paid
 
@@ -542,6 +564,7 @@ function handleDebugReset(address: string): void {
   purse.equipped = ''
   lastRockAt.delete(address)
   lastSwing.delete(address)
+  lastMinedAt.delete(address)
   tutorialPaid.delete(address)
 
   dirty.add(address)
@@ -589,6 +612,9 @@ function checkPresence(dt: number) {
     // The purse stays in `purses` — only the greeting is forgotten, so the next arrival is
     // treated as new and gets told what it holds.
     lastRockAt.delete(address)
+    // Gone from the scene is gone from the crowd, without waiting out the active window.
+    lastMinedAt.delete(address)
+    lastSwing.delete(address)
     // Written out now rather than at the next flush: leaving is exactly when a player is
     // most likely to not come back before the server stops.
     flushPurse(address)
@@ -741,6 +767,14 @@ function publishHeldPicks(dt: number) {
   HeldPicks.getMutable(heldPicksEntity).picks = picks
 }
 
+// The crowd everybody's HUD shows. Written only when it changes, like the other synced state.
+let socialEntity = engine.RootEntity
+
+function publishSocial() {
+  const count = activeMiners()
+  if (SocialMining.get(socialEntity).activeMiners !== count) SocialMining.getMutable(socialEntity).activeMiners = count
+}
+
 function advanceClock(dt: number) {
   serverClock += dt
 }
@@ -806,6 +840,10 @@ export function setupEconomy(): void {
   HeldPicks.create(heldPicksEntity, { picks: [] })
   syncEntity(heldPicksEntity, [HeldPicks.componentId], HELD_PICKS_ENTITY_ENUM_ID)
 
+  socialEntity = engine.addEntity()
+  SocialMining.create(socialEntity, { activeMiners: 0 })
+  syncEntity(socialEntity, [SocialMining.componentId], SOCIAL_MINING_ENTITY_ENUM_ID)
+
   room.onMessage('hello', (_data, context) => {
     if (!context) return
     // purseOf starts the read if it has not happened yet; the load's own completion sends the
@@ -841,6 +879,8 @@ export function setupEconomy(): void {
   room.onMessage('swing', (data, context) => {
     if (!context) return
     lastSwing.set(context.from, { at: serverClock, seq: data.seq })
+    // Only a standing shared rock makes a miner; a practice rock or a made-up seq does not.
+    if (isRock(data.seq)) noteMining(context.from)
   })
 
   room.onMessage('sell', (data, context) => {
@@ -867,5 +907,6 @@ export function setupEconomy(): void {
   engine.addSystem(checkPresence, undefined, 'server:presence')
   engine.addSystem(publishYard, undefined, 'server:mule-yard')
   engine.addSystem(publishHeldPicks, undefined, 'server:held-picks')
+  engine.addSystem(publishSocial, undefined, 'server:social-mining')
   engine.addSystem(moveSpentRocks, undefined, 'server:rock-move')
 }

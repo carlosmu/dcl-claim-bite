@@ -193,7 +193,7 @@ export function setupEconomyLink(): void {
     )
   })
 
-  // The payout's boom-town part, added under the "+5 Ore" that went up when the bar filled.
+  // The payout's Social Bonus part, added under the "+10 Ore" that went up when the bar filled.
   room.onMessage('rockPaid', (data) => {
     if (data.bonus > 0) showSocialBonus(data.bonus)
   })

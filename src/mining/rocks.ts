@@ -61,7 +61,8 @@ type Rock = {
 }
 
 /** What the HUD draws under itself while mining. Null while there is nothing to say. */
-export type MiningStatus = { hits: number; needed: number; blocked: string }
+/** `practice` is a mayor's practice rock, which pays no Social Bonus. */
+export type MiningStatus = { hits: number; needed: number; blocked: string; practice: boolean }
 
 let status: MiningStatus | null = null
 
@@ -331,14 +332,14 @@ function update(dt: number): void {
   const needed = getHitsPerRock()
   if (needed <= 0) {
     stopSwinging()
-    status = { hits: 0, needed: 1, blocked: 'You need a pick — the mayor has one for you' }
+    status = { hits: 0, needed: 1, blocked: 'You need a pick — the mayor has one for you', practice: rock === tutorial }
     return
   }
 
   const capacity = getCarryCapacity()
   if (capacity > 0 && getOre() >= capacity) {
     stopSwinging()
-    status = { hits: rock.hits, needed, blocked: 'Storage full — sell at the bank' }
+    status = { hits: rock.hits, needed, blocked: 'Storage full — sell at the bank', practice: rock === tutorial }
     return
   }
 
@@ -346,7 +347,7 @@ function update(dt: number): void {
   // animated; the hits already in stay on the rock.
   if (!standing) {
     stopSwinging()
-    status = { hits: rock.hits, needed, blocked: 'Stand still to mine' }
+    status = { hits: rock.hits, needed, blocked: 'Stand still to mine', practice: rock === tutorial }
     return
   }
 
@@ -372,7 +373,7 @@ function update(dt: number): void {
     // one hit, not several.
     if (swingTimer <= 0) swingTimer = SWING_SECONDS
     playHitFeedback(rock.spot)
-    // Tells the server this player is on this rock, for the boom-town bonus.
+    // Tells the server this player is on this rock, for the Social Bonus and for holding the rock until they finish.
     sendSwing(rock.seq)
     // Where the swing is not a loop (mobile), each hit starts the next one; elsewhere this is
     // a no-op while the loop runs.
@@ -401,7 +402,7 @@ function update(dt: number): void {
     }
   }
 
-  status = { hits: rock.hits, needed, blocked: '' }
+  status = { hits: rock.hits, needed, blocked: '', practice: rock === tutorial }
 }
 
 /**

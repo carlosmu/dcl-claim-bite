@@ -12,14 +12,23 @@
 // own, one hit per swing, and a full progress bar pays the rock. The pick decides how many
 // hits that takes.
 
-/** Ore a completed rock pays. */
-export const ORE_PER_ROCK = 5
+/** Ore a completed rock pays, before the Social Bonus. */
+export const ORE_PER_ROCK = 10
 
 /**
- * The boom-town bonus (balance.md §2): extra ore for each OTHER player active on the same rock
- * when a bar completes. Alone 5, two players 6 each, three 7. No cap yet (open).
+ * The Social Bonus: extra ore per finished rock, by how many players are actively mining in the
+ * area right now — the finisher included, on any rock, not just the same one. Indexed by that
+ * count; past the end it stays at the last value (capped at +10 from four miners up).
+ *
+ * Each player gets the whole bonus on their own rock; nothing is split.
  */
-export const BOOM_TOWN_BONUS_PER_MINER = 1
+export const SOCIAL_BONUS_BY_MINERS = [0, 0, 5, 8, 10]
+
+/** The Social Bonus for this many active miners. */
+export function socialBonus(activeMiners: number): number {
+  const index = Math.max(0, Math.min(Math.floor(activeMiners), SOCIAL_BONUS_BY_MINERS.length - 1))
+  return SOCIAL_BONUS_BY_MINERS[index]
+}
 
 /**
  * One swing: the length of `assets/animations/mine_emote.glb` (1.083s, read off the clip).
@@ -32,10 +41,20 @@ export const BOOM_TOWN_BONUS_PER_MINER = 1
 export const SWING_SECONDS = 1
 
 /**
- * How recently another player must have landed a hit to count as active on the rock. A bit
- * over two swings, so one late message does not drop a miner who is still there.
+ * How recently another player must have landed a hit to count as still working a rock, which
+ * holds the rock in place until they finish. A bit over two swings, so one late message does
+ * not drop a miner who is still there.
  */
-export const BOOM_TOWN_ACTIVE_SECONDS = SWING_SECONDS * 2.5
+export const ROCK_ACTIVE_SECONDS = SWING_SECONDS * 2.5
+
+/**
+ * How long after their last swing (or finished rock) a player still counts as an active miner
+ * for the Social Bonus. Miners with different picks fall out of step: one with a 6-hit pick
+ * finishes and waits while a companion on 12 hits is still at it, then both walk on. So this
+ * covers a whole rock with the slowest pick (12 hits) plus the walk to the next, and someone
+ * who truly wanders off or idles still drops out.
+ */
+export const SOCIAL_ACTIVE_SECONDS = 15
 
 /** How close to the rock the player has to stand, measured flat on the ground. */
 export const MINE_REACH_METERS = 1.8

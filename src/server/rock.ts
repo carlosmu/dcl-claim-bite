@@ -52,13 +52,6 @@ export function markFinished(address: string, seq: number): void {
   finishers.get(seq)?.add(address)
 }
 
-/** How many players have finished the rock `seq`, `address` left out. */
-export function otherFinishers(address: string, seq: number): number {
-  const done = finishers.get(seq)
-  if (done === undefined) return 0
-  return done.size - (done.has(address) ? 1 : 0)
-}
-
 /** Whether anyone has finished the rock `seq` — it is spent once they all have. */
 export function isRockStarted(seq: number): boolean {
   return (finishers.get(seq)?.size ?? 0) > 0

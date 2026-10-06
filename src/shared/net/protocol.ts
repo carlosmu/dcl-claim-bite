@@ -61,7 +61,7 @@ export const Messages = {
     muleFuelHours: Schemas.Number
   }),
 
-  // Server -> one client: what a finished rock paid. `bonus` is the boom-town part of `ore`,
+  // Server -> one client: what a finished rock paid. `bonus` is the Social Bonus part of `ore`,
   // already capped by the bag like the rest.
   rockPaid: Schemas.Map({ ore: Schemas.Number, bonus: Schemas.Number }),
 
