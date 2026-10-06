@@ -1,6 +1,7 @@
 import { engine, UiCanvasInformation } from '@dcl/sdk/ecs'
 import ReactEcs, { ReactEcsRenderer, UiEntity, Label, Button, Input } from "@dcl/sdk/react-ecs"
 import { Color4 } from "@dcl/sdk/math"
+import { isMobile } from '@dcl/sdk/platform'
 import { getCoins, getOre } from './shared/state/wallet'
 import { changeSellCoins, closeBankPanel, getSellAmount, getSellCoins, isBankPanelOpen, maxSellCoins, sellSelectedOre, setSellCoins } from './bank/bank'
 import {
@@ -47,20 +48,12 @@ import { quotedRate } from './shared/state/market'
 import { BitmapText } from './ui/bitmap-text'
 import { introScreen } from './ui/intro-screen'
 import { welcomeOverlay } from './ui/welcome-overlay'
-import {
-    closeNotifications,
-    getNotifications,
-    isNotificationsOpen,
-    Notification,
-    openNotifications,
-    setupNotifications,
-    unreadCount
-} from './ui/notifications'
+import { getObjective, Objective, setupObjective } from './ui/objective'
 
 export function setupUi() {
     setupRollingCounters()
     setupOrePopup()
-    setupNotifications()
+    setupObjective()
 
     // No screen inset: the SDK's default ('device') pulls the whole UI in by the phone's safe
     // margins. The game is landscape and everything sits in the centred column, where no notch
@@ -81,6 +74,13 @@ const PANEL_WIDTH = 500
 // So nothing here is positioned against the SCREEN. An absolute child with `top`/`left`
 // anchors to this column, which is what makes the HUD land inside the safe band.
 const MAIN_CONTAINER_WIDTH = '40%'
+
+// The big panels (bank, store, rig, inventory) are laid out for the desktop column: 40% of
+// 1920 = 768. On mobile the SDK swaps the 16:9 virtual screen for 1600x720, which shrinks the
+// column to 640 and squeezes their rows until text spills over its neighbours. They keep at
+// least this width instead, overflowing the column evenly on both sides — the screen around
+// it has the room.
+const PANEL_MIN_WIDTH = 760
 
 // The HUD is the only permanent thing on screen (§6): small, clear of the thumb, pinned to
 // the top of the container. The bank, market and rig panels are contextual — they exist
@@ -105,8 +105,8 @@ const DISABLED_COLOR = Color4.create(0.25, 0.25, 0.26, 1)
 //
 // One horizontal pill at the top of the centred column, spanning its full width; the three
 // segments share that width equally. It stays inside the column rather than the screen, so it never lands on top of the
-// explorer's own interface. Tool, ore and coins, three segments split by hair lines, each an
-// icon beside a caption and its value.
+// explorer's own interface. Ore, coins and rate, three segments split by hair lines. Ore is a
+// storage bar with the amount on it; the pick lives in its own selector at the bottom-left.
 //
 // Icons come from UI_01.png, a 4x4 grid. Rows are lettered A–D from the top, columns 1–4 from
 // the left, so A2 is row A, column 2. Many cells are not used yet; they are mapped below anyway.
@@ -116,11 +116,26 @@ const ATLAS_ROWS = 4
 
 const HUD_MARGIN = 16
 const HUD_HEIGHT = 64
+/** Breathing room above and below the segments, so the captions don't touch the pill's top edge. */
+const HUD_PADDING_Y = 8
+const HUD_PILL_HEIGHT = HUD_HEIGHT + HUD_PADDING_Y * 2
 const HUD_ICON_SIZE = HUD_HEIGHT - 8
 const HUD_CAPTION_SIZE = 18
 const HUD_VALUE_SIZE = 28
 const HUD_BACKGROUND = Color4.create(0.07, 0.08, 0.1, 0.92)
 const HUD_DIVIDER = Color4.create(1, 1, 1, 0.14)
+const HUD_UNIT_SIZE = 13
+
+// The ore segment's storage bar: how full the storage is, with the amount written on it.
+const ORE_BAR_WIDTH = 170
+const ORE_BAR_HEIGHT = 26
+const ORE_BAR_VALUE_SIZE = 24
+/** How far the amount sits in from the bar's left edge; the "Ore" caption is indented the same, so they line up. */
+const ORE_BAR_TEXT_INSET = 8
+const ORE_BAR_TRACK = Color4.create(0.12, 0.1, 0.06, 1)
+const ORE_BAR_FILL = Color4.create(0.62, 0.48, 0.2, 1)
+const ORE_BAR_FULL_FILL = Color4.create(0.7, 0.24, 0.2, 1)
+const STORAGE_FULL_COLOR = Color4.create(0.95, 0.4, 0.35, 1)
 
 /**
  * UVs for one cell of the atlas, addressed like a spreadsheet: column 1 is the left, row 1 is
@@ -174,7 +189,7 @@ const hudIcon = (uvs: number[]) => (
 
 const hudDivider = () => (
     <UiEntity
-        uiTransform={{ width: 1, height: HUD_HEIGHT * 0.5, margin: { left: 14, right: 14 } }}
+        uiTransform={{ width: 1, height: HUD_HEIGHT * 0.5, margin: { left: 20, right: 20 } }}
         uiBackground={{ color: HUD_DIVIDER }}
     />
 )
@@ -186,19 +201,89 @@ const hudDivider = () => (
  * squeezed the pill. The text never wraps and the segment never shrinks: the pill grows to fit
  * its contents instead.
  */
+/**
+ * The small line under a segment's value. Every segment keeps it, empty or not, so the
+ * captions and values of all three segments sit at the same height.
+ */
+const hudUnitLine = (value: string, color: Color4, width?: number) => (
+    <Label
+        value={value}
+        fontSize={HUD_UNIT_SIZE}
+        color={color}
+        textAlign="middle-center"
+        textWrap="nowrap"
+        uiTransform={{ width, height: HUD_UNIT_SIZE + 2 }}
+    />
+)
+
 const hudSegment = (uvs: number[], caption: string, value: string, color: Color4) => (
     <UiEntity uiTransform={{ height: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexGrow: 1, flexShrink: 0 }}>
         {hudIcon(uvs)}
         <UiEntity uiTransform={{ flexDirection: 'column', justifyContent: 'center' }}>
             <BitmapText value={caption} fontSize={HUD_CAPTION_SIZE} color={MUTED_COLOR} />
-            <BitmapText value={value} fontSize={HUD_VALUE_SIZE} color={color} />
+            <UiEntity uiTransform={{ height: HUD_VALUE_SIZE, flexDirection: 'row', alignItems: 'center' }}>
+                <BitmapText value={value} fontSize={HUD_VALUE_SIZE} color={color} />
+            </UiEntity>
+            {hudUnitLine('', MUTED_COLOR)}
         </UiEntity>
     </UiEntity>
 )
 
-const hud = () => {
-    const pick = activePick((id) => getOwned(id), getEquipped())
+/** Ore: a storage bar, the amount on its left end, and a warning under it once it is full. */
+const oreSegment = () => {
     const capacity = getCarryCapacity()
+    const ore = shownOre()
+    const fill = capacity > 0 ? Math.min(1, ore / capacity) : 0
+    const full = capacity > 0 && getOre() >= capacity
+
+    return (
+        <UiEntity uiTransform={{ height: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexGrow: 1, flexShrink: 0 }}>
+            {hudIcon(ICON_ORE)}
+            <UiEntity uiTransform={{ flexDirection: 'column', justifyContent: 'center' }}>
+                <BitmapText value="Ore" fontSize={HUD_CAPTION_SIZE} color={MUTED_COLOR} uiTransform={{ margin: { left: ORE_BAR_TEXT_INSET } }} />
+                <UiEntity uiTransform={{ height: HUD_VALUE_SIZE, flexDirection: 'row', alignItems: 'center' }}>
+                <UiEntity
+                    uiTransform={{
+                        width: ORE_BAR_WIDTH,
+                        height: ORE_BAR_HEIGHT,
+                        borderRadius: 4,
+                        borderWidth: 2,
+                        borderColor: Color4.Black(),
+                        flexDirection: 'row',
+                        justifyContent: 'flex-start',
+                        alignItems: 'center',
+                        padding: { left: ORE_BAR_TEXT_INSET - 2 }
+                    }}
+                    uiBackground={{ color: ORE_BAR_TRACK }}
+                >
+                    <UiEntity
+                        uiTransform={{ positionType: 'absolute', position: { left: 0, top: 0 }, width: percent(fill), height: '100%' }}
+                        uiBackground={{ color: full ? ORE_BAR_FULL_FILL : ORE_BAR_FILL }}
+                    />
+                    <BitmapText value={`${ore}`} fontSize={ORE_BAR_VALUE_SIZE} color={ORE_COLOR} />
+                </UiEntity>
+                </UiEntity>
+                {hudUnitLine(full ? 'STORAGE FULL' : '', STORAGE_FULL_COLOR, ORE_BAR_WIDTH)}
+            </UiEntity>
+        </UiEntity>
+    )
+}
+
+/** Rate: the town's selling rate, as the bank quotes it. */
+const rateSegment = () => {
+    const rate = quotedRate(getSyncedRate())
+    return (
+        <UiEntity uiTransform={{ height: '100%', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexGrow: 1, flexShrink: 0 }}>
+            <BitmapText value="Rate" fontSize={HUD_CAPTION_SIZE} color={MUTED_COLOR} />
+            <UiEntity uiTransform={{ height: HUD_VALUE_SIZE, flexDirection: 'row', alignItems: 'center' }}>
+                <BitmapText value={formatRate(rate)} fontSize={HUD_VALUE_SIZE} color={rateColor(rate)} />
+            </UiEntity>
+            {hudUnitLine('ore / coin', MUTED_COLOR)}
+        </UiEntity>
+    )
+}
+
+const hud = () => {
 
     return (
         // Two entities, not one. The pill has to size itself to its contents, so it cannot
@@ -217,19 +302,19 @@ const hud = () => {
         <UiEntity
             uiTransform={{
                 width: '100%',
-                height: HUD_HEIGHT,
+                height: HUD_PILL_HEIGHT,
                 flexDirection: 'row',
                 alignItems: 'center',
-                padding: { left: 18, right: 22 },
+                padding: { left: 18, right: 22, top: HUD_PADDING_Y, bottom: HUD_PADDING_Y },
                 borderRadius: PANEL_RADIUS
             }}
             uiBackground={{ color: HUD_BACKGROUND }}
         >
-            {hudSegment((pick && PICK_ICONS[pick.id]) ?? ICON_PICK_IRON,'Tool', pick?.label ?? 'No pick', Color4.White())}
-            {hudDivider()}
-            {hudSegment(ICON_ORE, 'Ore', capacity > 0 ? `${shownOre()} / ${capacity}` : `${shownOre()}`, ORE_COLOR)}
+            {oreSegment()}
             {hudDivider()}
             {hudSegment(ICON_COINS, 'Coins', `${shownCoins()}`, COIN_COLOR)}
+            {hudDivider()}
+            {rateSegment()}
         </UiEntity>
         </UiEntity>
     )
@@ -551,6 +636,7 @@ const bankPanel = () => {
         <UiEntity
             uiTransform={{
                 width: '100%',
+                minWidth: PANEL_MIN_WIDTH,
                 flexDirection: 'column',
                 alignItems: 'center',
                 padding: BANK_PANEL_PADDING,
@@ -701,6 +787,7 @@ const TILE_HEIGHT = 88
 
 const STORE_LIST_WIDTH = 270
 const STORE_CARD_HEIGHT = 60
+const STORE_CARD_GAP = 6
 const STORE_CARD_ICON = 42
 const STORE_DETAIL_ICON = 130
 const STORE_ACTION_HEIGHT = 64
@@ -813,10 +900,11 @@ const storeCard = (product: Product, selected: boolean) => (
         uiTransform={{
             width: '100%',
             height: STORE_CARD_HEIGHT,
+            flexShrink: 0,
             flexDirection: 'row',
             alignItems: 'center',
             padding: { left: 10, right: 10 },
-            margin: { bottom: 6 },
+            margin: { bottom: STORE_CARD_GAP },
             borderRadius: 10,
             borderWidth: selected ? 3 : 2,
             borderColor: selected ? BANK_GOLD : BANK_TRIM
@@ -872,6 +960,8 @@ const storeActionButton = (action: Action) => {
                 <Label value="✓" fontSize={34} color={text} textAlign="middle-center" uiTransform={{ width: 40, height: STORE_ACTION_HEIGHT }} />
             ) : null}
             <BitmapText value={action.label} fontSize={38} color={text} />
+            {/* An empty twin of the tick on the other side, so the label itself is what is centred. */}
+            {action.kind === 'equipped' ? <UiEntity uiTransform={{ width: 40, height: STORE_ACTION_HEIGHT }} /> : null}
         </UiEntity>
     )
 }
@@ -1104,6 +1194,10 @@ const storePanel = () => {
         <UiEntity
             uiTransform={{
                 width: '100%',
+                minWidth: PANEL_MIN_WIDTH,
+                // On mobile, the full screen height, inset top and bottom by the same margin as the
+                // HUD: the 720-high screen has no room to spare. On desktop it fits its contents.
+                ...(isMobile() ? { flexGrow: 1, margin: { top: HUD_MARGIN, bottom: HUD_MARGIN } } : {}),
                 flexDirection: 'column',
                 padding: BANK_PANEL_PADDING,
                 borderRadius: PANEL_RADIUS,
@@ -1112,12 +1206,11 @@ const storePanel = () => {
             }}
             uiBackground={{ color: BANK_WOOD_DARK }}
         >
-            {/* Title on the left; the purse and the close button on the right. */}
-            <UiEntity uiTransform={{ width: '100%', height: 56, flexDirection: 'row', alignItems: 'center', margin: { bottom: 12 } }}>
+            {/* Title centred with the purse under it; the close button sits apart in the corner. */}
+            <UiEntity uiTransform={{ width: '100%', flexDirection: 'column', alignItems: 'center', margin: { bottom: 12 } }}>
                 <BitmapText value="GENERAL STORE" fontSize={40} color={BANK_GOLD_LIGHT} />
-                <UiEntity uiTransform={{ flexGrow: 1 }} />
                 <UiEntity
-                    uiTransform={{ height: 44, flexDirection: 'row', alignItems: 'center', padding: { left: 8, right: 14 }, margin: { right: 10 }, borderRadius: 22 }}
+                    uiTransform={{ height: 44, flexDirection: 'row', alignItems: 'center', flexShrink: 0, padding: { left: 8, right: 14 }, margin: { top: 6 }, borderRadius: 22 }}
                     uiBackground={{ color: BANK_WOOD }}
                 >
                     <UiEntity uiTransform={{ width: 34, height: 34, margin: { right: 8 } }} uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: ICON_COINS }} />
@@ -1127,13 +1220,14 @@ const storePanel = () => {
                     value="X"
                     fontSize={30}
                     color={Color4.White()}
-                    uiTransform={{ width: 48, height: 48, borderRadius: PANEL_RADIUS }}
+                    uiTransform={{ positionType: 'absolute', position: { top: 0, right: 0 }, width: 48, height: 48, borderRadius: PANEL_RADIUS }}
                     uiBackground={{ color: MAP_CLOSE_COLOR }}
                     onMouseDown={closeStorePanel}
                 />
             </UiEntity>
 
-            <UiEntity uiTransform={{ width: '100%', flexDirection: 'row' }}>
+            {/* On mobile, fills what the header leaves, so the detail's action sits at the bottom of the screen. */}
+            <UiEntity uiTransform={{ width: '100%', flexGrow: 1, flexDirection: 'row' }}>
                 <UiEntity uiTransform={{ width: STORE_LIST_WIDTH, flexShrink: 0, flexDirection: 'column' }}>
                     {products.map((product) => storeCard(product, product.key === key))}
                 </UiEntity>
@@ -1253,14 +1347,19 @@ const debugGrantTool = (grant: DebugGrant, label: string) => (
 
 // --- Debug box --------------------------------------------------------------------------
 //
-// One labelled panel on the right edge of the screen, 30vh from the top, that groups every debug tool, so they read as a set
-// and not as stray game buttons.
+// One labelled panel on the left edge of the screen that groups every debug tool, so they read
+// as a set and not as stray game buttons. It sits just under the HUD, away from the objective
+// tracker on the right, and always shows every tool.
+
+const DEBUG_BOX_TOP = HUD_MARGIN + HUD_PILL_HEIGHT + 40
+/** Clears the Explorer's own button bar on the left edge of the screen. */
+const DEBUG_BOX_LEFT = 80
 
 const debugBox = () => (
     <UiEntity
         uiTransform={{
             positionType: 'absolute',
-            position: { top: '30vh', right: 0 },
+            position: { top: DEBUG_BOX_TOP, left: DEBUG_BOX_LEFT },
             flexDirection: 'column',
             alignItems: 'flex-start',
             padding: 10,
@@ -1285,7 +1384,7 @@ const debugBox = () => (
 
 const MINING_BAR_WIDTH = 320
 const MINING_BAR_HEIGHT = 14
-const MINING_PANEL_TOP = HUD_MARGIN + HUD_HEIGHT + 10
+const MINING_PANEL_TOP = HUD_MARGIN + HUD_PILL_HEIGHT + 10
 const MINING_FILL_COLOR = Color4.create(1, 198 / 255, 0, 1)
 const MINING_TRACK_COLOR = Color4.create(0.12, 0.1, 0.06, 1)
 
@@ -1676,6 +1775,7 @@ const mulePanel = () => (
     <UiEntity
         uiTransform={{
             width: '100%',
+            minWidth: PANEL_MIN_WIDTH,
             flexDirection: 'column',
             padding: BANK_PANEL_PADDING,
             borderRadius: PANEL_RADIUS,
@@ -1717,8 +1817,8 @@ const mulePanel = () => (
 // --- Inventory ----------------------------------------------------------------------------
 //
 // Opened by a button at the bottom-right of the column; closes itself with its own button. Lists
-// what the player owns. Picks can be switched between — a request, answered by the wallet — and
-// everything else is shown for reference only.
+// what the player owns, for reference only. The pick in use is marked here, but switching picks
+// is the selector's job, at the bottom-left.
 
 let inventoryOpen = false
 
@@ -1737,7 +1837,7 @@ const ITEM_ICONS: Partial<Record<ShopItemId, number[]>> = {
 
 const inventoryRow = (item: ShopItem) => {
     const isPick = item.hitsPerRock !== undefined
-    const inUse = isPick && getEquipped() === item.id
+    const inUse = isPick && activePick((id) => getOwned(id), getEquipped())?.id === item.id
     const icon = isPick ? PICK_ICONS[item.id] : ITEM_ICONS[item.id]
     const detail = isPick
         ? `${item.hitsPerRock} hits per rock`
@@ -1777,15 +1877,15 @@ const inventoryRow = (item: ShopItem) => {
                     uiTransform={{ height: 22 }}
                 />
             </UiEntity>
-            {isPick ? (
-                <Button
-                    value={inUse ? 'In use' : 'Use'}
-                    fontSize={20}
-                    color={Color4.White()}
-                    disabled={inUse}
-                    uiTransform={{ width: 110, height: 46, borderRadius: 8, flexShrink: 0 }}
-                    uiBackground={{ color: inUse ? DISABLED_COLOR : MAGENTA }}
-                    onMouseDown={() => sendEquip(item.id)}
+            {inUse ? (
+                <Label
+                    value="Equipped"
+                    fontSize={18}
+                    color={EQUIPPED_TEXT}
+                    textAlign="middle-center"
+                    textWrap="nowrap"
+                    uiTransform={{ width: 120, height: 40, borderRadius: 8, flexShrink: 0 }}
+                    uiBackground={{ color: EQUIPPED_COLOR }}
                 />
             ) : null}
         </UiEntity>
@@ -1802,6 +1902,7 @@ const inventoryPanel = () => {
         <UiEntity
             uiTransform={{
                 width: '100%',
+                minWidth: PANEL_MIN_WIDTH,
                 flexDirection: 'column',
                 alignItems: 'center',
                 padding: 20,
@@ -1836,18 +1937,18 @@ const inventoryPanel = () => {
 }
 
 const inventoryButton = () => (
-    <UiEntity uiTransform={{ positionType: 'absolute', position: { bottom: 56, right: NOTIFICATION_BUTTON_SIZE + BOTTOM_BUTTON_GAP } }}>
+    <UiEntity uiTransform={{ positionType: 'absolute', position: { bottom: BOTTOM_BUTTON_Y, right: 0 } }}>
         <Button
             value={inventoryOpen ? 'Close' : 'Inventory'}
             fontSize={18}
             color={Color4.White()}
-            uiTransform={{ width: 150, height: 44, borderRadius: 8 }}
+            uiTransform={{ width: BOTTOM_BUTTON_WIDTH, height: BOTTOM_BUTTON_HEIGHT, borderRadius: 8 }}
             uiBackground={{ color: STEP_BUTTON_COLOR }}
             onMouseDown={() => {
                 inventoryOpen = !inventoryOpen
                 if (inventoryOpen) {
                     mapOpen = false
-                    closeNotifications()
+                    pickSelectorOpen = false
                 }
             }}
         />
@@ -1902,9 +2003,9 @@ const mapButton = () => (
     <UiEntity
         uiTransform={{
             positionType: 'absolute',
-            position: { bottom: 56, right: NOTIFICATION_BUTTON_SIZE + BOTTOM_BUTTON_GAP + 150 + BOTTOM_BUTTON_GAP },
-            width: 150,
-            height: 44,
+            position: { bottom: BOTTOM_BUTTON_Y, right: BOTTOM_BUTTON_WIDTH + BOTTOM_BUTTON_GAP },
+            width: BOTTOM_BUTTON_WIDTH,
+            height: BOTTOM_BUTTON_HEIGHT,
             borderRadius: 8,
             flexDirection: 'row',
             justifyContent: 'center',
@@ -1915,7 +2016,7 @@ const mapButton = () => (
             mapOpen = !mapOpen
             if (mapOpen) {
                 inventoryOpen = false
-                closeNotifications()
+                pickSelectorOpen = false
             }
         }}
     >
@@ -1927,143 +2028,198 @@ const mapButton = () => (
     </UiEntity>
 )
 
-// --- Notifications ------------------------------------------------------------------------
+// --- Bottom buttons -----------------------------------------------------------------------
 //
-// A bell to the right of the inventory, with a red count of what is unread. Its panel only says
-// what happened and where to go — the bank, the store and the rig are still walked to. Same
-// wood-and-gold dress as the M.U.L.E. panel. Unread notes carry a gold frame and dot; opening
-// the panel clears the badge, and they settle into the plain look on the next visit.
+// The pick selector on the bottom-left of the column, Map and Inventory on the bottom-right.
 
-const NOTIFICATION_BUTTON_SIZE = 44
+const BOTTOM_BUTTON_Y = 56
+const BOTTOM_BUTTON_WIDTH = 150
+const BOTTOM_BUTTON_HEIGHT = 44
 const BOTTOM_BUTTON_GAP = 8
-const NOTIFICATION_BADGE_SIZE = 24
-const NOTIFICATION_BADGE_COLOR = Color4.create(0.88, 0.12, 0.12, 1)
-const NOTIFICATION_ROW_HEIGHT = 72
-const NOTIFICATION_DOT_SIZE = 10
 
-const notificationButton = () => {
-    const unread = unreadCount()
+// --- Pick selector ------------------------------------------------------------------------
+//
+// The pick in hand, as a button: icon and name. Tapping it opens a short list of every pick
+// above it — the one in use highlighted, the owned ones selectable, the rest locked. Choosing
+// is a request, answered by the wallet, so the highlight moves when the server agrees.
+
+const PICK_ROW_WIDTH = 240
+const PICK_ROW_HEIGHT = 48
+const PICK_ROW_ICON = 36
+const LOCKED_TINT = Color4.create(1, 1, 1, 0.35)
+
+let pickSelectorOpen = false
+
+const pickButton = () => {
+    const pick = activePick((id) => getOwned(id), getEquipped())
     return (
         <UiEntity
             uiTransform={{
                 positionType: 'absolute',
-                position: { bottom: 56, right: 0 },
-                width: NOTIFICATION_BUTTON_SIZE,
-                height: NOTIFICATION_BUTTON_SIZE,
+                position: { bottom: BOTTOM_BUTTON_Y, left: 0 },
+                height: BOTTOM_BUTTON_HEIGHT,
+                flexDirection: 'row',
+                alignItems: 'center',
+                padding: { left: 10, right: 14 },
                 borderRadius: 8,
-                justifyContent: 'center',
-                alignItems: 'center'
+                borderWidth: 2,
+                borderColor: pickSelectorOpen ? MAGENTA : Color4.Clear()
             }}
             uiBackground={{ color: STEP_BUTTON_COLOR }}
             onMouseDown={() => {
-                if (isNotificationsOpen()) {
-                    closeNotifications()
-                    return
+                if (pick === null) return
+                pickSelectorOpen = !pickSelectorOpen
+                if (pickSelectorOpen) {
+                    mapOpen = false
+                    inventoryOpen = false
                 }
-                openNotifications()
-                mapOpen = false
-                inventoryOpen = false
             }}
         >
             <UiEntity
-                uiTransform={{ width: 32, height: 32 }}
-                uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: ICON_NOTIFICATION }}
+                uiTransform={{ width: 32, height: 32, margin: { right: 8 } }}
+                uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: (pick && PICK_ICONS[pick.id]) ?? ICON_PICK_IRON, color: pick === null ? LOCKED_TINT : Color4.White() }}
             />
-            {unread > 0 ? (
-                <Label
-                    value={unread > 9 ? '9+' : `${unread}`}
-                    fontSize={14}
-                    color={Color4.White()}
-                    textAlign="middle-center"
-                    uiTransform={{
-                        positionType: 'absolute',
-                        position: { top: -NOTIFICATION_BADGE_SIZE / 3, right: -NOTIFICATION_BADGE_SIZE / 3 },
-                        width: NOTIFICATION_BADGE_SIZE,
-                        height: NOTIFICATION_BADGE_SIZE,
-                        borderRadius: NOTIFICATION_BADGE_SIZE / 2
-                    }}
-                    uiBackground={{ color: NOTIFICATION_BADGE_COLOR }}
-                />
-            ) : null}
+            <Label
+                value={pick?.label ?? 'No pick'}
+                fontSize={18}
+                color={pick === null ? MUTED_COLOR : Color4.White()}
+                textAlign="middle-left"
+                textWrap="nowrap"
+                uiTransform={{ height: BOTTOM_BUTTON_HEIGHT }}
+            />
         </UiEntity>
     )
 }
 
-const notificationRow = (note: Notification) => {
-    const unread = !note.read
+const pickRow = (item: ShopItem, inUse: boolean) => {
+    const owned = getOwned(item.id) > 0
     return (
         <UiEntity
-            key={`${note.id}`}
+            key={item.id}
             uiTransform={{
-                width: '100%',
-                height: NOTIFICATION_ROW_HEIGHT,
+                width: PICK_ROW_WIDTH,
+                height: PICK_ROW_HEIGHT,
                 flexDirection: 'row',
                 alignItems: 'center',
-                padding: { left: 14, right: 14 },
-                margin: { bottom: 8 },
-                borderRadius: 10,
-                borderWidth: unread ? 3 : 2,
-                borderColor: unread ? BANK_GOLD : BANK_TRIM
+                padding: { left: 8, right: 10 },
+                margin: { top: 6 },
+                borderRadius: 8,
+                borderWidth: 2,
+                borderColor: inUse ? MAGENTA : TILE_BORDER_COLOR
             }}
-            uiBackground={{ color: BANK_WOOD }}
+            uiBackground={{ color: inUse ? TILE_SELECTED_COLOR : TILE_COLOR }}
+            onMouseDown={() => {
+                if (!owned) return
+                if (!inUse) sendEquip(item.id)
+                pickSelectorOpen = false
+            }}
         >
-            {/* The dot keeps its slot on read rows too, so the text lines up down the list. */}
             <UiEntity
-                uiTransform={{ width: NOTIFICATION_DOT_SIZE, height: NOTIFICATION_DOT_SIZE, margin: { right: 12 }, flexShrink: 0, borderRadius: NOTIFICATION_DOT_SIZE / 2 }}
-                uiBackground={{ color: unread ? BANK_GOLD_LIGHT : Color4.Clear() }}
+                uiTransform={{ width: PICK_ROW_ICON, height: PICK_ROW_ICON, margin: { right: 10 }, flexShrink: 0 }}
+                uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: PICK_ICONS[item.id] ?? ICON_PICK_IRON, color: owned ? Color4.White() : LOCKED_TINT }}
             />
-            <UiEntity uiTransform={{ flexGrow: 1, flexDirection: 'column', justifyContent: 'center' }}>
-                <BitmapText value={note.title.toUpperCase()} fontSize={20} color={unread ? BANK_GOLD_LIGHT : BANK_CREAM} />
-                <Label
-                    value={note.body}
-                    fontSize={15}
-                    color={unread ? BANK_CREAM : BANK_CAPTION}
-                    textAlign="middle-left"
-                    textWrap="nowrap"
-                    uiTransform={{ height: 22, margin: { top: 2 } }}
+            <Label
+                value={item.label}
+                fontSize={17}
+                color={owned ? Color4.White() : MUTED_COLOR}
+                textAlign="middle-left"
+                textWrap="nowrap"
+                uiTransform={{ flexGrow: 1, height: PICK_ROW_HEIGHT }}
+            />
+            {owned ? null : (
+                <UiEntity
+                    uiTransform={{ width: 24, height: 24, flexShrink: 0 }}
+                    uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: ICON_LOCK, color: LOCKED_TINT }}
                 />
-            </UiEntity>
+            )}
         </UiEntity>
     )
 }
 
-const notificationsPanel = () => {
-    const notes = getNotifications()
+const pickSelector = () => {
+    if (!pickSelectorOpen) return null
+    const inUse = activePick((id) => getOwned(id), getEquipped())?.id ?? ''
     return (
         <UiEntity
             uiTransform={{
-                width: '100%',
+                positionType: 'absolute',
+                position: { bottom: BOTTOM_BUTTON_Y + BOTTOM_BUTTON_HEIGHT + BOTTOM_BUTTON_GAP, left: 0 },
                 flexDirection: 'column',
-                padding: BANK_PANEL_PADDING,
-                borderRadius: PANEL_RADIUS,
-                borderWidth: 3,
-                borderColor: BANK_TRIM
+                padding: { left: 8, right: 8, bottom: 8, top: 2 },
+                borderRadius: 10
             }}
-            uiBackground={{ color: BANK_WOOD_DARK }}
+            uiBackground={{ color: PANEL_BACKGROUND }}
         >
-            {/* Title centred; the close button sits apart in the corner, as on the M.U.L.E. panel. */}
-            <UiEntity uiTransform={{ width: '100%', height: 56, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', margin: { bottom: 12 } }}>
-                <BitmapText value="NOTIFICATIONS" fontSize={42} color={BANK_GOLD_LIGHT} />
-                <Button
-                    value="X"
-                    fontSize={30}
-                    color={Color4.White()}
-                    uiTransform={{ positionType: 'absolute', position: { top: 0, right: 0 }, width: 48, height: 48, borderRadius: PANEL_RADIUS }}
-                    uiBackground={{ color: MAP_CLOSE_COLOR }}
-                    onMouseDown={closeNotifications}
+            {PICKS.map((item) => pickRow(item, item.id === inUse))}
+        </UiEntity>
+    )
+}
+
+// --- Objective tracker --------------------------------------------------------------------
+//
+// On the right edge of the screen: a bell, a title and two short lines saying the one thing
+// that matters now (see ui/objective.ts). Hidden when there is nothing to say. Alerts wear the
+// warning colour; objectives the bank's gold.
+
+const OBJECTIVE_TOP = '30vh'
+const OBJECTIVE_WIDTH = 290
+const OBJECTIVE_ICON_SIZE = 28
+const OBJECTIVE_BAR_HEIGHT = 8
+
+const objectiveTracker = () => {
+    const objective: Objective | null = getObjective()
+    if (objective === null) return null
+
+    return (
+        <UiEntity
+            uiTransform={{
+                positionType: 'absolute',
+                position: { top: OBJECTIVE_TOP, right: HUD_MARGIN },
+                width: OBJECTIVE_WIDTH,
+                flexDirection: 'column',
+                padding: { left: 14, right: 14, top: 10, bottom: 12 },
+                borderRadius: PANEL_RADIUS,
+                borderWidth: 2,
+                borderColor: objective.alert ? SHORT_COLOR : BANK_TRIM
+            }}
+            uiBackground={{ color: HUD_BACKGROUND }}
+        >
+            <UiEntity uiTransform={{ flexDirection: 'row', alignItems: 'center', margin: { bottom: 4 } }}>
+                <UiEntity
+                    uiTransform={{ width: OBJECTIVE_ICON_SIZE, height: OBJECTIVE_ICON_SIZE, margin: { right: 8 }, flexShrink: 0 }}
+                    uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: ICON_NOTIFICATION }}
                 />
+                <BitmapText value={objective.title} fontSize={20} color={objective.alert ? STORAGE_FULL_COLOR : BANK_GOLD_LIGHT} />
             </UiEntity>
-            {notes.length === 0 ? (
+            <Label
+                value={objective.message}
+                fontSize={17}
+                color={Color4.White()}
+                textAlign="middle-left"
+                textWrap="nowrap"
+                uiTransform={{ height: 24 }}
+            />
+            {objective.detail !== '' ? (
                 <Label
-                    value="Nothing new. All quiet in town."
-                    fontSize={18}
-                    color={BANK_CAPTION}
-                    textAlign="middle-center"
-                    uiTransform={{ width: '100%', height: 48 }}
+                    value={objective.detail}
+                    fontSize={15}
+                    color={MUTED_COLOR}
+                    textAlign="middle-left"
+                    textWrap="nowrap"
+                    uiTransform={{ height: 20 }}
                 />
-            ) : (
-                notes.map(notificationRow)
-            )}
+            ) : null}
+            {objective.progress !== null ? (
+                <UiEntity
+                    uiTransform={{ width: '100%', height: OBJECTIVE_BAR_HEIGHT, margin: { top: 6 }, borderRadius: 4 }}
+                    uiBackground={{ color: MINING_TRACK_COLOR }}
+                >
+                    <UiEntity
+                        uiTransform={{ width: percent(Math.min(1, objective.progress)), height: '100%', borderRadius: 4 }}
+                        uiBackground={{ color: MINING_FILL_COLOR }}
+                    />
+                </UiEntity>
+            ) : null}
         </UiEntity>
     )
 }
@@ -2078,6 +2234,10 @@ export const uiMenu = () => (
             flexDirection: 'row'
         }}
     >
+        {/* the tracker and the debug box sit outside main-container so they anchor to the screen
+            edge. They come first because later siblings draw on top: an open panel covers them. */}
+        {objectiveTracker()}
+        {DEBUG_RESET_PROGRESS || DEBUG_ADD_COINS || DEBUG_ADD_ORE ? debugBox() : null}
         {/* main-container: every piece of UI goes in here */}
         <UiEntity
             uiTransform={{
@@ -2092,19 +2252,19 @@ export const uiMenu = () => (
             {hud()}
             {miningBar()}
             {orePopup()}
-            {mapOpen ? mapPanel() : null}
-            {inventoryOpen ? inventoryPanel() : null}
-            {isNotificationsOpen() ? notificationsPanel() : null}
-            {!mapOpen && !inventoryOpen && !isNotificationsOpen() && isBankPanelOpen() ? bankPanel() : null}
-            {!mapOpen && !inventoryOpen && !isNotificationsOpen() && isStorePanelOpen() ? storePanel() : null}
-            {!mapOpen && !inventoryOpen && !isNotificationsOpen() && isMulePanelOpen() && getMuleCount() > 0 ? mulePanel() : null}
+            {pickButton()}
             {mapButton()}
             {inventoryButton()}
-            {notificationButton()}
             {DEBUG_SERVER_STATUS ? serverStatus() : null}
+            {/* The panels go last so they draw over the HUD and the bottom buttons: on mobile
+                they are tall enough to reach both. */}
+            {mapOpen ? mapPanel() : null}
+            {inventoryOpen ? inventoryPanel() : null}
+            {!mapOpen && !inventoryOpen && isBankPanelOpen() ? bankPanel() : null}
+            {!mapOpen && !inventoryOpen && isStorePanelOpen() ? storePanel() : null}
+            {!mapOpen && !inventoryOpen && isMulePanelOpen() && getMuleCount() > 0 ? mulePanel() : null}
+            {pickSelector()}
         </UiEntity>
-        {/* the debug box sits outside main-container so it anchors to the screen edge */}
-        {DEBUG_RESET_PROGRESS || DEBUG_ADD_COINS || DEBUG_ADD_ORE ? debugBox() : null}
         {welcomeOverlay()}
         {introScreen()}
     </UiEntity>

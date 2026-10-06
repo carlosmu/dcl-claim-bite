@@ -65,9 +65,13 @@ export function BitmapText(props: BitmapTextProps) {
     const scale = fontSize / EM
 
     const glyphs = []
+    // The text's own width, declared on the root below. Left to the layout to measure from the
+    // glyphs, the mobile renderer came up short inside rows, so centred text drifted right.
+    let width = 0
     for (let i = 0; i < value.length; i++) {
         const glyph = glyphFor(value[i])
         const kerning = i > 0 ? KERNINGS.get(value.charCodeAt(i - 1) * 65536 + value.charCodeAt(i)) ?? 0 : 0
+        width += (kerning + glyph.advance) * scale
         // One entity per character, not a cell plus a glyph inside it: the glyph's offsets and
         // the rest of its advance go into its margins. Half the entities matters on mobile,
         // where every UI entity the renderer has to update is felt.
@@ -97,6 +101,7 @@ export function BitmapText(props: BitmapTextProps) {
     return (
         <UiEntity
             uiTransform={{
+                width,
                 height: fontSize,
                 flexDirection: 'row',
                 alignItems: 'flex-start',
