@@ -237,12 +237,12 @@ const hudDivider = () => (
  * The small line under a segment's value. Every segment keeps it, empty or not, so the
  * captions and values of all three segments sit at the same height.
  */
-const hudUnitLine = (value: string, color: Color4, width?: number) => (
+const hudUnitLine = (value: string, color: Color4, width?: number, align: 'middle-center' | 'middle-left' = 'middle-center') => (
     <Label
         value={value}
         fontSize={HUD_UNIT_SIZE}
         color={color}
-        textAlign="middle-center"
+        textAlign={align}
         textWrap="nowrap"
         uiTransform={{ width, height: HUD_UNIT_SIZE + 2 }}
     />
@@ -307,12 +307,12 @@ const rateSegment = () => {
     return (
         <UiEntity uiTransform={{ height: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexGrow: 1, flexShrink: 0 }}>
             {hudIcon(ICON_RATE)}
-            <UiEntity uiTransform={{ flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <UiEntity uiTransform={{ flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center' }}>
                 <BitmapText value="Rate" fontSize={HUD_CAPTION_SIZE} color={MUTED_COLOR} />
                 <UiEntity uiTransform={{ height: HUD_VALUE_SIZE, flexDirection: 'row', alignItems: 'center' }}>
                     <BitmapText value={formatRate(rate)} fontSize={HUD_VALUE_SIZE} color={rateColor(rate)} />
                 </UiEntity>
-                {hudUnitLine('ore / coin', MUTED_COLOR)}
+                {hudUnitLine('ORE / COIN', MUTED_COLOR, undefined, 'middle-left')}
             </UiEntity>
         </UiEntity>
     )
@@ -2292,7 +2292,7 @@ const inventoryButton = () => (
         }}
     >
         <UiEntity uiTransform={{ width: 32, height: 32, margin: { right: 8 } }} uiBackground={iconBackground(ICON_INVENTORY)} />
-        <Label value={inventoryOpen ? 'Close' : 'Inventory'} fontSize={18} color={Color4.White()} textAlign="middle-center" uiTransform={{ height: 44 }} />
+        <Label value="Inventory" fontSize={18} color={Color4.White()} textAlign="middle-center" uiTransform={{ height: 44 }} />
     </UiEntity>
 )
 
