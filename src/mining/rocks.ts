@@ -35,6 +35,7 @@ const INDICATOR_MODEL = 'assets/models/circle-indicator.glb'
 const INDICATOR_TURN_SECONDS = 6
 
 const ROCK_DONE_SOUND = 'assets/sounds/match.mp3'
+const ROCK_BREAK_SOUND = 'assets/sounds/destroy_rock.mp3'
 
 // The pick striking stone, one per hit, is played by pick-feel.ts: from here rather than baked
 // into the emote, because the hit lands when the swing's timer runs out, which is the moment
@@ -395,6 +396,7 @@ function update(dt: number): void {
       sendRockDone(rock.seq)
       if (rock === tutorial) removeTutorialRock()
       playSfx(ROCK_DONE_SOUND, 0.8)
+      playSfx(ROCK_BREAK_SOUND)
       playRockBreak(rock.spot)
       // Shown immediately rather than when the wallet comes back: the swing earned it, and a
       // popup a round trip late would not read as this rock's payout. The HUD is still the one

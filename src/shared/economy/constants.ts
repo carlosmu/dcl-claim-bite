@@ -57,7 +57,7 @@ export const ROCK_ACTIVE_SECONDS = SWING_SECONDS * 2.5
 export const SOCIAL_ACTIVE_SECONDS = 15
 
 /** How close to the rock the player has to stand, measured flat on the ground. */
-export const MINE_REACH_METERS = 1.8
+export const MINE_REACH_METERS = 2.5
 
 /**
  * How far the player's facing may stray from the rock and still swing, either side. 60° is a
