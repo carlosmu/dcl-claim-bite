@@ -5,6 +5,7 @@ import { Color4 } from '@dcl/sdk/math'
 import { isMobile } from '@dcl/sdk/platform'
 import { startTownMusic, stopIntroMusic } from '../world/music'
 import { playWelcomeCinematic } from '../world/welcome-cinematic'
+import { setIntroChoice } from '../world/intro-state'
 
 // Title card shown when the game starts: black screen, logo, Start Game button. Tapping the
 // button hides logo and button, then the black backdrop fades to nothing and goes away.
@@ -60,6 +61,7 @@ function pulseScale() {
 function startGame(withWelcome: boolean) {
     if (phase !== 'title') return
     phase = 'fading'
+    setIntroChoice(withWelcome ? 'start' : 'skip')
     stopIntroMusic()
     // The shot starts under the fade, so the title dissolves straight into it. It starts the
     // town music itself once the mayor is done; without it, the music starts now.

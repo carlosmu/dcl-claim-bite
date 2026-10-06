@@ -6,6 +6,7 @@ import { getHitsPerRock, sendClaimPick } from '../net/economy-link'
 import { placeTutorialRock } from '../mining/rocks'
 import { TUTORIAL_ROCK_SEQS } from '../shared/net/rock-sync'
 import { playSubtitles } from '../world/subtitles'
+import { getIntroChoice, isWelcomePlaying } from '../world/intro-state'
 
 // The town mayor, standing at spawn. Walking up to him with no pick gets you one — free, and
 // as often as it takes (design/balance.md §2: pick tier 0 is the anti-soft-lock fallback).
@@ -51,6 +52,9 @@ let homeRotation: Quaternion.MutableQuaternion | null = null
 function askForPick(dt: number): void {
   sinceLastAsk += dt
   if (zone === null || !zone.isPlayerInside()) return
+  // Not while the title card is up, nor over his own greeting: the pick (and the line that
+  // comes with it) waits for the opening to be over.
+  if (getIntroChoice() === 'pending' || isWelcomePlaying()) return
   if (getHitsPerRock() > 0) return
   if (sinceLastAsk < ASK_RETRY_SECONDS) return
 
@@ -79,6 +83,10 @@ function showPracticeRock(dt: number): void {
   const first = Vector3.add(at.position, Vector3.scale(right, PRACTICE_ROCK_OFFSET))
   const second = Vector3.add(first, Vector3.scale(right, SECOND_PRACTICE_ROCK_EXTRA))
   placeTutorialRock(first, firstSeq, () => placeTutorialRock(second, secondSeq))
+
+  // He only speaks to a player who chose Start Game. Skipping the intro skips his lines too;
+  // the practice rock is still there.
+  if (getIntroChoice() !== 'start') return
 
   // Heard the same wherever the player stands (global), like the welcome. A new entity each
   // time, so a second pick replays the line.

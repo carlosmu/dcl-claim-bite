@@ -4,6 +4,7 @@ import { Vector3 } from '@dcl/sdk/math'
 import { movePlayerTo } from '~system/RestrictedActions'
 
 import { MAYOR_ENTITY_NAME } from '../mayor/mayor'
+import { setWelcomePlaying } from './intro-state'
 
 // The welcome shot, played once when the title card has faded: a camera just behind the
 // player looks over their shoulder at the town mayor, black bars come in, and after a beat
@@ -76,6 +77,7 @@ export function getWelcomeSubtitle(): string {
 function finish(): void {
   engine.removeSystem(welcomeSystem)
   elapsed = -1
+  setWelcomePlaying(false)
   MainCamera.createOrReplace(engine.CameraEntity, { virtualCameraEntity: undefined })
   InputModifier.deleteFrom(engine.PlayerEntity)
   if (audio !== null) engine.removeEntity(audio)
@@ -157,5 +159,6 @@ export function playWelcomeCinematic(): void {
   })
 
   elapsed = 0
+  setWelcomePlaying(true)
   engine.addSystem(welcomeSystem, undefined, 'client:welcome')
 }
