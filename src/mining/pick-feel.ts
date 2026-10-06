@@ -50,8 +50,31 @@ export function currentFeel(): Feel {
 }
 
 let sound: Entity | null = null
-let sparks: Entity | null = null
-let breakBurst: Entity | null = null
+
+// Every burst gets an entity of its own, removed once its particles are gone. Replacing the
+// ParticleSystem on one reused entity with the same values does not fire it again: only the
+// first hit ever threw sparks.
+const BURST_CLEANUP_MARGIN_SECONDS = 0.5
+const burstsToRemove: { entity: Entity; seconds: number }[] = []
+let burstCleanupAdded = false
+
+function burstEntity(spot: Vector3, lifetime: number): Entity {
+  if (!burstCleanupAdded) {
+    burstCleanupAdded = true
+    engine.addSystem((dt) => {
+      for (let i = burstsToRemove.length - 1; i >= 0; i--) {
+        burstsToRemove[i].seconds -= dt
+        if (burstsToRemove[i].seconds > 0) continue
+        engine.removeEntity(burstsToRemove[i].entity)
+        burstsToRemove.splice(i, 1)
+      }
+    })
+  }
+  const entity = engine.addEntity()
+  Transform.create(entity, { position: Vector3.create(spot.x, spot.y + SPARK_HEIGHT_METERS, spot.z) })
+  burstsToRemove.push({ entity, seconds: lifetime + BURST_CLEANUP_MARGIN_SECONDS })
+  return entity
+}
 
 function soundEntity(): Entity {
   if (sound === null) {
@@ -60,14 +83,6 @@ function soundEntity(): Entity {
     AudioSource.create(sound, { audioClipUrl: HIT_SOUND, playing: false, loop: false, global: true })
   }
   return sound
-}
-
-function sparksEntity(): Entity {
-  if (sparks === null) {
-    sparks = engine.addEntity()
-    Transform.create(sparks, {})
-  }
-  return sparks
 }
 
 /** Strikes the rock at `spot`: the sound and the sparks of the pick in use. */
@@ -80,11 +95,10 @@ export function playHitFeedback(spot: Vector3): void {
   audio.pitch = feel.pitch
   AudioSource.playSound(soundEntity(), HIT_SOUND, true)
 
-  // A one-shot burst, replaced on every hit so it fires again from the start.
-  const entity = sparksEntity()
-  Transform.getMutable(entity).position = Vector3.create(spot.x, spot.y + SPARK_HEIGHT_METERS, spot.z)
+  // A one-shot burst on an entity of its own, so every hit fires it.
+  const entity = burstEntity(spot, 0.5)
   const fade = Color4.create(feel.sparkColor.r, feel.sparkColor.g * 0.5, feel.sparkColor.b * 0.3, 0)
-  ParticleSystem.createOrReplace(entity, {
+  ParticleSystem.create(entity, {
     loop: false,
     rate: 0,
     lifetime: 0.5,
@@ -100,33 +114,38 @@ export function playHitFeedback(spot: Vector3): void {
     shape: ParticleSystem.Shape.Sphere({ radius: 0.15 }),
     bursts: { values: [{ time: 0, count: feel.sparks, cycles: 1, interval: 0.01, probability: 1 }] }
   })
+
+  fireBurst(spot, HIT_BURST)
 }
 
-/**
- * The burst when a rock breaks: a bigger, longer, golden version of the sparks, the same burst
- * Monster Recon throws when a monster is caught. One entity, replaced on every break so it
- * fires again from the start.
- */
-export function playRockBreak(spot: Vector3): void {
-  if (breakBurst === null) {
-    breakBurst = engine.addEntity()
-    Transform.create(breakBurst, {})
-  }
-  Transform.getMutable(breakBurst).position = Vector3.create(spot.x, spot.y + SPARK_HEIGHT_METERS, spot.z)
-  ParticleSystem.createOrReplace(breakBurst, {
+/** The rock-break burst, the same one Monster Recon throws when a monster is caught. */
+const BREAK_BURST: Burst = { count: 60, lifetime: 2.5, speed: 1 }
+/** On every hit, a small version of it: a fifth of the particles, faster, for half as long. */
+const HIT_BURST: Burst = { count: 12, lifetime: 1.25, speed: 1.5 }
+
+type Burst = { count: number; lifetime: number; speed: number }
+
+/** Fires `burst` at `spot`. */
+function fireBurst(spot: Vector3, burst: Burst): void {
+  ParticleSystem.create(burstEntity(spot, burst.lifetime), {
     loop: false,
     rate: 0,
-    lifetime: 2.5,
+    lifetime: burst.lifetime,
     maxParticles: 150,
     gravity: 0.3,
     blendMode: PBParticleSystem_BlendMode.PSB_ADD,
     simulationSpace: PBParticleSystem_SimulationSpace.PSS_WORLD,
     shape: ParticleSystem.Shape.Sphere({ radius: 0.3 }),
-    initialVelocitySpeed: { start: 3, end: 5 },
+    initialVelocitySpeed: { start: 3 * burst.speed, end: 5 * burst.speed },
     initialSize: { start: 0.08, end: 0.18 },
     sizeOverTime: { start: 1, end: 0 },
     initialColor: { start: Color4.create(1, 0.9, 0.4, 1), end: Color4.create(1, 0.4, 0.1, 1) },
     colorOverTime: { start: Color4.create(1, 0.8, 0.5, 1), end: Color4.create(0.8, 0.2, 0, 0) },
-    bursts: { values: [{ time: 0, count: 60, cycles: 1, interval: 0.01, probability: 1 }] }
+    bursts: { values: [{ time: 0, count: burst.count, cycles: 1, interval: 0.01, probability: 1 }] }
   })
+}
+
+/** The burst when a rock breaks. */
+export function playRockBreak(spot: Vector3): void {
+  fireBurst(spot, BREAK_BURST)
 }
