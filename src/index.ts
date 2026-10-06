@@ -14,6 +14,7 @@ import { setupUi } from './ui'
 import { setupRocks } from './mining/rocks'
 import { setupBank } from './bank/bank'
 import { setupShop } from './shop/shop'
+import { setupLandOffice } from './land-office/land-office'
 import { setupMule } from './mule/mule'
 import { setupMayor } from './mayor/mayor'
 import { setupHeldPicks } from './player/held-pick'
@@ -41,6 +42,7 @@ export async function main() {
     setupRocks()
     setupBank()
     setupShop()
+    setupLandOffice()
     setupMule()
     setupMayor()
     setupHeldPicks()

@@ -17,6 +17,7 @@ import {
 } from './net/economy-link'
 import { buyItem, closeStorePanel, currentPrice, getSelectedProduct, isStorePanelOpen, selectProduct, whyUnavailable } from './shop/shop'
 import { closeMulePanel, isMulePanelOpen } from './mule/mule'
+import { closeLandOfficePanel, getSelectedProperty, isLandOfficePanelOpen, selectProperty } from './land-office/land-office'
 import {
     activePick,
     CATALOGUE,
@@ -169,6 +170,8 @@ const ICON_FORBIDDEN = atlasCell(1, 4) // D1 — skull / prohibited
 const ICON_SHERIFF = atlasCell(2, 4) // D2
 const ICON_MAP = atlasCell(3, 4) // D3
 const ICON_NOTIFICATION = atlasCell(4, 4) // D4 — bell
+// Stand-in for every property until each gets its own icon.
+const ICON_PROPERTY = atlasCell(3, 2) // B3
 
 // Pick icon by catalogue id. No pick shows the iron one.
 const PICK_ICONS: Record<string, number[]> = {
@@ -895,7 +898,7 @@ function selectedProductKey(): ProductKey {
     return activePick((id) => getOwned(id), getEquipped())?.id ?? 'pick'
 }
 
-const storeCard = (product: Product, selected: boolean) => (
+const storeCard = (product: Product, selected: boolean, onSelect: (key: string) => void = selectProduct) => (
     <UiEntity
         key={product.key}
         uiTransform={{
@@ -911,7 +914,7 @@ const storeCard = (product: Product, selected: boolean) => (
             borderColor: selected ? BANK_GOLD : BANK_TRIM
         }}
         uiBackground={{ color: selected ? BANK_TRIM : BANK_WOOD }}
-        onMouseDown={() => selectProduct(product.key)}
+        onMouseDown={() => onSelect(product.key)}
     >
         <UiEntity
             uiTransform={{ width: STORE_CARD_ICON, height: STORE_CARD_ICON, margin: { right: 10 }, flexShrink: 0 }}
@@ -1189,8 +1192,11 @@ const storeDetail = (detail: Detail) => (
 
 const storePanel = () => {
     const key = selectedProductKey()
-    const products = storeProducts()
+    return counterPanel('GENERAL STORE', closeStorePanel, storeProducts(), key, selectProduct, detailFor(key))
+}
 
+/** The frame the store and the Land Office share: title, purse, close, cards on the left, detail on the right. */
+const counterPanel = (title: string, onClose: () => void, products: Product[], key: string, onSelect: (key: string) => void, detail: Detail) => {
     return (
         <UiEntity
             uiTransform={{
@@ -1209,7 +1215,7 @@ const storePanel = () => {
         >
             {/* Title centred with the purse under it; the close button sits apart in the corner. */}
             <UiEntity uiTransform={{ width: '100%', flexDirection: 'column', alignItems: 'center', margin: { bottom: 12 } }}>
-                <BitmapText value="GENERAL STORE" fontSize={40} color={BANK_GOLD_LIGHT} />
+                <BitmapText value={title} fontSize={40} color={BANK_GOLD_LIGHT} />
                 <UiEntity
                     uiTransform={{ height: 44, flexDirection: 'row', alignItems: 'center', flexShrink: 0, padding: { left: 8, right: 14 }, margin: { top: 6 }, borderRadius: 22 }}
                     uiBackground={{ color: BANK_WOOD }}
@@ -1223,19 +1229,76 @@ const storePanel = () => {
                     color={Color4.White()}
                     uiTransform={{ positionType: 'absolute', position: { top: 0, right: 0 }, width: 48, height: 48, borderRadius: PANEL_RADIUS }}
                     uiBackground={{ color: MAP_CLOSE_COLOR }}
-                    onMouseDown={closeStorePanel}
+                    onMouseDown={onClose}
                 />
             </UiEntity>
 
             {/* On mobile, fills what the header leaves, so the detail's action sits at the bottom of the screen. */}
             <UiEntity uiTransform={{ width: '100%', flexGrow: 1, flexDirection: 'row' }}>
                 <UiEntity uiTransform={{ width: STORE_LIST_WIDTH, flexShrink: 0, flexDirection: 'column' }}>
-                    {products.map((product) => storeCard(product, product.key === key))}
+                    {products.map((product) => storeCard(product, product.key === key, onSelect))}
                 </UiEntity>
-                {storeDetail(detailFor(key))}
+                {storeDetail(detail)}
             </UiEntity>
         </UiEntity>
     )
+}
+
+// --- Land & Claim Office ----------------------------------------------------------------
+//
+// The store's layout and dress, selling housing: Wagon → Cabin → House → Ranch. Each one is
+// owned once; the Wagon is free but still claimed here. Ownership only — nothing is placed
+// in the world yet.
+
+function propertyStatus(item: ShopItem): Status {
+    if (getOwned(item.id) > 0) return ownedStatus(1)
+    if (whyUnavailable(item) !== null) return STATUS_LOCKED
+    return item.price === 0 ? { text: 'Claim', color: BANK_GOLD_LIGHT } : STATUS_BUY
+}
+
+function landOfficeProducts(): Product[] {
+    return itemsOf('housing').map((item) => ({
+        key: item.id,
+        title: item.label,
+        icon: ICON_PROPERTY,
+        hint: item.price > 0 ? `${withCommas(item.price)} Coins` : 'Free',
+        status: propertyStatus(item),
+        muted: false
+    }))
+}
+
+/** The selected property, or the next one to get when nothing has been picked this visit. */
+function selectedPropertyKey(): ShopItemId {
+    const housing = itemsOf('housing')
+    const chosen = housing.find((item) => item.id === getSelectedProperty())
+    if (chosen !== undefined) return chosen.id
+    return (housing.find((item) => getOwned(item.id) <= 0) ?? housing[housing.length - 1]).id
+}
+
+function propertyDetail(item: ShopItem): Detail {
+    const owned = getOwned(item.id) > 0
+    const why = whyUnavailable(item)
+    let action: Action
+    if (owned) action = { label: 'OWNED', kind: 'equipped' }
+    else if (why !== null) action = { label: 'LOCKED', kind: 'off' }
+    else action = { label: item.price === 0 ? 'CLAIM' : 'BUY', kind: buyBlocker(item) === null ? 'buy' : 'off', onClick: () => buyItem(item.id) }
+
+    const notes: ReactEcs.JSX.Element[] = []
+    if (owned) notes.push(detailNote('You own this property', BANK_CAPTION))
+    else if (item.requires !== undefined && getOwned(item.requires) <= 0) notes.push(detailNote(`Requires ${findItem(item.requires)?.label ?? ''}`, SHORT_COLOR))
+    return {
+        title: item.label,
+        description: item.benefit,
+        icon: ICON_PROPERTY,
+        stats: [priceStat(item.price)],
+        notes,
+        actions: [storeActionButton(action)]
+    }
+}
+
+const landOfficePanel = () => {
+    const key = selectedPropertyKey()
+    return counterPanel('LAND & CLAIM OFFICE', closeLandOfficePanel, landOfficeProducts(), key, selectProperty, propertyDetail(findItem(key)!))
 }
 
 // --- Debug: reset progress --------------------------------------------------------------
@@ -1821,21 +1884,22 @@ const mulePanel = () => (
 // the player owns, filtered by tabs, with a short detail under it for the card picked. For
 // browsing only: switching picks is the selector's job, at the bottom-left.
 //
-// Lines that are one system bought in tiers (storage, housing) show as ONE card with its level,
-// not a card per tier.
+// Storage, one system bought in tiers, shows as ONE card with its level, not a card per tier.
+// Properties are each their own card: every one owned is a separate place.
 //
 // Dressed like the bank and the store: dark wood, trim borders, gold for what is selected.
 
 let inventoryOpen = false
 
 // Tools work the ore (picks and rigs), utilities keep the operation going (storage and fuel),
-// property is where the player lives.
-type InventoryTab = 'all' | 'tools' | 'utilities' | 'property'
+// transport moves the player (nothing yet), property is where the player lives.
+type InventoryTab = 'all' | 'tools' | 'utilities' | 'transport' | 'property'
 
 const INVENTORY_TABS: { id: InventoryTab; label: string }[] = [
     { id: 'all', label: 'All' },
     { id: 'tools', label: 'Tools' },
     { id: 'utilities', label: 'Utilities' },
+    { id: 'transport', label: 'Transport' },
     { id: 'property', label: 'Property' }
 ]
 
@@ -1926,16 +1990,16 @@ function inventoryEntries(): InventoryEntry[] {
         ]
     })
 
-    const home = tierLevel('housing')
-    if (home.top !== null) {
+    for (const property of itemsOf('housing')) {
+        if (getOwned(property.id) <= 0) continue
         entries.push({
-            key: 'housing',
+            key: property.id,
             tab: 'property',
-            title: 'Home',
-            icon: ICON_HOUSE,
-            status: home.top.label,
+            title: property.label,
+            icon: ICON_PROPERTY,
+            status: 'Owned',
             equipped: false,
-            details: [`Level ${home.level} · ${home.top.label}`, home.top.benefit]
+            details: [property.benefit, property.price > 0 ? `Bought for ${withCommas(property.price)} coins` : 'Claimed for free']
         })
     }
 
@@ -2444,6 +2508,7 @@ export const uiMenu = () => (
             {inventoryOpen ? inventoryPanel() : null}
             {!mapOpen && !inventoryOpen && isBankPanelOpen() ? bankPanel() : null}
             {!mapOpen && !inventoryOpen && isStorePanelOpen() ? storePanel() : null}
+            {!mapOpen && !inventoryOpen && isLandOfficePanelOpen() ? landOfficePanel() : null}
             {!mapOpen && !inventoryOpen && isMulePanelOpen() && getMuleCount() > 0 ? mulePanel() : null}
             {pickSelector()}
         </UiEntity>

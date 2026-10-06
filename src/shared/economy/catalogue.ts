@@ -34,6 +34,7 @@ export type ShopItemId =
   | 'fuel-fill'
   | 'warehouse'
   | 'warehouse-2'
+  | 'wagon'
   | 'cabin'
   | 'house'
   | 'ranch'
@@ -74,13 +75,13 @@ export const CATALOGUE: ShopItem[] = [
   { id: 'fuel-fill', label: 'Fill Tank', line: 'fuel', price: 0, fillTank: true, benefit: 'Tops the tank up' },
   { id: 'warehouse', label: 'Storage I', line: 'storage', price: 30, storage: STORAGE_TIER_1, benefit: `Holds ${STORAGE_TIER_1} ore` },
   { id: 'warehouse-2', label: 'Storage II', line: 'storage', price: 60, requires: 'warehouse', storage: STORAGE_TIER_2, benefit: `Holds ${STORAGE_TIER_2} ore` },
-  { id: 'cabin', label: 'Cabin', line: 'housing', price: 300, benefit: 'Your first real home' },
+  // Housing is sold at the Land & Claim Office, not the Market. The Wagon is free but still
+  // claimed there, once, like any other property.
+  { id: 'wagon', label: 'Wagon', line: 'housing', price: 0, benefit: 'A roof on wheels' },
+  { id: 'cabin', label: 'Cabin', line: 'housing', price: 300, requires: 'wagon', benefit: 'Your first real home' },
   { id: 'house', label: 'House', line: 'housing', price: 700, requires: 'cabin', benefit: 'A house in town' },
   { id: 'ranch', label: 'Ranch', line: 'housing', price: 2000, requires: 'house', benefit: 'The finest claim in town' }
 ]
-
-/** What a player lives in before buying any housing. */
-export const STARTER_HOME = 'Wagon'
 
 export function findItem(id: ShopItemId): ShopItem | null {
   return CATALOGUE.find((item) => item.id === id) ?? null

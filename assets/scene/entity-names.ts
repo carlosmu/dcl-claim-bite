@@ -27,7 +27,7 @@ export enum EntityNames {
   House_7_M_Blue_2 = "House 7 M Blue_2",
   House_7_M_Blue_3 = "House 7 M Blue_3",
   House_7_M_Blue_5 = "House 7 M Blue_5",
-  Land_Office = "Land Office",
+  Land_Office = "Land-Office",
   Layout = "Layout",
   MULE = "MULE",
   Market = "Market",
@@ -46,6 +46,7 @@ export enum EntityNames {
   Train_Track_6_M_Old_V01_4 = "Train Track 6 M Old V01_4",
   Train_Track_6_M_Old_V01_5 = "Train Track 6 M Old V01_5",
   Train_Track_6_M_Old_V01_6 = "Train Track 6 M Old V01_6",
+  Weed_Emiter_01 = "Weed-Emiter-01",
   mining_pool_glb = "mining-pool.glb",
   monument_glb = "monument.glb",
 } 
