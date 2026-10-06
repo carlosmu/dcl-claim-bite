@@ -1518,6 +1518,10 @@ const MINING_FILL_COLOR = Color4.create(1, 198 / 255, 0, 1)
 const MINING_TRACK_COLOR = Color4.create(0.12, 0.1, 0.06, 1)
 /** The Social Bonus, on the mining panel and under the ore popup. */
 const SOCIAL_BONUS_COLOR = Color4.create(0.55, 0.9, 0.45, 1)
+// A blocked panel (full storage) flashes red on the UI clock, so the player notices the swings
+// have stopped paying instead of hammering on.
+const MINING_BLOCKED_COLOR = Color4.create(0.75, 0.1, 0.08, 0.95)
+const MINING_BLOCKED_BLINK_SECONDS = 0.4
 
 // While the ring lies under a rock the player is near but not mining, a nudge where the mining
 // panel will appear once they step in. It jumps between 1 and 1.1, no transition, in step with
@@ -1551,6 +1555,8 @@ const miningBar = () => {
         status.blocked !== ''
             ? status.blocked
             : `Keep mining — ${left} ${left === 1 ? 'hit' : 'hits'} to go`
+    const blocked = status.blocked !== ''
+    const blinkOn = blocked && Math.floor(uiClock / MINING_BLOCKED_BLINK_SECONDS) % 2 === 0
 
     return (
         <UiEntity
@@ -1571,37 +1577,39 @@ const miningBar = () => {
                     padding: { left: 18, right: 18, top: 10, bottom: 12 },
                     borderRadius: PANEL_RADIUS,
                     borderWidth: 2,
-                    borderColor: MINING_FILL_COLOR
+                    borderColor: blocked ? Color4.White() : MINING_FILL_COLOR
                 }}
-                uiBackground={{ color: HUD_BACKGROUND }}
+                uiBackground={{ color: blinkOn ? MINING_BLOCKED_COLOR : HUD_BACKGROUND }}
             >
                 <Label
                     value={caption}
                     fontSize={18}
-                    color={status.blocked !== '' ? MUTED_COLOR : Color4.White()}
+                    color={Color4.White()}
                     textAlign="middle-center"
                     textWrap="nowrap"
-                    uiTransform={{ height: 26, margin: { bottom: 8 } }}
+                    uiTransform={{ height: 26, margin: { bottom: blocked ? 0 : 8 } }}
                 />
                 {/* The bar is the payout: it has to be visibly unfinished for the caption below
-                    to mean anything. */}
-                <UiEntity
-                    uiTransform={{
-                        width: MINING_BAR_WIDTH,
-                        height: MINING_BAR_HEIGHT,
-                        borderRadius: 4,
-                        borderWidth: 2,
-                        borderColor: Color4.Black()
-                    }}
-                    uiBackground={{ color: MINING_TRACK_COLOR }}
-                >
+                    to mean anything. Blocked, the caption is the whole message: no bar, no bonus. */}
+                {blocked ? null : (
                     <UiEntity
-                        uiTransform={{ width: `${progress * 100}%`, height: '100%' }}
-                        uiBackground={{ color: MINING_FILL_COLOR }}
-                    />
-                </UiEntity>
+                        uiTransform={{
+                            width: MINING_BAR_WIDTH,
+                            height: MINING_BAR_HEIGHT,
+                            borderRadius: 4,
+                            borderWidth: 2,
+                            borderColor: Color4.Black()
+                        }}
+                        uiBackground={{ color: MINING_TRACK_COLOR }}
+                    >
+                        <UiEntity
+                            uiTransform={{ width: `${progress * 100}%`, height: '100%' }}
+                            uiBackground={{ color: MINING_FILL_COLOR }}
+                        />
+                    </UiEntity>
+                )}
                 {/* The mayor's practice rocks pay no bonus, so they show none. */}
-                {status.practice ? null : (
+                {blocked || status.practice ? null : (
                     <Label
                         value={`Social Bonus +${bonus}`}
                         fontSize={16}
