@@ -248,7 +248,7 @@ const oreSegment = () => {
                         height: ORE_BAR_HEIGHT,
                         borderRadius: 4,
                         borderWidth: 2,
-                        borderColor: Color4.Black(),
+                        borderColor: BANK_GOLD,
                         flexDirection: 'row',
                         justifyContent: 'flex-start',
                         alignItems: 'center',
@@ -1911,6 +1911,17 @@ const inventoryPanel = () => {
             uiBackground={{ color: PANEL_BACKGROUND }}
         >
             <BitmapText value="Inventory" fontSize={42} align="center" uiTransform={{ width: '100%', margin: { bottom: 8 } }} />
+            {/* Closed from the corner, like the store. */}
+            <Button
+                value="X"
+                fontSize={30}
+                color={Color4.White()}
+                uiTransform={{ positionType: 'absolute', position: { top: BANK_PANEL_PADDING, right: BANK_PANEL_PADDING }, width: 48, height: 48, borderRadius: PANEL_RADIUS }}
+                uiBackground={{ color: MAP_CLOSE_COLOR }}
+                onMouseDown={() => {
+                    inventoryOpen = false
+                }}
+            />
             {items.length === 0 ? (
                 <Label
                     value="Nothing yet — the mayor has a pick for you"
@@ -1922,16 +1933,6 @@ const inventoryPanel = () => {
             ) : (
                 items.map(inventoryRow)
             )}
-            <Button
-                value="Close"
-                fontSize={20}
-                color={Color4.White()}
-                uiTransform={{ width: '100%', height: 46, margin: { top: 8 }, borderRadius: 10 }}
-                uiBackground={{ color: STEP_BUTTON_COLOR }}
-                onMouseDown={() => {
-                    inventoryOpen = false
-                }}
-            />
         </UiEntity>
     )
 }
@@ -2150,6 +2151,7 @@ const pickSelector = () => {
             }}
             uiBackground={{ color: PANEL_BACKGROUND }}
         >
+            <BitmapText value="Manual Tool" fontSize={22} color={MUTED_COLOR} uiTransform={{ margin: { top: 6, bottom: 2, left: 2 } }} />
             {PICKS.map((item) => pickRow(item, item.id === inUse))}
         </UiEntity>
     )
