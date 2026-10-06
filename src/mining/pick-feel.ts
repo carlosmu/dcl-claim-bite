@@ -51,6 +51,7 @@ export function currentFeel(): Feel {
 
 let sound: Entity | null = null
 let sparks: Entity | null = null
+let breakBurst: Entity | null = null
 
 function soundEntity(): Entity {
   if (sound === null) {
@@ -98,5 +99,34 @@ export function playHitFeedback(spot: Vector3): void {
     simulationSpace: PBParticleSystem_SimulationSpace.PSS_WORLD,
     shape: ParticleSystem.Shape.Sphere({ radius: 0.15 }),
     bursts: { values: [{ time: 0, count: feel.sparks, cycles: 1, interval: 0.01, probability: 1 }] }
+  })
+}
+
+/**
+ * The burst when a rock breaks: a bigger, longer, golden version of the sparks, the same burst
+ * Monster Recon throws when a monster is caught. One entity, replaced on every break so it
+ * fires again from the start.
+ */
+export function playRockBreak(spot: Vector3): void {
+  if (breakBurst === null) {
+    breakBurst = engine.addEntity()
+    Transform.create(breakBurst, {})
+  }
+  Transform.getMutable(breakBurst).position = Vector3.create(spot.x, spot.y + SPARK_HEIGHT_METERS, spot.z)
+  ParticleSystem.createOrReplace(breakBurst, {
+    loop: false,
+    rate: 0,
+    lifetime: 2.5,
+    maxParticles: 150,
+    gravity: 0.3,
+    blendMode: PBParticleSystem_BlendMode.PSB_ADD,
+    simulationSpace: PBParticleSystem_SimulationSpace.PSS_WORLD,
+    shape: ParticleSystem.Shape.Sphere({ radius: 0.3 }),
+    initialVelocitySpeed: { start: 3, end: 5 },
+    initialSize: { start: 0.08, end: 0.18 },
+    sizeOverTime: { start: 1, end: 0 },
+    initialColor: { start: Color4.create(1, 0.9, 0.4, 1), end: Color4.create(1, 0.4, 0.1, 1) },
+    colorOverTime: { start: Color4.create(1, 0.8, 0.5, 1), end: Color4.create(0.8, 0.2, 0, 0) },
+    bursts: { values: [{ time: 0, count: 60, cycles: 1, interval: 0.01, probability: 1 }] }
   })
 }

@@ -8,7 +8,7 @@ import { getOre } from '../shared/state/wallet'
 import { startMineEmote, stopMineEmote } from '../player/mine-emote'
 import { playSfx } from '../world/sfx'
 import { showOrePopup } from '../ui/ore-popup'
-import { currentFeel, playHitFeedback } from './pick-feel'
+import { currentFeel, playHitFeedback, playRockBreak } from './pick-feel'
 import { ActiveRock, pickRockSpot, ROCKS_AT_ONCE, } from '../shared/net/rock-sync'
 
 // Manual mining (design/balance.md §2, 2026-09-17). No timing bar: a handful of rocks stand at
@@ -395,6 +395,7 @@ function update(dt: number): void {
       sendRockDone(rock.seq)
       if (rock === tutorial) removeTutorialRock()
       playSfx(ROCK_DONE_SOUND, 0.8)
+      playRockBreak(rock.spot)
       // Shown immediately rather than when the wallet comes back: the swing earned it, and a
       // popup a round trip late would not read as this rock's payout. The HUD is still the one
       // that only moves once the server agrees.
