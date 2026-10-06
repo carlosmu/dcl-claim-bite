@@ -25,6 +25,7 @@ import {
     fuelTankGallons,
     itemsOf,
     nextTier,
+    ownedTier,
     PICKS,
     ShopItem,
     ShopItemId
@@ -1816,87 +1817,264 @@ const mulePanel = () => (
 
 // --- Inventory ----------------------------------------------------------------------------
 //
-// Opened by a button at the bottom-right of the column; closes itself with its own button. Lists
-// what the player owns, for reference only. The pick in use is marked here, but switching picks
-// is the selector's job, at the bottom-left.
+// Opened by a button at the bottom-right of the column; closes from its corner. A grid of what
+// the player owns, filtered by tabs, with a short detail under it for the card picked. For
+// browsing only: switching picks is the selector's job, at the bottom-left.
+//
+// Lines that are one system bought in tiers (storage, housing) show as ONE card with its level,
+// not a card per tier.
+//
+// Dressed like the bank and the store: dark wood, trim borders, gold for what is selected.
 
 let inventoryOpen = false
 
-const INVENTORY_ICON_SIZE = 72
-const INVENTORY_ROW_HEIGHT = 88
+// Tools work the ore (picks and rigs), utilities keep the operation going (storage and fuel),
+// property is where the player lives.
+type InventoryTab = 'all' | 'tools' | 'utilities' | 'property'
 
-// Icons for the non-pick items. The house and the rest have their own cells in the atlas.
-const ITEM_ICONS: Partial<Record<ShopItemId, number[]>> = {
-    warehouse: ICON_WAREHOUSE,
-    'warehouse-2': ICON_WAREHOUSE,
-    mule: ICON_MULE,
-    cabin: ICON_HOUSE,
-    house: ICON_HOUSE,
-    ranch: ICON_HOUSE
+const INVENTORY_TABS: { id: InventoryTab; label: string }[] = [
+    { id: 'all', label: 'All' },
+    { id: 'tools', label: 'Tools' },
+    { id: 'utilities', label: 'Utilities' },
+    { id: 'property', label: 'Property' }
+]
+
+let inventoryTab: InventoryTab = 'all'
+let inventorySelected: string | null = null
+
+const INVENTORY_COLUMNS = 3
+const INVENTORY_GAP = 10
+const INVENTORY_CARD_WIDTH = 226
+const INVENTORY_CARD_HEIGHT = 112
+/** Tabs, grid and detail share this width, so their edges line up. */
+const INVENTORY_GRID_WIDTH = INVENTORY_COLUMNS * INVENTORY_CARD_WIDTH + (INVENTORY_COLUMNS - 1) * INVENTORY_GAP
+const INVENTORY_CARD_ICON = 60
+const INVENTORY_TAB_HEIGHT = 40
+const INVENTORY_DETAIL_ICON = 84
+const INVENTORY_BADGE_COLOR = EQUIPPED_COLOR
+
+type InventoryEntry = {
+    key: string
+    tab: Exclude<InventoryTab, 'all'>
+    title: string
+    icon: number[]
+    /** The card's one short line: hits, a count, a level. */
+    status: string
+    equipped: boolean
+    /** The detail panel's lines, under the title. */
+    details: string[]
 }
 
-const inventoryRow = (item: ShopItem) => {
-    const isPick = item.hitsPerRock !== undefined
-    const inUse = isPick && activePick((id) => getOwned(id), getEquipped())?.id === item.id
-    const icon = isPick ? PICK_ICONS[item.id] : ITEM_ICONS[item.id]
-    const detail = isPick
-        ? `${item.hitsPerRock} hits per rock`
-        : item.id === 'mule'
-          ? `${getMuleCount()} owned · ${item.benefit}`
-          : item.benefit
+/** 'Level 1' for the free base, then one level per tier owned. */
+function tierLevel(line: 'storage' | 'housing'): { level: number; top: ShopItem | null } {
+    const top = ownedTier(line, (id) => getOwned(id))
+    return { level: top === null ? 1 : itemsOf(line).indexOf(top) + 2, top }
+}
 
+function inventoryEntries(): InventoryEntry[] {
+    const entries: InventoryEntry[] = []
+    const inUse = activePick((id) => getOwned(id), getEquipped())?.id ?? ''
+
+    for (const pick of PICKS) {
+        if (getOwned(pick.id) <= 0) continue
+        const equipped = pick.id === inUse
+        entries.push({
+            key: pick.id,
+            tab: 'tools',
+            title: pick.label,
+            icon: PICK_ICONS[pick.id] ?? ICON_PICK_IRON,
+            status: `${pick.hitsPerRock} hits per rock`,
+            equipped,
+            details: [
+                `${pick.hitsPerRock} hits per rock`,
+                pick.benefit,
+                equipped ? 'Currently equipped' : 'Switch picks from the tool button'
+            ]
+        })
+    }
+
+    const mules = getMuleCount()
+    if (mules > 0) {
+        entries.push({
+            key: 'mule',
+            tab: 'tools',
+            title: 'M.U.L.E.',
+            icon: ICON_MULE,
+            status: `x${mules}`,
+            equipped: false,
+            details: [
+                `${mules} owned`,
+                `Produces ${withCommas(MULE_ORE_PER_HOUR * 24 * mules)} ore/day`,
+                `Fuel left: ${fuelLeftText()}`
+            ]
+        })
+    }
+
+    const storage = tierLevel('storage')
+    const nextStorage = nextTier('storage', (id) => getOwned(id))
+    entries.push({
+        key: 'storage',
+        tab: 'utilities',
+        title: 'Storage',
+        icon: ICON_WAREHOUSE,
+        status: `Level ${storage.level}`,
+        equipped: false,
+        details: [
+            `Level ${storage.level} · holds ${withCommas(getCarryCapacity())} ore`,
+            `Stored now: ${withCommas(getOre())} ore`,
+            nextStorage === null ? 'Max level' : `Next: ${nextStorage.label} at the Store`
+        ]
+    })
+
+    const home = tierLevel('housing')
+    if (home.top !== null) {
+        entries.push({
+            key: 'housing',
+            tab: 'property',
+            title: 'Home',
+            icon: ICON_HOUSE,
+            status: home.top.label,
+            equipped: false,
+            details: [`Level ${home.level} · ${home.top.label}`, home.top.benefit]
+        })
+    }
+
+    if (mules > 0) {
+        const gallons = Math.floor(fuelGallonsNow())
+        entries.push({
+            key: 'fuel',
+            tab: 'utilities',
+            title: 'Fuel',
+            icon: ICON_FUEL,
+            status: `${gallons} gal`,
+            equipped: false,
+            details: [
+                `${gallons} / ${fuelTankGallons(mules)} gallons in the tank`,
+                getMuleFuelHours() <= 0 ? 'Tank empty — the M.U.L.E.s are stopped' : `Lasts ${fuelLeftText()} at this fleet size`
+            ]
+        })
+    }
+
+    return entries
+}
+
+const inventoryTabButton = (tab: { id: InventoryTab; label: string }) => {
+    const active = tab.id === inventoryTab
     return (
         <UiEntity
+            key={tab.id}
             uiTransform={{
-                width: '100%',
-                height: INVENTORY_ROW_HEIGHT,
-                flexDirection: 'row',
+                height: INVENTORY_TAB_HEIGHT,
+                flexGrow: 1,
+                justifyContent: 'center',
                 alignItems: 'center',
-                padding: { left: 12, right: 12 },
-                margin: { bottom: 8 },
-                borderRadius: 10,
-                borderWidth: 2,
-                borderColor: inUse ? MAGENTA : TILE_BORDER_COLOR
+                margin: { right: tab.id === INVENTORY_TABS[INVENTORY_TABS.length - 1].id ? 0 : 6 },
+                borderRadius: 8,
+                borderWidth: active ? 3 : 2,
+                borderColor: active ? BANK_GOLD : BANK_TRIM
             }}
-            uiBackground={{ color: inUse ? TILE_SELECTED_COLOR : TILE_COLOR }}
+            uiBackground={{ color: active ? BANK_TRIM : BANK_WOOD }}
+            onMouseDown={() => {
+                inventoryTab = tab.id
+            }}
         >
-            {icon !== undefined ? (
-                <UiEntity
-                    uiTransform={{ width: INVENTORY_ICON_SIZE, height: INVENTORY_ICON_SIZE, margin: { right: 14 }, flexShrink: 0 }}
-                    uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: icon }}
-                />
-            ) : null}
-            <UiEntity uiTransform={{ flexGrow: 1, flexDirection: 'column', justifyContent: 'center' }}>
-                <BitmapText value={item.label} fontSize={28} />
-                <Label
-                    value={detail}
-                    fontSize={16}
-                    color={MUTED_COLOR}
-                    textAlign="middle-left"
-                    textWrap="nowrap"
-                    uiTransform={{ height: 22 }}
-                />
-            </UiEntity>
-            {inUse ? (
+            <BitmapText value={tab.label} fontSize={20} color={active ? BANK_GOLD_LIGHT : BANK_CAPTION} />
+        </UiEntity>
+    )
+}
+
+const inventoryCard = (entry: InventoryEntry, index: number) => {
+    const selected = entry.key === inventorySelected
+    const lastInRow = index % INVENTORY_COLUMNS === INVENTORY_COLUMNS - 1
+    return (
+        <UiEntity
+            key={entry.key}
+            uiTransform={{
+                width: INVENTORY_CARD_WIDTH,
+                height: INVENTORY_CARD_HEIGHT,
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: { right: lastInRow ? 0 : INVENTORY_GAP, bottom: INVENTORY_GAP },
+                borderRadius: 10,
+                borderWidth: selected ? 3 : 2,
+                borderColor: selected ? BANK_GOLD : BANK_TRIM
+            }}
+            uiBackground={{ color: selected ? BANK_TRIM : BANK_WOOD }}
+            onMouseDown={() => {
+                inventorySelected = selected ? null : entry.key
+            }}
+        >
+            <UiEntity
+                uiTransform={{ width: INVENTORY_CARD_ICON, height: INVENTORY_CARD_ICON, flexShrink: 0 }}
+                uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: entry.icon }}
+            />
+            <BitmapText value={entry.title} fontSize={20} color={BANK_CREAM} uiTransform={{ margin: { top: 4 } }} />
+            <Label
+                value={entry.status}
+                fontSize={14}
+                color={COIN_COLOR}
+                textAlign="middle-center"
+                textWrap="nowrap"
+                uiTransform={{ height: 18 }}
+            />
+            {entry.equipped ? (
                 <Label
                     value="Equipped"
-                    fontSize={18}
+                    fontSize={12}
                     color={EQUIPPED_TEXT}
                     textAlign="middle-center"
                     textWrap="nowrap"
-                    uiTransform={{ width: 120, height: 40, borderRadius: 8, flexShrink: 0 }}
-                    uiBackground={{ color: EQUIPPED_COLOR }}
+                    uiTransform={{ positionType: 'absolute', position: { top: 6, right: 6 }, width: 70, height: 20, borderRadius: 6 }}
+                    uiBackground={{ color: INVENTORY_BADGE_COLOR }}
                 />
             ) : null}
         </UiEntity>
     )
 }
 
+const inventoryDetail = (entry: InventoryEntry) => (
+    <UiEntity
+        uiTransform={{
+            width: INVENTORY_GRID_WIDTH,
+            flexDirection: 'row',
+            alignItems: 'center',
+            padding: 12,
+            margin: { top: 4 },
+            borderRadius: 10,
+            borderWidth: 2,
+            borderColor: BANK_GOLD
+        }}
+        uiBackground={{ color: BANK_WOOD }}
+    >
+        <UiEntity
+            uiTransform={{ width: INVENTORY_DETAIL_ICON, height: INVENTORY_DETAIL_ICON, margin: { right: 16 }, flexShrink: 0 }}
+            uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: entry.icon }}
+        />
+        <UiEntity uiTransform={{ flexGrow: 1, flexDirection: 'column', justifyContent: 'center' }}>
+            <BitmapText value={entry.title.toUpperCase()} fontSize={28} color={BANK_GOLD_LIGHT} uiTransform={{ margin: { bottom: 4 } }} />
+            {entry.details.map((line, i) => (
+                <Label
+                    key={`${i}`}
+                    value={line}
+                    fontSize={15}
+                    color={entry.equipped && i === entry.details.length - 1 ? PRICE_GOOD_COLOR : BANK_CREAM}
+                    textAlign="middle-left"
+                    textWrap="nowrap"
+                    uiTransform={{ height: 20 }}
+                />
+            ))}
+        </UiEntity>
+    </UiEntity>
+)
+
 const inventoryPanel = () => {
-    // Picks first, best last, then everything else — only what the player owns.
-    const items = [...PICKS, ...CATALOGUE.filter((item) => item.hitsPerRock === undefined)].filter(
-        (item) => getOwned(item.id) > 0
-    )
+    const all = inventoryEntries()
+    const shown = inventoryTab === 'all' ? all : all.filter((entry) => entry.tab === inventoryTab)
+    // A selection the tab no longer shows (or an item no longer owned) is dropped.
+    const selected = shown.find((entry) => entry.key === inventorySelected) ?? null
+    if (selected === null) inventorySelected = null
+    const noPick = inventoryTab === 'tools' && shown.length === 0
 
     return (
         <UiEntity
@@ -1905,12 +2083,14 @@ const inventoryPanel = () => {
                 minWidth: PANEL_MIN_WIDTH,
                 flexDirection: 'column',
                 alignItems: 'center',
-                padding: 20,
-                borderRadius: PANEL_RADIUS
+                padding: BANK_PANEL_PADDING,
+                borderRadius: PANEL_RADIUS,
+                borderWidth: 3,
+                borderColor: BANK_TRIM
             }}
-            uiBackground={{ color: PANEL_BACKGROUND }}
+            uiBackground={{ color: BANK_WOOD_DARK }}
         >
-            <BitmapText value="Inventory" fontSize={42} align="center" uiTransform={{ width: '100%', margin: { bottom: 8 } }} />
+            <BitmapText value="INVENTORY" fontSize={40} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%', margin: { bottom: 12 } }} />
             {/* Closed from the corner, like the store. */}
             <Button
                 value="X"
@@ -1922,17 +2102,23 @@ const inventoryPanel = () => {
                     inventoryOpen = false
                 }}
             />
-            {items.length === 0 ? (
+            <UiEntity uiTransform={{ width: INVENTORY_GRID_WIDTH, flexDirection: 'row', margin: { bottom: 12 } }}>
+                {INVENTORY_TABS.map(inventoryTabButton)}
+            </UiEntity>
+            {shown.length === 0 ? (
                 <Label
-                    value="Nothing yet — the mayor has a pick for you"
-                    fontSize={20}
-                    color={MUTED_COLOR}
+                    value={noPick ? 'Nothing yet — the mayor has a pick for you' : 'Nothing here yet'}
+                    fontSize={18}
+                    color={BANK_CAPTION}
                     textAlign="middle-center"
-                    uiTransform={{ width: '100%', height: 40 }}
+                    uiTransform={{ width: '100%', height: INVENTORY_CARD_HEIGHT }}
                 />
             ) : (
-                items.map(inventoryRow)
+                <UiEntity uiTransform={{ width: INVENTORY_GRID_WIDTH, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start' }}>
+                    {shown.map(inventoryCard)}
+                </UiEntity>
             )}
+            {selected !== null ? inventoryDetail(selected) : null}
         </UiEntity>
     )
 }
@@ -2064,7 +2250,7 @@ const pickButton = () => {
                 padding: { left: 10, right: 14 },
                 borderRadius: 8,
                 borderWidth: 2,
-                borderColor: pickSelectorOpen ? MAGENTA : Color4.Clear()
+                borderColor: pickSelectorOpen ? BANK_GOLD : Color4.Clear()
             }}
             uiBackground={{ color: STEP_BUTTON_COLOR }}
             onMouseDown={() => {
@@ -2106,9 +2292,9 @@ const pickRow = (item: ShopItem, inUse: boolean) => {
                 margin: { top: 6 },
                 borderRadius: 8,
                 borderWidth: 2,
-                borderColor: inUse ? MAGENTA : TILE_BORDER_COLOR
+                borderColor: inUse ? BANK_GOLD : BANK_TRIM
             }}
-            uiBackground={{ color: inUse ? TILE_SELECTED_COLOR : TILE_COLOR }}
+            uiBackground={{ color: inUse ? BANK_TRIM : BANK_WOOD }}
             onMouseDown={() => {
                 if (!owned) return
                 if (!inUse) sendEquip(item.id)
@@ -2122,7 +2308,7 @@ const pickRow = (item: ShopItem, inUse: boolean) => {
             <Label
                 value={item.label}
                 fontSize={17}
-                color={owned ? Color4.White() : MUTED_COLOR}
+                color={owned ? BANK_CREAM : MUTED_COLOR}
                 textAlign="middle-left"
                 textWrap="nowrap"
                 uiTransform={{ flexGrow: 1, height: PICK_ROW_HEIGHT }}
@@ -2147,11 +2333,13 @@ const pickSelector = () => {
                 position: { bottom: BOTTOM_BUTTON_Y + BOTTOM_BUTTON_HEIGHT + BOTTOM_BUTTON_GAP, left: 0 },
                 flexDirection: 'column',
                 padding: { left: 8, right: 8, bottom: 8, top: 2 },
-                borderRadius: 10
+                borderRadius: 10,
+                borderWidth: 2,
+                borderColor: BANK_TRIM
             }}
-            uiBackground={{ color: PANEL_BACKGROUND }}
+            uiBackground={{ color: BANK_WOOD_DARK }}
         >
-            <BitmapText value="Manual Tool" fontSize={22} color={MUTED_COLOR} uiTransform={{ margin: { top: 6, bottom: 2, left: 2 } }} />
+            <BitmapText value="Manual Tool" fontSize={22} color={BANK_GOLD_LIGHT} uiTransform={{ margin: { top: 6, bottom: 2, left: 2 } }} />
             {PICKS.map((item) => pickRow(item, item.id === inUse))}
         </UiEntity>
     )
@@ -2164,7 +2352,7 @@ const pickSelector = () => {
 // warning colour; objectives the bank's gold.
 
 const OBJECTIVE_TOP = '30vh'
-const OBJECTIVE_WIDTH = 290
+const OBJECTIVE_WIDTH = 348
 const OBJECTIVE_ICON_SIZE = 28
 const OBJECTIVE_BAR_HEIGHT = 8
 
