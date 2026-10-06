@@ -23,6 +23,8 @@ import { findItem, fuelTankGallons, nextTier } from '../shared/economy/catalogue
 import { getOwned } from '../shared/state/inventory'
 import { quotedRate } from '../shared/state/market'
 import { getCoins, getOre } from '../shared/state/wallet'
+import { getActiveMiners } from '../shared/net/social-sync'
+import { socialBonus } from '../shared/economy/constants'
 
 export type Objective = {
   /** Shown beside the bell: OBJECTIVE for a goal, the alert's own name for an alert. */
@@ -48,9 +50,17 @@ const FIRST_ORE_GOAL = 10
 /** How long a price move stays on the tracker before it gives way again. */
 const PRICE_ALERT_SECONDS = 6
 
+/**
+ * How long the Social Bonus note stays up once two or more are mining, or their number changes.
+ * Not for as long as the crowd lasts: it would sit on top of the upgrade alerts the whole time.
+ */
+const SOCIAL_ALERT_SECONDS = 8
+
 let clock = 0
 let lastRate = -1
 let priceAlertUntil = 0
+let lastMiners = 0
+let socialAlertUntil = 0
 let current: Objective | null = null
 
 /** What the tracker shows right now, or null to hide it. */
@@ -89,6 +99,12 @@ function pick(): Objective | null {
     return alert('FUEL LOW', 'Refuel at the Store', `${Math.ceil(getMuleFuelHours())}h left`)
   }
 
+  // Two or more mining: how the bonus works, while it is news.
+  const miners = getActiveMiners()
+  if (clock < socialAlertUntil && miners >= 2) {
+    return alert('SOCIAL BONUS', `${miners} miners: +${socialBonus(miners)} ore per rock`, 'More miners, more ore · up to +10 at 4')
+  }
+
   // Only news to someone with enough ore to make a sale.
   if (clock < priceAlertUntil && ore >= rate) {
     const good = Math.round(rate * 10) <= PRICE_GOOD_MAX_TENTHS
@@ -125,6 +141,10 @@ function update(dt: number): void {
   const rate = quotedRate(getSyncedRate())
   if (lastRate >= 0 && rate !== lastRate) priceAlertUntil = clock + PRICE_ALERT_SECONDS
   lastRate = rate
+
+  const miners = getActiveMiners()
+  if (miners >= 2 && miners !== lastMiners) socialAlertUntil = clock + SOCIAL_ALERT_SECONDS
+  lastMiners = miners
 
   current = pick()
 }
