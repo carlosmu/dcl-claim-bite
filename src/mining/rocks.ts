@@ -97,6 +97,18 @@ const STAND_SETTLE_SECONDS = 0.3
  */
 const SWING_DRIFT_METERS = 0.05
 
+/**
+ * How close to the rock the swings happen, flat, in metres. Mining starts anywhere within
+ * MINE_REACH_METERS, but from the edge of it the pick lands short of the rock, so a player
+ * further than this is first moved in to this distance.
+ */
+const SWING_DISTANCE_METERS = 1.5
+/** Slack on SWING_DISTANCE_METERS, so a player already there is not moved again by a hair. */
+const SWING_DISTANCE_SLACK_METERS = 0.05
+
+/** While a move into swing distance is on its way; the swings wait for it. */
+let movingIn = false
+
 let area: Area | null = null
 let rocks: Rock[] = []
 
@@ -307,6 +319,36 @@ function faceRock(rock: Rock): void {
   })
 }
 
+/**
+ * Moves the player in to SWING_DISTANCE_METERS from the rock, facing it, if they stand further
+ * out. Returns whether it did; the swings then wait for the move to land and the player to
+ * settle, as after any other step.
+ */
+function moveIntoSwingDistance(rock: Rock): boolean {
+  const player = Transform.getOrNull(engine.PlayerEntity)
+  if (player === null) return false
+  const dx = player.position.x - rock.spot.x
+  const dz = player.position.z - rock.spot.z
+  const distance = Math.sqrt(dx * dx + dz * dz)
+  if (distance <= SWING_DISTANCE_METERS + SWING_DISTANCE_SLACK_METERS) return false
+
+  const k = SWING_DISTANCE_METERS / distance
+  const destination = Vector3.create(rock.spot.x + dx * k, player.position.y, rock.spot.z + dz * k)
+  const target = Vector3.create(rock.spot.x, player.position.y, rock.spot.z)
+  movingIn = true
+  stillSeconds = 0
+  movePlayerTo({ newRelativePosition: destination, avatarTarget: target })
+    .catch((error) => {
+      console.error(`[mine] could not move in to the rock: ${error}`)
+    })
+    .finally(() => {
+      movingIn = false
+      // Settle from the landing, not from the request: the move may land a frame later.
+      stillSeconds = 0
+    })
+  return true
+}
+
 /** Ends the swing loop and forgets the swing in flight. The hits already on the rock stay. */
 function stopSwinging(): void {
   swingTimer = -1
@@ -375,6 +417,10 @@ function update(dt: number): void {
   // The emote runs as one loop for as long as the player keeps mining; the timer only decides
   // when each hit lands inside it.
   if (swingTimer < 0) {
+    if (movingIn || moveIntoSwingDistance(rock)) {
+      status = { hits: rock.hits, needed, blocked: '', practice: rock === tutorial }
+      return
+    }
     faceRock(rock)
     startMineEmote()
     swingTimer = SWING_SECONDS

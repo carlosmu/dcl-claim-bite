@@ -1538,7 +1538,7 @@ const moveCloserHint = () => {
                 uiTransform={{ padding: { left: 18 * k, right: 18 * k, top: 8 * k, bottom: 8 * k }, borderRadius: PANEL_RADIUS, borderWidth: 2, borderColor: MINING_FILL_COLOR }}
                 uiBackground={{ color: HUD_BACKGROUND }}
             >
-                <Label value="Move closer to mine" fontSize={18 * k} color={Color4.White()} textAlign="middle-center" textWrap="nowrap" uiTransform={{ height: 26 * k }} />
+                <Label value="Move closer to the rock to start mining" fontSize={18 * k} color={Color4.White()} textAlign="middle-center" textWrap="nowrap" uiTransform={{ height: 26 * k }} />
             </UiEntity>
         </UiEntity>
     )
