@@ -2157,7 +2157,7 @@ function mapSize(): number {
 
 let mapOpen = false
 
-// The map's close button: red, pinned to the map's top-right corner.
+// The red close button every panel uses; the map's sits in its top-right corner.
 const MAP_CLOSE_COLOR = Color4.fromHexString('#d32f2f')
 
 const mapPanel = () => (
@@ -2169,15 +2169,7 @@ const mapPanel = () => (
             value="X"
             fontSize={30}
             color={Color4.White()}
-            uiTransform={{
-                positionType: 'absolute',
-                position: { top: 0, right: 0 },
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                borderWidth: 3,
-                borderColor: Color4.Black()
-            }}
+            uiTransform={{ positionType: 'absolute', position: { top: BANK_PANEL_PADDING, right: BANK_PANEL_PADDING }, width: 48, height: 48, borderRadius: PANEL_RADIUS }}
             uiBackground={{ color: MAP_CLOSE_COLOR }}
             onMouseDown={() => {
                 mapOpen = false
