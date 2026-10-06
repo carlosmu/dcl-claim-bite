@@ -110,10 +110,11 @@ const DISABLED_COLOR = Color4.create(0.25, 0.25, 0.26, 1)
 // explorer's own interface. Ore, coins and rate, three segments split by hair lines. Ore is a
 // storage bar with the amount on it; the pick lives in its own selector at the bottom-left.
 //
-// Icons come from UI_01.png, a 4x4 grid named like a spreadsheet: columns are lettered A–D from
-// the left, rows numbered 1–4 from the top, so B3 is column B, row 3. Many cells are not used
-// yet; they are mapped below anyway.
+// Icons come from two atlases, UI_01.png and UI_02.png, each a 4x4 grid named like a spreadsheet:
+// columns are lettered A–D from the left, rows numbered 1–4 from the top, so B3 is column B,
+// row 3. Many cells are not used yet; UI_01's are mapped below anyway.
 const ATLAS = 'assets/images/UI_01.png'
+const ATLAS_2 = 'assets/images/UI_02.png'
 const ATLAS_COLUMNS = 4
 const ATLAS_ROWS = 4
 
@@ -147,12 +148,20 @@ const STORAGE_FULL_COLOR = Color4.create(0.95, 0.4, 0.35, 1)
  *
  * The four corners go bottom-left, top-left, top-right, bottom-right.
  */
-function atlasCell(column: number, row: number): number[] {
+function atlasCell(column: number, row: number, src: string = ATLAS): Icon {
     const w = 1 / ATLAS_COLUMNS
     const h = 1 / ATLAS_ROWS
     const u0 = (column - 1) * w
     const v0 = 1 - row * h
-    return [u0, v0, u0, v0 + h, u0 + w, v0 + h, u0 + w, v0]
+    return { src, uvs: [u0, v0, u0, v0 + h, u0 + w, v0 + h, u0 + w, v0] }
+}
+
+/** One cell of one atlas. */
+type Icon = { src: string; uvs: number[] }
+
+/** The background that draws an icon, optionally tinted. */
+function iconBackground(icon: Icon, color?: Color4) {
+    return { texture: { src: icon.src }, textureMode: 'stretch' as const, uvs: icon.uvs, color }
 }
 
 const ICON_ORE = atlasCell(1, 1) // A1
@@ -171,11 +180,27 @@ const ICON_FORBIDDEN = atlasCell(1, 4) // A4 — skull / prohibited
 const ICON_SHERIFF = atlasCell(2, 4) // B4
 const ICON_MAP = atlasCell(3, 4) // C4
 const ICON_NOTIFICATION = atlasCell(4, 4) // D4 — bell
-// Stand-in for every property until each gets its own icon.
-const ICON_PROPERTY = atlasCell(2, 3) // B3
+
+// UI_02.png.
+const ICON_WAGON = atlasCell(1, 1, ATLAS_2) // A1
+const ICON_CABIN = atlasCell(2, 1, ATLAS_2) // B1
+const ICON_HOUSE_HOME = atlasCell(3, 1, ATLAS_2) // C1
+const ICON_RANCH = atlasCell(4, 1, ATLAS_2) // D1
+const ICON_INVENTORY = atlasCell(1, 2, ATLAS_2) // A2
+const ICON_HORSE = atlasCell(2, 2, ATLAS_2) // B2
+const ICON_REVOLVER = atlasCell(3, 2, ATLAS_2) // C2
+const ICON_RATE = atlasCell(1, 3, ATLAS_2) // A3
+
+// Property icon by catalogue id.
+const PROPERTY_ICONS: Record<string, Icon> = {
+    wagon: ICON_WAGON,
+    cabin: ICON_CABIN,
+    house: ICON_HOUSE_HOME,
+    ranch: ICON_RANCH
+}
 
 // Pick icon by catalogue id. No pick shows the iron one.
-const PICK_ICONS: Record<string, number[]> = {
+const PICK_ICONS: Record<string, Icon> = {
     pick: ICON_PICK_IRON,
     'steel-pick': ICON_PICK_STEEL,
     'miners-pick': ICON_PICK_DIAMOND
@@ -185,10 +210,10 @@ const SERVER_ONLINE_COLOR = Color4.create(0.3, 0.9, 0.4, 1)
 const SERVER_OFFLINE_COLOR = Color4.create(1, 0.3, 0.3, 1)
 const SERVER_LABEL_HEIGHT = 28
 
-const hudIcon = (uvs: number[]) => (
+const hudIcon = (icon: Icon) => (
     <UiEntity
         uiTransform={{ width: HUD_ICON_SIZE, height: HUD_ICON_SIZE, margin: { right: 10 } }}
-        uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs }}
+        uiBackground={iconBackground(icon)}
     />
 )
 
@@ -221,9 +246,9 @@ const hudUnitLine = (value: string, color: Color4, width?: number) => (
     />
 )
 
-const hudSegment = (uvs: number[], caption: string, value: string, color: Color4) => (
+const hudSegment = (icon: Icon, caption: string, value: string, color: Color4) => (
     <UiEntity uiTransform={{ height: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexGrow: 1, flexShrink: 0 }}>
-        {hudIcon(uvs)}
+        {hudIcon(icon)}
         <UiEntity uiTransform={{ flexDirection: 'column', justifyContent: 'center' }}>
             <BitmapText value={caption} fontSize={HUD_CAPTION_SIZE} color={MUTED_COLOR} />
             <UiEntity uiTransform={{ height: HUD_VALUE_SIZE, flexDirection: 'row', alignItems: 'center' }}>
@@ -278,12 +303,15 @@ const oreSegment = () => {
 const rateSegment = () => {
     const rate = quotedRate(getSyncedRate())
     return (
-        <UiEntity uiTransform={{ height: '100%', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexGrow: 1, flexShrink: 0 }}>
-            <BitmapText value="Rate" fontSize={HUD_CAPTION_SIZE} color={MUTED_COLOR} />
-            <UiEntity uiTransform={{ height: HUD_VALUE_SIZE, flexDirection: 'row', alignItems: 'center' }}>
-                <BitmapText value={formatRate(rate)} fontSize={HUD_VALUE_SIZE} color={rateColor(rate)} />
+        <UiEntity uiTransform={{ height: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexGrow: 1, flexShrink: 0 }}>
+            {hudIcon(ICON_RATE)}
+            <UiEntity uiTransform={{ flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                <BitmapText value="Rate" fontSize={HUD_CAPTION_SIZE} color={MUTED_COLOR} />
+                <UiEntity uiTransform={{ height: HUD_VALUE_SIZE, flexDirection: 'row', alignItems: 'center' }}>
+                    <BitmapText value={formatRate(rate)} fontSize={HUD_VALUE_SIZE} color={rateColor(rate)} />
+                </UiEntity>
+                {hudUnitLine('ore / coin', MUTED_COLOR)}
             </UiEntity>
-            {hudUnitLine('ore / coin', MUTED_COLOR)}
         </UiEntity>
     )
 }
@@ -541,10 +569,10 @@ const rateChart = (history: readonly number[], current: number) => (
     </UiEntity>
 )
 
-const bankIcon = (uvs: number[], size: number) => (
+const bankIcon = (icon: Icon, size: number) => (
     <UiEntity
         uiTransform={{ width: size, height: size, flexShrink: 0, margin: { right: 12 } }}
-        uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs }}
+        uiBackground={iconBackground(icon)}
     />
 )
 
@@ -591,7 +619,7 @@ const bankSection = (
 // The two side boxes read as sentences with their caption: "You have / 3 ore", "You receive /
 // 10 coins". The number is the big thing; its unit sits under it, since a 200 px box has no
 // room for "126 COINS" on one line at that size.
-const bankAmount = (icon: number[], value: number, unit: string, color: Color4) => (
+const bankAmount = (icon: Icon, value: number, unit: string, color: Color4) => (
     <UiEntity uiTransform={{ flexGrow: 1, flexDirection: 'row', alignItems: 'center' }}>
         {bankIcon(icon, 48)}
         <UiEntity uiTransform={{ flexDirection: 'column', alignItems: 'flex-start' }}>
@@ -842,7 +870,7 @@ type Status = { text: string; color: Color4 }
 type Product = {
     key: ProductKey
     title: string
-    icon: number[]
+    icon: Icon
     /** The card's second line: a price, or a short hint. */
     hint: string
     status: Status | null
@@ -887,8 +915,8 @@ function storeProducts(): Product[] {
         },
         { key: 'fuel', title: 'Fuel', icon: ICON_FUEL, hint: `${FUEL_PRICE_PER_GALLON} Coins / Gallon`, status: mules > 0 ? null : STATUS_LOCKED, muted: false },
         { key: 'storage', title: 'Storage', icon: ICON_WAREHOUSE, hint: `${withCommas(getCarryCapacity())} Ore`, status: null, muted: false },
-        { key: 'horse', title: 'Horse', icon: ICON_LOCK, hint: '', status: STATUS_SOON, muted: true },
-        { key: 'revolver', title: 'Revolver', icon: ICON_SHERIFF, hint: '', status: STATUS_SOON, muted: true }
+        { key: 'horse', title: 'Horse', icon: ICON_HORSE, hint: '', status: STATUS_SOON, muted: true },
+        { key: 'revolver', title: 'Revolver', icon: ICON_REVOLVER, hint: '', status: STATUS_SOON, muted: true }
     ]
 }
 
@@ -919,7 +947,7 @@ const storeCard = (product: Product, selected: boolean, onSelect: (key: string) 
     >
         <UiEntity
             uiTransform={{ width: STORE_CARD_ICON, height: STORE_CARD_ICON, margin: { right: 10 }, flexShrink: 0 }}
-            uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: product.icon, color: product.muted ? COMING_SOON_TINT : undefined }}
+            uiBackground={iconBackground(product.icon, product.muted ? COMING_SOON_TINT : undefined)}
         />
         <UiEntity uiTransform={{ flexGrow: 1, flexDirection: 'column', justifyContent: 'center' }}>
             <BitmapText value={product.title.toUpperCase()} fontSize={19} color={product.muted ? MUTED_COLOR : BANK_CREAM} />
@@ -987,7 +1015,7 @@ const coinAmount = (amount: number, color: Color4, size: number) => (
     <UiEntity uiTransform={{ flexDirection: 'row', alignItems: 'center' }}>
         <UiEntity
             uiTransform={{ width: size, height: size, margin: { right: 6 }, flexShrink: 0 }}
-            uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: ICON_COINS }}
+            uiBackground={iconBackground(ICON_COINS)}
         />
         <BitmapText value={withCommas(amount)} fontSize={size} color={color} />
     </UiEntity>
@@ -1013,7 +1041,7 @@ function buyAction(item: ShopItem): Action {
 }
 
 /** The pieces of one product's detail: what it is, its numbers, and what you can do. */
-type Detail = { title: string; description: string; icon: number[]; stats: ReactEcs.JSX.Element[]; notes: ReactEcs.JSX.Element[]; actions: ReactEcs.JSX.Element[] }
+type Detail = { title: string; description: string; icon: Icon; stats: ReactEcs.JSX.Element[]; notes: ReactEcs.JSX.Element[]; actions: ReactEcs.JSX.Element[] }
 
 function pickDetail(item: ShopItem): Detail {
     const copy = PICK_COPY[item.id]
@@ -1140,7 +1168,7 @@ function storageDetail(): Detail {
     }
 }
 
-function comingSoonDetail(title: string, icon: number[]): Detail {
+function comingSoonDetail(title: string, icon: Icon): Detail {
     return {
         title,
         description: 'On its way to the store.',
@@ -1155,8 +1183,8 @@ function detailFor(key: ProductKey): Detail {
     if (key === 'mule') return muleDetail()
     if (key === 'fuel') return fuelDetail()
     if (key === 'storage') return storageDetail()
-    if (key === 'horse') return comingSoonDetail('Horse', ICON_LOCK)
-    if (key === 'revolver') return comingSoonDetail('Revolver', ICON_SHERIFF)
+    if (key === 'horse') return comingSoonDetail('Horse', ICON_HORSE)
+    if (key === 'revolver') return comingSoonDetail('Revolver', ICON_REVOLVER)
     const pick = findItem(key as ShopItemId)
     return pick !== null && pick.line === 'pick' ? pickDetail(pick) : pickDetail(PICKS[0])
 }
@@ -1180,7 +1208,7 @@ const storeDetail = (detail: Detail) => (
         <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', margin: { top: 12 } }}>
             <UiEntity
                 uiTransform={{ width: STORE_DETAIL_ICON, height: STORE_DETAIL_ICON, margin: { right: 18 }, flexShrink: 0 }}
-                uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: detail.icon }}
+                uiBackground={iconBackground(detail.icon)}
             />
             <UiEntity uiTransform={{ flexGrow: 1, flexDirection: 'column' }}>{detail.stats}</UiEntity>
         </UiEntity>
@@ -1221,7 +1249,7 @@ const counterPanel = (title: string, onClose: () => void, products: Product[], k
                     uiTransform={{ height: 44, flexDirection: 'row', alignItems: 'center', flexShrink: 0, padding: { left: 8, right: 14 }, margin: { top: 6 }, borderRadius: 22 }}
                     uiBackground={{ color: BANK_WOOD }}
                 >
-                    <UiEntity uiTransform={{ width: 34, height: 34, margin: { right: 8 } }} uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: ICON_COINS }} />
+                    <UiEntity uiTransform={{ width: 34, height: 34, margin: { right: 8 } }} uiBackground={iconBackground(ICON_COINS)} />
                     <BitmapText value={`${withCommas(getCoins())} COINS`} fontSize={26} color={COIN_COLOR} />
                 </UiEntity>
                 <Button
@@ -1272,7 +1300,7 @@ function landOfficeProducts(): Product[] {
     return itemsOf('housing').map((item) => ({
         key: item.id,
         title: item.label,
-        icon: ICON_PROPERTY,
+        icon: PROPERTY_ICONS[item.id] ?? ICON_WAGON,
         hint: item.price > 0 ? `${withCommas(item.price)} Coins` : 'Free',
         status: propertyStatus(item),
         muted: false
@@ -1302,7 +1330,7 @@ function propertyDetail(item: ShopItem): Detail {
     return {
         title: item.label,
         description: item.benefit,
-        icon: ICON_PROPERTY,
+        icon: PROPERTY_ICONS[item.id] ?? ICON_WAGON,
         stats: [priceStat(item.price)],
         notes,
         actions: [storeActionButton(action)]
@@ -1491,7 +1519,9 @@ const miningBar = () => {
                     flexDirection: 'column',
                     alignItems: 'center',
                     padding: { left: 18, right: 18, top: 10, bottom: 12 },
-                    borderRadius: PANEL_RADIUS
+                    borderRadius: PANEL_RADIUS,
+                    borderWidth: 2,
+                    borderColor: MINING_FILL_COLOR
                 }}
                 uiBackground={{ color: HUD_BACKGROUND }}
             >
@@ -1718,7 +1748,7 @@ const muleBar = (key: string, share: number, color: Color4, border: Color4 = BAN
 )
 
 /** A column: a header like the old tabs (icon and title), and its figures stacked under it. */
-const muleColumn = (title: string, icon: number[], children: ReactEcs.JSX.Element[], last: boolean) => (
+const muleColumn = (title: string, icon: Icon, children: ReactEcs.JSX.Element[], last: boolean) => (
     <UiEntity
         key={title}
         uiTransform={{
@@ -1747,7 +1777,7 @@ const muleColumn = (title: string, icon: number[], children: ReactEcs.JSX.Elemen
         >
             <UiEntity
                 uiTransform={{ width: 32, height: 32, margin: { right: 6 }, flexShrink: 0 }}
-                uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: icon }}
+                uiBackground={iconBackground(icon)}
             />
             <BitmapText value={title.toUpperCase()} fontSize={22} color={BANK_GOLD_LIGHT} />
         </UiEntity>
@@ -1933,7 +1963,7 @@ type InventoryEntry = {
     key: string
     tab: Exclude<InventoryTab, 'all'>
     title: string
-    icon: number[]
+    icon: Icon
     /** The card's one short line: hits, a count, a level. */
     status: string
     equipped: boolean
@@ -2013,7 +2043,7 @@ function inventoryEntries(): InventoryEntry[] {
             key: property.id,
             tab: 'property',
             title: property.label,
-            icon: ICON_PROPERTY,
+            icon: PROPERTY_ICONS[property.id] ?? ICON_WAGON,
             status: property.benefit,
             equipped: active,
             badge: 'Active',
@@ -2093,7 +2123,7 @@ const inventoryCard = (entry: InventoryEntry, index: number) => {
         >
             <UiEntity
                 uiTransform={{ width: INVENTORY_CARD_ICON, height: INVENTORY_CARD_ICON, flexShrink: 0 }}
-                uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: entry.icon }}
+                uiBackground={iconBackground(entry.icon)}
             />
             <BitmapText value={entry.title} fontSize={20} color={BANK_CREAM} uiTransform={{ margin: { top: 4 } }} />
             <Label
@@ -2135,7 +2165,7 @@ const inventoryDetail = (entry: InventoryEntry) => (
     >
         <UiEntity
             uiTransform={{ width: INVENTORY_DETAIL_ICON, height: INVENTORY_DETAIL_ICON, margin: { right: 16 }, flexShrink: 0 }}
-            uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: entry.icon }}
+            uiBackground={iconBackground(entry.icon)}
         />
         <UiEntity uiTransform={{ flexGrow: 1, flexDirection: 'column', justifyContent: 'center' }}>
             <BitmapText value={entry.title.toUpperCase()} fontSize={28} color={BANK_GOLD_LIGHT} uiTransform={{ margin: { bottom: 4 } }} />
@@ -2209,22 +2239,30 @@ const inventoryPanel = () => {
     )
 }
 
+// Dressed like the Map button next to it: icon, then label.
 const inventoryButton = () => (
-    <UiEntity uiTransform={{ positionType: 'absolute', position: { bottom: BOTTOM_BUTTON_Y, right: 0 } }}>
-        <Button
-            value={inventoryOpen ? 'Close' : 'Inventory'}
-            fontSize={18}
-            color={Color4.White()}
-            uiTransform={{ width: BOTTOM_BUTTON_WIDTH, height: BOTTOM_BUTTON_HEIGHT, borderRadius: 8 }}
-            uiBackground={{ color: STEP_BUTTON_COLOR }}
-            onMouseDown={() => {
-                inventoryOpen = !inventoryOpen
-                if (inventoryOpen) {
-                    mapOpen = false
-                    pickSelectorOpen = false
-                }
-            }}
-        />
+    <UiEntity
+        uiTransform={{
+            positionType: 'absolute',
+            position: { bottom: BOTTOM_BUTTON_Y, right: 0 },
+            width: BOTTOM_BUTTON_WIDTH,
+            height: BOTTOM_BUTTON_HEIGHT,
+            borderRadius: 8,
+            flexDirection: 'row',
+            justifyContent: 'center',
+            alignItems: 'center'
+        }}
+        uiBackground={{ color: STEP_BUTTON_COLOR }}
+        onMouseDown={() => {
+            inventoryOpen = !inventoryOpen
+            if (inventoryOpen) {
+                mapOpen = false
+                pickSelectorOpen = false
+            }
+        }}
+    >
+        <UiEntity uiTransform={{ width: 32, height: 32, margin: { right: 8 } }} uiBackground={iconBackground(ICON_INVENTORY)} />
+        <Label value={inventoryOpen ? 'Close' : 'Inventory'} fontSize={18} color={Color4.White()} textAlign="middle-center" uiTransform={{ height: 44 }} />
     </UiEntity>
 )
 
@@ -2287,7 +2325,7 @@ const mapButton = () => (
     >
         <UiEntity
             uiTransform={{ width: 32, height: 32, margin: { right: 8 } }}
-            uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: ICON_MAP }}
+            uiBackground={iconBackground(ICON_MAP)}
         />
         <Label value="Map" fontSize={18} color={Color4.White()} textAlign="middle-center" uiTransform={{ height: 44 }} />
     </UiEntity>
@@ -2342,7 +2380,7 @@ const pickButton = () => {
         >
             <UiEntity
                 uiTransform={{ width: 32, height: 32, margin: { right: 8 } }}
-                uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: (pick && PICK_ICONS[pick.id]) ?? ICON_PICK_IRON, color: pick === null ? LOCKED_TINT : Color4.White() }}
+                uiBackground={iconBackground((pick && PICK_ICONS[pick.id]) ?? ICON_PICK_IRON, pick === null ? LOCKED_TINT : Color4.White())}
             />
             <Label
                 value={pick?.label ?? 'No pick'}
@@ -2381,7 +2419,7 @@ const pickRow = (item: ShopItem, inUse: boolean) => {
         >
             <UiEntity
                 uiTransform={{ width: PICK_ROW_ICON, height: PICK_ROW_ICON, margin: { right: 10 }, flexShrink: 0 }}
-                uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: PICK_ICONS[item.id] ?? ICON_PICK_IRON, color: owned ? Color4.White() : LOCKED_TINT }}
+                uiBackground={iconBackground(PICK_ICONS[item.id] ?? ICON_PICK_IRON, owned ? Color4.White() : LOCKED_TINT)}
             />
             <Label
                 value={item.label}
@@ -2394,7 +2432,7 @@ const pickRow = (item: ShopItem, inUse: boolean) => {
             {owned ? null : (
                 <UiEntity
                     uiTransform={{ width: 24, height: 24, flexShrink: 0 }}
-                    uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: ICON_LOCK, color: LOCKED_TINT }}
+                    uiBackground={iconBackground(ICON_LOCK, LOCKED_TINT)}
                 />
             )}
         </UiEntity>
@@ -2455,7 +2493,7 @@ const objectiveTracker = () => {
             <UiEntity uiTransform={{ flexDirection: 'row', alignItems: 'center', margin: { bottom: 4 } }}>
                 <UiEntity
                     uiTransform={{ width: OBJECTIVE_ICON_SIZE, height: OBJECTIVE_ICON_SIZE, margin: { right: 8 }, flexShrink: 0 }}
-                    uiBackground={{ texture: { src: ATLAS }, textureMode: 'stretch', uvs: ICON_NOTIFICATION }}
+                    uiBackground={iconBackground(ICON_NOTIFICATION)}
                 />
                 <BitmapText value={objective.title} fontSize={20} color={objective.alert ? STORAGE_FULL_COLOR : BANK_GOLD_LIGHT} />
             </UiEntity>
