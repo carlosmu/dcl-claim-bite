@@ -2,6 +2,7 @@ import { engine } from '@dcl/sdk/ecs'
 import ReactEcs, { UiEntity } from '@dcl/sdk/react-ecs'
 import { BitmapText } from './bitmap-text'
 import { Color4 } from '@dcl/sdk/math'
+import { isMobile } from '@dcl/sdk/platform'
 import { startTownMusic, stopIntroMusic } from '../world/music'
 import { playWelcomeCinematic } from '../world/welcome-cinematic'
 
@@ -25,7 +26,17 @@ const PULSE_MAX = 1.2
 const PULSE_SECONDS = 2.4
 // "Skip intro" under the button: plain white text that starts the game without the welcome shot.
 const SKIP_FONT_SIZE = 24
-const SKIP_MARGIN_TOP = 16
+const SKIP_MARGIN_TOP = 48
+// Padding around "Skip intro" that still counts as the link, so it is easy to hit with a thumb.
+const SKIP_HIT_PADDING = 14
+// On mobile the screen is only 720 high: the logo and the Start button shrink by this much so
+// the column fits with room to spare, and "Skip intro" stops hugging the bottom edge.
+const MOBILE_SCALE = 0.7
+
+/** Logo and Start button scale: smaller on mobile. */
+function introScale(): number {
+    return isMobile() ? MOBILE_SCALE : 1
+}
 
 type Phase = 'title' | 'fading' | 'done'
 let phase: Phase = 'title'
@@ -67,6 +78,7 @@ function startGame(withWelcome: boolean) {
 export function introScreen() {
     if (phase === 'done') return null
     const alpha = phase === 'title' ? 1 : Math.max(0, 1 - fadeElapsed / FADE_SECONDS)
+    const scale = introScale()
     return (
         <UiEntity
             uiTransform={{
@@ -82,7 +94,7 @@ export function introScreen() {
         >
             {phase === 'title' ? (
                 <UiEntity
-                    uiTransform={{ width: LOGO_SIZE, height: LOGO_SIZE }}
+                    uiTransform={{ width: LOGO_SIZE * scale, height: LOGO_SIZE * scale }}
                     uiBackground={{ textureMode: 'stretch', texture: { src: LOGO } }}
                 />
             ) : null}
@@ -90,8 +102,8 @@ export function introScreen() {
                 // A fixed slot sized for the largest pulse, so the growing button never pushes the logo.
                 <UiEntity
                     uiTransform={{
-                        width: BUTTON_WIDTH * PULSE_MAX,
-                        height: BUTTON_HEIGHT * PULSE_MAX,
+                        width: BUTTON_WIDTH * scale * PULSE_MAX,
+                        height: BUTTON_HEIGHT * scale * PULSE_MAX,
                         margin: { top: 0 },
                         justifyContent: 'center',
                         alignItems: 'center'
@@ -99,8 +111,8 @@ export function introScreen() {
                 >
                 <UiEntity
                     uiTransform={{
-                        width: BUTTON_WIDTH * pulseScale(),
-                        height: BUTTON_HEIGHT * pulseScale(),
+                        width: BUTTON_WIDTH * scale * pulseScale(),
+                        height: BUTTON_HEIGHT * scale * pulseScale(),
                         flexShrink: 0,
                         justifyContent: 'center',
                         alignItems: 'center'
@@ -108,12 +120,15 @@ export function introScreen() {
                     uiBackground={{ textureMode: 'stretch', texture: { src: BUTTON_GRADIENT } }}
                     onMouseDown={() => startGame(true)}
                 >
-                    <BitmapText value="Start Game" fontSize={BUTTON_FONT_SIZE * pulseScale()} color={Color4.Black()} align="center" uiTransform={{ width: '100%' }} />
+                    <BitmapText value="Start Game" fontSize={BUTTON_FONT_SIZE * scale * pulseScale()} color={Color4.Black()} align="center" uiTransform={{ width: '100%' }} />
                 </UiEntity>
                 </UiEntity>
             ) : null}
             {phase === 'title' ? (
-                <UiEntity uiTransform={{ margin: { top: SKIP_MARGIN_TOP } }} onMouseDown={() => startGame(false)}>
+                <UiEntity
+                    uiTransform={{ margin: { top: SKIP_MARGIN_TOP - SKIP_HIT_PADDING }, padding: SKIP_HIT_PADDING }}
+                    onMouseDown={() => startGame(false)}
+                >
                     <BitmapText value="Skip intro" fontSize={SKIP_FONT_SIZE} color={Color4.White()} align="center" />
                 </UiEntity>
             ) : null}
