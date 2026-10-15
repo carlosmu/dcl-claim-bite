@@ -2670,10 +2670,11 @@ const notificationsButton = () => (
             position: { top: OBJECTIVE_TOP, right: HUD_MARGIN },
             // Lifted clear of the tracker, which starts at OBJECTIVE_TOP; the units do not add.
             margin: { top: -(NOTIFY_BUTTON_SIZE + NOTIFY_BUTTON_GAP) },
-            width: NOTIFY_BUTTON_SIZE,
             height: NOTIFY_BUTTON_SIZE,
+            flexDirection: 'row',
             justifyContent: 'center',
             alignItems: 'center',
+            padding: { left: 6, right: 12 },
             borderRadius: 8,
             borderWidth: 2,
             borderColor: notificationsOpen ? BANK_GOLD : BANK_TRIM
@@ -2688,7 +2689,11 @@ const notificationsButton = () => (
             }
         }}
     >
-        <UiEntity uiTransform={{ width: NOTIFY_BUTTON_SIZE - 12, height: NOTIFY_BUTTON_SIZE - 12 }} uiBackground={iconBackground(ICON_NOTIFICATION)} />
+        <UiEntity
+            uiTransform={{ width: NOTIFY_BUTTON_SIZE - 12, height: NOTIFY_BUTTON_SIZE - 12, margin: { right: 6 }, flexShrink: 0 }}
+            uiBackground={iconBackground(ICON_NOTIFICATION)}
+        />
+        <BitmapText value="NOTIFICATIONS" fontSize={20} color={notificationsOpen ? BANK_GOLD_LIGHT : BANK_CREAM} />
     </UiEntity>
 )
 
