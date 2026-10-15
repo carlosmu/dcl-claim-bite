@@ -2324,31 +2324,35 @@ const inventoryPanel = () => {
     )
 }
 
-// Dressed like the Map button next to it: icon, then label.
+// Dressed like the Map button next to it, and like the status panels: icon, then label.
 const inventoryButton = () => (
     <UiEntity
         uiTransform={{
             positionType: 'absolute',
             position: { bottom: BOTTOM_BUTTON_Y, right: 0 },
-            width: BOTTOM_BUTTON_WIDTH,
-            height: BOTTOM_BUTTON_HEIGHT,
+            width: bottomButtonWidth(),
+            height: BOTTOM_PANEL_HEIGHT,
             borderRadius: 8,
+            borderWidth: 2,
+            borderColor: inventoryOpen ? BANK_GOLD : BANK_TRIM,
             flexDirection: 'row',
-            justifyContent: 'center',
-            alignItems: 'center'
+            alignItems: 'center',
+            // Left-aligned with the same inset as the status panels.
+            padding: { left: 8, right: 10 }
         }}
-        uiBackground={{ color: STEP_BUTTON_COLOR }}
+        uiBackground={{ color: HUD_BACKGROUND }}
         onMouseDown={() => {
             inventoryOpen = !inventoryOpen
             if (inventoryOpen) {
                 notificationsOpen = false
                 mapOpen = false
                 pickSelectorOpen = false
+                muleDropdownOpen = false
             }
         }}
     >
-        <UiEntity uiTransform={{ width: 32, height: 32, margin: { right: 8 } }} uiBackground={iconBackground(ICON_INVENTORY)} />
-        <Label value="Inventory" fontSize={18} color={Color4.White()} textAlign="middle-center" uiTransform={{ height: 44 }} />
+        <UiEntity uiTransform={bottomButtonIcon()} uiBackground={iconBackground(ICON_INVENTORY)} />
+        <Label value="Stuff" fontSize={bottomButtonFont()} color={Color4.White()} textAlign="middle-left" uiTransform={{ height: BOTTOM_PANEL_HEIGHT }} />
     </UiEntity>
 )
 
@@ -2392,46 +2396,214 @@ const mapButton = () => (
     <UiEntity
         uiTransform={{
             positionType: 'absolute',
-            position: { bottom: BOTTOM_BUTTON_Y, right: BOTTOM_BUTTON_WIDTH + BOTTOM_BUTTON_GAP },
-            width: BOTTOM_BUTTON_WIDTH,
-            height: BOTTOM_BUTTON_HEIGHT,
+            position: { bottom: BOTTOM_BUTTON_Y, right: bottomButtonWidth() + BOTTOM_BUTTON_GAP },
+            width: bottomButtonWidth(),
+            height: BOTTOM_PANEL_HEIGHT,
             borderRadius: 8,
+            borderWidth: 2,
+            borderColor: mapOpen ? BANK_GOLD : BANK_TRIM,
             flexDirection: 'row',
-            justifyContent: 'center',
-            alignItems: 'center'
+            alignItems: 'center',
+            // Left-aligned with the same inset as the status panels.
+            padding: { left: 8, right: 10 }
         }}
-        uiBackground={{ color: STEP_BUTTON_COLOR }}
+        uiBackground={{ color: HUD_BACKGROUND }}
         onMouseDown={() => {
             mapOpen = !mapOpen
             if (mapOpen) {
                 notificationsOpen = false
                 inventoryOpen = false
                 pickSelectorOpen = false
+                muleDropdownOpen = false
             }
         }}
     >
-        <UiEntity
-            uiTransform={{ width: 32, height: 32, margin: { right: 8 } }}
-            uiBackground={iconBackground(ICON_MAP)}
-        />
-        <Label value="Map" fontSize={18} color={Color4.White()} textAlign="middle-center" uiTransform={{ height: 44 }} />
+        <UiEntity uiTransform={bottomButtonIcon()} uiBackground={iconBackground(ICON_MAP)} />
+        <Label value="Map" fontSize={bottomButtonFont()} color={Color4.White()} textAlign="middle-left" uiTransform={{ height: BOTTOM_PANEL_HEIGHT }} />
     </UiEntity>
 )
 
 // --- Bottom buttons -----------------------------------------------------------------------
 //
-// The pick selector on the bottom-left of the column, Map and Inventory on the bottom-right.
+// Two status panels on the bottom-left of the column — the pick in hand and the M.U.L.E.
+// fleet — each opening its own dropdown above it. Map and Inventory on the bottom-right.
 
-const BOTTOM_BUTTON_Y = 56
-const BOTTOM_BUTTON_WIDTH = 150
+const BOTTOM_BUTTON_Y = 28
+const BOTTOM_BUTTON_WIDTH = 120
 const BOTTOM_BUTTON_HEIGHT = 44
 const BOTTOM_BUTTON_GAP = 8
 
+// The mobile column is 640 wide, not 768: the status panels and the Map and Inventory buttons
+// narrow there so all four still fit one row without covering each other.
+const BOTTOM_BUTTON_WIDTH_MOBILE = 104
+const BOTTOM_PANEL_WIDTH = 200
+const BOTTOM_PANEL_WIDTH_MOBILE = 180
+const BOTTOM_PANEL_HEIGHT = 56
+const BOTTOM_PANEL_ICON = 32
+const BOTTOM_PANEL_BAR_HEIGHT = 8
+
+function bottomButtonWidth(): number {
+    return isMobile() ? BOTTOM_BUTTON_WIDTH_MOBILE : BOTTOM_BUTTON_WIDTH
+}
+
+/** The bottom row's icon and label size, a size down on mobile to fit the narrower buttons. */
+function bottomButtonIcon() {
+    const size = isMobile() ? 26 : 32
+    return { width: size, height: size, margin: { right: isMobile() ? 6 : 8 } }
+}
+
+function bottomButtonFont(): number {
+    return isMobile() ? 16 : 18
+}
+
+function bottomPanelWidth(): number {
+    return isMobile() ? BOTTOM_PANEL_WIDTH_MOBILE : BOTTOM_PANEL_WIDTH
+}
+
+/** Where a dropdown starts: just above the status panels. */
+const DROPDOWN_BOTTOM = BOTTOM_BUTTON_Y + BOTTOM_PANEL_HEIGHT + BOTTOM_BUTTON_GAP
+
+type BottomPanel = {
+    key: string
+    left: number
+    open: boolean
+    onToggle: () => void
+    icon: Icon
+    iconTint?: Color4
+    title: string
+    /** A status dot before the title. */
+    dot?: { color: Color4; pulse: boolean }
+    value: string
+    valueColor: Color4
+    /** The bar beside the value; null leaves the value alone on its line. */
+    bar: { share: number; color: Color4 } | null
+}
+
+/** Icon, a title, and under it a thin bar with the figure it stands for. Tapping it toggles its dropdown. */
+const bottomPanel = (panel: BottomPanel) => (
+    <UiEntity
+        key={panel.key}
+        uiTransform={{
+            positionType: 'absolute',
+            position: { bottom: BOTTOM_BUTTON_Y, left: panel.left },
+            width: bottomPanelWidth(),
+            height: BOTTOM_PANEL_HEIGHT,
+            flexDirection: 'row',
+            alignItems: 'center',
+            padding: { left: 8, right: 10 },
+            borderRadius: 8,
+            borderWidth: 2,
+            borderColor: panel.open ? BANK_GOLD : BANK_TRIM
+        }}
+        uiBackground={{ color: HUD_BACKGROUND }}
+        onMouseDown={panel.onToggle}
+    >
+        <UiEntity
+            uiTransform={{ width: BOTTOM_PANEL_ICON, height: BOTTOM_PANEL_ICON, margin: { right: 8 }, flexShrink: 0 }}
+            uiBackground={iconBackground(panel.icon, panel.iconTint)}
+        />
+        <UiEntity uiTransform={{ width: 0, flexGrow: 1, flexDirection: 'column', justifyContent: 'center' }}>
+            <UiEntity uiTransform={{ height: 22, flexDirection: 'row', alignItems: 'center' }}>
+                {panel.dot !== undefined ? statusDot(panel.dot) : null}
+                <Label value={panel.title} fontSize={bottomButtonFont()} color={Color4.White()} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 22 }} />
+            </UiEntity>
+            {panel.bar === null ? (
+                <Label value={panel.value} fontSize={12} color={panel.valueColor} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 16 }} />
+            ) : (
+                <UiEntity uiTransform={{ width: '100%', height: 16, flexDirection: 'row', alignItems: 'center' }}>
+                    <UiEntity
+                        uiTransform={{ width: 0, flexGrow: 1, height: BOTTOM_PANEL_BAR_HEIGHT, margin: { right: 6 }, borderRadius: BOTTOM_PANEL_BAR_HEIGHT / 2 }}
+                        uiBackground={{ color: MULE_BAR_TRACK }}
+                    >
+                        <UiEntity
+                            uiTransform={{ width: percent(Math.max(0, Math.min(1, panel.bar.share))), height: '100%', borderRadius: BOTTOM_PANEL_BAR_HEIGHT / 2 }}
+                            uiBackground={{ color: panel.bar.color }}
+                        />
+                    </UiEntity>
+                    <Label
+                        value={panel.value}
+                        fontSize={12}
+                        color={panel.valueColor}
+                        textAlign="middle-right"
+                        textWrap="nowrap"
+                        uiTransform={{ height: 16, flexShrink: 0 }}
+                    />
+                </UiEntity>
+            )}
+        </UiEntity>
+    </UiEntity>
+)
+
+// The game's red close button, a size down to suit a dropdown.
+const DROPDOWN_CLOSE_SIZE = 30
+
+/** The frame both dropdowns share: wood, a gold title with the red close button, then their rows. */
+const dropdown = (left: number, title: string, onClose: () => void, children: ReactEcs.JSX.Element[]) => (
+    <UiEntity
+        uiTransform={{
+            positionType: 'absolute',
+            position: { bottom: DROPDOWN_BOTTOM, left },
+            flexDirection: 'column',
+            padding: { left: 8, right: 8, bottom: 8, top: 2 },
+            borderRadius: 10,
+            borderWidth: 2,
+            borderColor: BANK_TRIM
+        }}
+        uiBackground={{ color: BANK_WOOD_DARK }}
+    >
+        <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', margin: { top: 6, bottom: 2 } }}>
+            <BitmapText value={title} fontSize={22} color={BANK_GOLD_LIGHT} uiTransform={{ margin: { left: 2 } }} />
+            <Button
+                value="X"
+                fontSize={20}
+                color={Color4.White()}
+                uiTransform={{ width: DROPDOWN_CLOSE_SIZE, height: DROPDOWN_CLOSE_SIZE, borderRadius: 8, flexShrink: 0 }}
+                uiBackground={{ color: MAP_CLOSE_COLOR }}
+                onMouseDown={onClose}
+            />
+        </UiEntity>
+        {children}
+    </UiEntity>
+)
+
+/** One wooden card inside a dropdown, as wide as a pick row. */
+const dropdownCard = (key: string, rows: ReactEcs.JSX.Element[]) => (
+    <UiEntity
+        key={key}
+        uiTransform={{
+            width: PICK_ROW_WIDTH,
+            flexDirection: 'column',
+            padding: { left: 12, right: 12, top: 6, bottom: 6 },
+            margin: { top: 6 },
+            borderRadius: 8,
+            borderWidth: 2,
+            borderColor: BANK_TRIM
+        }}
+        uiBackground={{ color: BANK_WOOD }}
+    >
+        {rows}
+    </UiEntity>
+)
+
+/** A line of text in a dropdown card. `lines` above 1 wraps it inside the card instead of spilling past it. */
+const dropdownLine = (key: string, text: string, fontSize: number, color: Color4, lines: number = 1) => (
+    <Label
+        key={key}
+        value={text}
+        fontSize={fontSize}
+        color={color}
+        textAlign={lines > 1 ? 'top-left' : 'middle-left'}
+        textWrap={lines > 1 ? 'wrap' : 'nowrap'}
+        uiTransform={{ width: '100%', height: lines > 1 ? lines * (fontSize + 4) + 4 : fontSize + 8 }}
+    />
+)
+
 // --- Pick selector ------------------------------------------------------------------------
 //
-// The pick in hand, as a button: icon and name. Tapping it opens a short list of every pick
-// above it — the one in use highlighted, the owned ones selectable, the rest locked. Choosing
-// is a request, answered by the wallet, so the highlight moves when the server agrees.
+// The pick in hand, as a panel: icon, name, and a bar of the rocks it has left. Tapping it
+// opens a short list of every pick above it — the one in use highlighted, the owned ones
+// selectable, the rest locked. Choosing is a request, answered by the wallet, so the highlight
+// moves when the server agrees.
 
 const PICK_ROW_WIDTH = 240
 const PICK_ROW_HEIGHT = 48
@@ -2440,53 +2612,32 @@ const LOCKED_TINT = Color4.create(1, 1, 1, 0.35)
 
 let pickSelectorOpen = false
 
+function closePickSelector() {
+    pickSelectorOpen = false
+}
+
 const pickButton = () => {
     const pick = activePick((id) => getOwned(id), getEquipped())
-    return (
-        <UiEntity
-            uiTransform={{
-                positionType: 'absolute',
-                position: { bottom: BOTTOM_BUTTON_Y, left: 0 },
-                height: BOTTOM_BUTTON_HEIGHT,
-                flexDirection: 'row',
-                alignItems: 'center',
-                padding: { left: 10, right: 14 },
-                borderRadius: 8,
-                borderWidth: 2,
-                borderColor: pickSelectorOpen ? BANK_GOLD : Color4.Clear()
-            }}
-            uiBackground={{ color: STEP_BUTTON_COLOR }}
-            onMouseDown={() => {
-                if (pick === null) return
-                pickSelectorOpen = !pickSelectorOpen
-                if (pickSelectorOpen) {
-                    mapOpen = false
-                    inventoryOpen = false
-                }
-            }}
-        >
-            <UiEntity
-                uiTransform={{ width: 32, height: 32, margin: { right: 8 } }}
-                uiBackground={iconBackground((pick && PICK_ICONS[pick.id]) ?? ICON_PICK_IRON, pick === null ? LOCKED_TINT : Color4.White())}
-            />
-            {pick === null ? (
-                <Label value="No pick" fontSize={18} color={MUTED_COLOR} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: BOTTOM_BUTTON_HEIGHT }} />
-            ) : (
-                // The pick in hand, and how many rocks it has left before it breaks.
-                <UiEntity uiTransform={{ flexDirection: 'column', justifyContent: 'center' }}>
-                    <Label value={pick.label} fontSize={16} color={Color4.White()} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 20 }} />
-                    <Label
-                        value={`Pickaxe: ${durabilityText(pick)}`}
-                        fontSize={13}
-                        color={durabilityColor(pick, MUTED_COLOR)}
-                        textAlign="middle-left"
-                        textWrap="nowrap"
-                        uiTransform={{ height: 16 }}
-                    />
-                </UiEntity>
-            )}
-        </UiEntity>
-    )
+    const max = pick?.durability ?? 0
+    return bottomPanel({
+        key: 'pick-panel',
+        left: 0,
+        open: pickSelectorOpen,
+        onToggle: () => {
+            pickSelectorOpen = !pickSelectorOpen
+            if (pickSelectorOpen) {
+                mapOpen = false
+                inventoryOpen = false
+                muleDropdownOpen = false
+            }
+        },
+        icon: (pick && PICK_ICONS[pick.id]) ?? ICON_PICK_IRON,
+        iconTint: pick === null ? LOCKED_TINT : Color4.White(),
+        title: pick === null ? 'Manual Tool' : pick.label,
+        value: pick === null ? 'Not Owned' : durabilityText(pick),
+        valueColor: pick === null ? MUTED_COLOR : durabilityColor(pick, BANK_CREAM),
+        bar: pick === null ? null : { share: max > 0 ? getDurability(pick.id) / max : 0, color: durabilityColor(pick, BANK_GOLD) }
+    })
 }
 
 const pickRow = (item: ShopItem, inUse: boolean) => {
@@ -2545,24 +2696,118 @@ const pickRow = (item: ShopItem, inUse: boolean) => {
 
 const pickSelector = () => {
     if (!pickSelectorOpen) return null
-    const inUse = activePick((id) => getOwned(id), getEquipped())?.id ?? ''
-    return (
-        <UiEntity
-            uiTransform={{
-                positionType: 'absolute',
-                position: { bottom: BOTTOM_BUTTON_Y + BOTTOM_BUTTON_HEIGHT + BOTTOM_BUTTON_GAP, left: 0 },
-                flexDirection: 'column',
-                padding: { left: 8, right: 8, bottom: 8, top: 2 },
-                borderRadius: 10,
-                borderWidth: 2,
-                borderColor: BANK_TRIM
-            }}
-            uiBackground={{ color: BANK_WOOD_DARK }}
-        >
-            <BitmapText value="Manual Tool" fontSize={22} color={BANK_GOLD_LIGHT} uiTransform={{ margin: { top: 6, bottom: 2, left: 2 } }} />
-            {PICKS.map((item) => pickRow(item, item.id === inUse))}
-        </UiEntity>
-    )
+    const pick = activePick((id) => getOwned(id), getEquipped())
+    // No pick at all: say so, and where the free one comes from, like the M.U.L.E. dropdown does.
+    if (pick === null) {
+        return dropdown(0, 'Manual Tool', closePickSelector, [
+            dropdownCard('pick-card', [
+                dropdownLine('state', 'Not Owned', 17, MUTED_COLOR),
+                dropdownLine('hint', 'Claim your welcome pick from the Mayor', 14, BANK_CAPTION, 2)
+            ])
+        ])
+    }
+    return dropdown(0, 'Manual Tool', closePickSelector, PICKS.map((item) => pickRow(item, item.id === pick.id)))
+}
+
+// --- M.U.L.E. summary ---------------------------------------------------------------------
+//
+// Next to the pick: the fleet at a glance — fuel in the tank, as a bar — and a dropdown with
+// how many rigs, what they are doing and how long the fuel lasts. Only a summary: the full
+// panel, storage included, stays at the rigs themselves.
+
+let muleDropdownOpen = false
+
+function closeMuleDropdown() {
+    muleDropdownOpen = false
+}
+
+// Running is fine, a full storage only waits on a sale, an empty tank stops everything.
+const MULE_WARNING_COLOR = PRICE_FAIR_COLOR
+
+type MuleHudState = { label: string; color: Color4; pulse: boolean }
+
+/** The rigs' state in the dropdown's words, from the same rules as the full panel. */
+function muleHudState(): MuleHudState {
+    const status = muleStatus()
+    if (status.running) return { label: 'Running', color: PRICE_GOOD_COLOR, pulse: true }
+    if (getMuleFuelHours() <= 0) return { label: 'No Fuel', color: SHORT_COLOR, pulse: false }
+    return { label: 'Storage Full', color: MULE_WARNING_COLOR, pulse: false }
+}
+
+/** The tank as a share, and its colour: gold while there is plenty, amber when low, red when dry. */
+function muleFuel(): { gallons: number; tank: number; share: number; color: Color4 } {
+    const gallons = fuelGallonsNow()
+    const tank = fuelTankGallons(getMuleCount())
+    const share = tank > 0 ? gallons / tank : 0
+    const color = gallons <= 0 ? SHORT_COLOR : share < FUEL_LOW_SHARE ? MULE_WARNING_COLOR : COIN_COLOR
+    return { gallons, tank, share, color }
+}
+
+const muleButton = () => {
+    const mules = getMuleCount()
+    const onToggle = () => {
+        muleDropdownOpen = !muleDropdownOpen
+        if (muleDropdownOpen) {
+            mapOpen = false
+            inventoryOpen = false
+            pickSelectorOpen = false
+        }
+    }
+    const left = bottomPanelWidth() + BOTTOM_BUTTON_GAP
+    if (mules <= 0) {
+        return bottomPanel({
+            key: 'mule-panel',
+            left,
+            open: muleDropdownOpen,
+            onToggle,
+            icon: ICON_FUEL,
+            iconTint: LOCKED_TINT,
+            title: 'M.U.L.E.',
+            value: 'Not Owned',
+            valueColor: MUTED_COLOR,
+            bar: null
+        })
+    }
+    const state = muleHudState()
+    const fuel = muleFuel()
+    return bottomPanel({
+        key: 'mule-panel',
+        left,
+        open: muleDropdownOpen,
+        onToggle,
+        icon: ICON_FUEL,
+        title: 'M.U.L.E.',
+        dot: { color: state.color, pulse: state.pulse },
+        value: `${Math.floor(fuel.gallons)} / ${fuel.tank}`,
+        valueColor: fuel.color,
+        bar: { share: fuel.share, color: fuel.color }
+    })
+}
+
+const muleDropdown = () => {
+    if (!muleDropdownOpen) return null
+    const mules = getMuleCount()
+    const rows: ReactEcs.JSX.Element[] = []
+    if (mules <= 0) {
+        rows.push(dropdownLine('state', 'Not Owned', 17, MUTED_COLOR), dropdownLine('hint', 'Buy at General Store', 14, BANK_CAPTION))
+    } else {
+        const state = muleHudState()
+        const fuel = muleFuel()
+        const hours = getMuleFuelHours()
+        rows.push(
+            dropdownLine('count', `${mules} ${mules === 1 ? 'Machine' : 'Machines'}`, 17, BANK_CREAM),
+            <UiEntity key="state" uiTransform={{ height: 24, flexDirection: 'row', alignItems: 'center' }}>
+                {statusDot({ color: state.color, pulse: state.pulse })}
+                <Label value={state.label} fontSize={16} color={state.color} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 24 }} />
+            </UiEntity>,
+            dropdownLine('fuel', `Fuel left: ${hours > 0 ? durationText(hours).toUpperCase() : 'Empty'}`, 15, fuel.gallons > 0 ? BANK_CREAM : SHORT_COLOR),
+            <UiEntity key="fuel-bar" uiTransform={{ width: '100%', margin: { top: 4 } }}>
+                {muleBar('hud-fuel-bar', fuel.share, fuel.color)}
+            </UiEntity>,
+            dropdownLine('hint', 'Visit your M.U.L.E. for details', 13, BANK_CAPTION)
+        )
+    }
+    return dropdown(bottomPanelWidth() + BOTTOM_BUTTON_GAP, 'M.U.L.E.', closeMuleDropdown, [dropdownCard('mule-card', rows)])
 }
 
 // --- Objective tracker --------------------------------------------------------------------
@@ -2677,6 +2922,7 @@ const notificationsButton = () => (
                 mapOpen = false
                 inventoryOpen = false
                 pickSelectorOpen = false
+                muleDropdownOpen = false
             }
         }}
     >
@@ -2796,6 +3042,7 @@ export const uiMenu = () => (
             {moveCloserHint()}
             {orePopup()}
             {pickButton()}
+            {muleButton()}
             {mapButton()}
             {inventoryButton()}
             {/* The panels go last so they draw over the HUD and the bottom buttons: on mobile
@@ -2808,6 +3055,7 @@ export const uiMenu = () => (
             {!mapOpen && !inventoryOpen && !notificationsOpen && isLandOfficePanelOpen() ? landOfficePanel() : null}
             {!mapOpen && !inventoryOpen && !notificationsOpen && isMulePanelOpen() && getMuleCount() > 0 ? mulePanel() : null}
             {pickSelector()}
+            {muleDropdown()}
         </UiEntity>
         {welcomeOverlay()}
         {introScreen()}
