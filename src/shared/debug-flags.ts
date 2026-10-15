@@ -24,6 +24,6 @@ export const DEBUG_SHOW_MULE_ALERTS = false
 /** The most a single debug grant can add, so a typo cannot overflow a purse. */
 export const DEBUG_MAX_COINS = 1_000_000
 
-/** The server tick readout at the bottom of the screen: green and counting means the
+/** The server tick readout in the debug panel, under its buttons: green and counting means the
  * authoritative server is answering. */
 export const DEBUG_SERVER_STATUS = true

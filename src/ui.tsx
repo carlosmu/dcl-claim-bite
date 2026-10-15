@@ -1495,6 +1495,7 @@ const debugBox = () => (
         {DEBUG_RESET_PROGRESS ? debugResetTool() : null}
         {DEBUG_ADD_COINS ? debugGrantTool('coins', 'Free coins') : null}
         {DEBUG_ADD_ORE ? debugGrantTool('ore', 'Free ore') : null}
+        {DEBUG_SERVER_STATUS ? serverStatus() : null}
     </UiEntity>
 )
 
@@ -1699,27 +1700,17 @@ const orePopup = () => {
     )
 }
 
+/** Drawn inside the debug box, under its buttons. */
 const serverStatus = () => {
     const online = isServerOnline()
     return (
-        <UiEntity
-            uiTransform={{
-                positionType: 'absolute',
-                position: { bottom: 16 },
-                width: '100%',
-                height: SERVER_LABEL_HEIGHT,
-                justifyContent: 'center',
-                alignItems: 'center'
-            }}
-        >
-            <Label
-                value={online ? `server tick: ${getServerTick()}` : 'server: offline'}
-                fontSize={18}
-                color={online ? SERVER_ONLINE_COLOR : SERVER_OFFLINE_COLOR}
-                textAlign="middle-center"
-                uiTransform={{ width: '100%', height: SERVER_LABEL_HEIGHT }}
-            />
-        </UiEntity>
+        <Label
+            value={online ? `server tick: ${getServerTick()}` : 'server: offline'}
+            fontSize={18}
+            color={online ? SERVER_ONLINE_COLOR : SERVER_OFFLINE_COLOR}
+            textAlign="middle-left"
+            uiTransform={{ height: SERVER_LABEL_HEIGHT, margin: { top: 6 } }}
+        />
     )
 }
 
@@ -2788,7 +2779,7 @@ export const uiMenu = () => (
             edge. They come first because later siblings draw on top: an open panel covers them. */}
         {objectiveTracker()}
         {notificationsButton()}
-        {DEBUG_RESET_PROGRESS || DEBUG_ADD_COINS || DEBUG_ADD_ORE ? debugBox() : null}
+        {DEBUG_RESET_PROGRESS || DEBUG_ADD_COINS || DEBUG_ADD_ORE || DEBUG_SERVER_STATUS ? debugBox() : null}
         {/* main-container: every piece of UI goes in here */}
         <UiEntity
             uiTransform={{
@@ -2807,7 +2798,6 @@ export const uiMenu = () => (
             {pickButton()}
             {mapButton()}
             {inventoryButton()}
-            {DEBUG_SERVER_STATUS ? serverStatus() : null}
             {/* The panels go last so they draw over the HUD and the bottom buttons: on mobile
                 they are tall enough to reach both. */}
             {mapOpen ? mapPanel() : null}
