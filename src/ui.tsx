@@ -2440,7 +2440,7 @@ const BOTTOM_PANEL_WIDTH = 200
 const BOTTOM_PANEL_WIDTH_MOBILE = 180
 const BOTTOM_PANEL_HEIGHT = 56
 const BOTTOM_PANEL_ICON = 32
-const BOTTOM_PANEL_BAR_HEIGHT = 8
+const BOTTOM_PANEL_BAR_HEIGHT = 4
 
 function bottomButtonWidth(): number {
     return isMobile() ? BOTTOM_BUTTON_WIDTH_MOBILE : BOTTOM_BUTTON_WIDTH
@@ -2475,11 +2475,11 @@ type BottomPanel = {
     dot?: { color: Color4; pulse: boolean }
     value: string
     valueColor: Color4
-    /** The bar beside the value; null leaves the value alone on its line. */
+    /** The bar over the value; null leaves the value alone under the title. */
     bar: { share: number; color: Color4 } | null
 }
 
-/** Icon, a title, and under it a thin bar with the figure it stands for. Tapping it toggles its dropdown. */
+/** Icon, a title, a thin bar under it and the figure it stands for. Tapping it toggles its dropdown. */
 const bottomPanel = (panel: BottomPanel) => (
     <UiEntity
         key={panel.key}
@@ -2502,17 +2502,29 @@ const bottomPanel = (panel: BottomPanel) => (
             uiTransform={{ width: BOTTOM_PANEL_ICON, height: BOTTOM_PANEL_ICON, margin: { right: 8 }, flexShrink: 0 }}
             uiBackground={iconBackground(panel.icon, panel.iconTint)}
         />
-        <UiEntity uiTransform={{ width: 0, flexGrow: 1, flexDirection: 'column', justifyContent: 'center' }}>
-            <UiEntity uiTransform={{ height: 22, flexDirection: 'row', alignItems: 'center' }}>
-                {panel.dot !== undefined ? statusDot(panel.dot) : null}
-                <Label value={panel.title} fontSize={bottomButtonFont()} color={Color4.White()} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 22 }} />
+        {/* Two fixed bands, so the title sits at the same height on every panel: the title in
+            the top 60%, the bar or the Not Owned line in the bottom 40%, meeting at the line between the two bands. */}
+        <UiEntity uiTransform={{ width: 0, flexGrow: 1, height: '100%', flexDirection: 'column' }}>
+            <UiEntity uiTransform={{ width: '100%', height: '60%', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                {/* The dot and the title centred on each other, the pair at the bottom of the band. */}
+                <UiEntity uiTransform={{ height: 22, flexDirection: 'row', alignItems: 'center' }}>
+                    {panel.dot !== undefined ? statusDot(panel.dot) : null}
+                    <Label value={panel.title} fontSize={bottomButtonFont()} color={Color4.White()} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 22 }} />
+                </UiEntity>
             </UiEntity>
-            {panel.bar === null ? (
-                <Label value={panel.value} fontSize={12} color={panel.valueColor} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 16 }} />
-            ) : (
-                <UiEntity uiTransform={{ width: '100%', height: 16, flexDirection: 'row', alignItems: 'center' }}>
+            <UiEntity uiTransform={{ width: '100%', height: '40%', flexDirection: 'column', justifyContent: 'flex-start' }}>
+                {/* The bar spans the whole text column, framed in yellow so the empty part still
+                    reads as track. The figures live in the dropdowns; without a bar the line says why. */}
+                {panel.bar !== null ? (
                     <UiEntity
-                        uiTransform={{ width: 0, flexGrow: 1, height: BOTTOM_PANEL_BAR_HEIGHT, margin: { right: 6 }, borderRadius: BOTTOM_PANEL_BAR_HEIGHT / 2 }}
+                        uiTransform={{
+                            width: '100%',
+                            height: BOTTOM_PANEL_BAR_HEIGHT,
+                            margin: { top: 5 },
+                            borderRadius: BOTTOM_PANEL_BAR_HEIGHT / 2,
+                            borderWidth: 1,
+                            borderColor: COIN_COLOR
+                        }}
                         uiBackground={{ color: MULE_BAR_TRACK }}
                     >
                         <UiEntity
@@ -2520,16 +2532,10 @@ const bottomPanel = (panel: BottomPanel) => (
                             uiBackground={{ color: panel.bar.color }}
                         />
                     </UiEntity>
-                    <Label
-                        value={panel.value}
-                        fontSize={12}
-                        color={panel.valueColor}
-                        textAlign="middle-right"
-                        textWrap="nowrap"
-                        uiTransform={{ height: 16, flexShrink: 0 }}
-                    />
-                </UiEntity>
-            )}
+                ) : (
+                    <Label value={panel.value} fontSize={12} color={panel.valueColor} textAlign="middle-left" textWrap="nowrap" uiTransform={{ width: '100%', height: 14 }} />
+                )}
+            </UiEntity>
         </UiEntity>
     </UiEntity>
 )
@@ -2551,7 +2557,9 @@ const dropdown = (left: number, title: string, onClose: () => void, children: Re
         }}
         uiBackground={{ color: BANK_WOOD_DARK }}
     >
-        <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', margin: { top: 6, bottom: 2 } }}>
+        {/* As wide as the rows under it: the frame has no width of its own, so a 100% here does
+            not resolve on every client and the X ended up beside the title instead of at the edge. */}
+        <UiEntity uiTransform={{ width: PICK_ROW_WIDTH, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', margin: { top: 6, bottom: 2 } }}>
             <BitmapText value={title} fontSize={22} color={BANK_GOLD_LIGHT} uiTransform={{ margin: { left: 2 } }} />
             <Button
                 value="X"
@@ -2605,7 +2613,7 @@ const dropdownLine = (key: string, text: string, fontSize: number, color: Color4
 // selectable, the rest locked. Choosing is a request, answered by the wallet, so the highlight
 // moves when the server agrees.
 
-const PICK_ROW_WIDTH = 240
+const PICK_ROW_WIDTH = 260
 const PICK_ROW_HEIGHT = 48
 const PICK_ROW_ICON = 36
 const LOCKED_TINT = Color4.create(1, 1, 1, 0.35)
