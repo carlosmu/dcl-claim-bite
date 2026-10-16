@@ -129,6 +129,8 @@ const HUD_ICON_SIZE = HUD_HEIGHT - 8
 const HUD_CAPTION_SIZE = 18
 const HUD_VALUE_SIZE = 28
 const HUD_BACKGROUND = Color4.create(0.07, 0.08, 0.1, 0.92)
+/** The HUD's colour, fully opaque: the four bottom buttons. */
+const BOTTOM_BUTTON_COLOR = Color4.create(HUD_BACKGROUND.r, HUD_BACKGROUND.g, HUD_BACKGROUND.b, 1)
 const HUD_DIVIDER = Color4.create(1, 1, 1, 0.14)
 const HUD_UNIT_SIZE = 13
 /** The segment captions (Ore, Coins, Rate): white, to read on the wooden plank. */
@@ -2354,7 +2356,7 @@ const inventoryButton = () => (
             justifyContent: isMobile() ? 'center' : 'flex-start',
             padding: isMobile() ? 0 : { left: 8, right: 10 }
         }}
-        uiBackground={{ color: HUD_BACKGROUND }}
+        uiBackground={{ color: BOTTOM_BUTTON_COLOR }}
         onMouseDown={() => {
             inventoryOpen = !inventoryOpen
             if (inventoryOpen) {
@@ -2425,7 +2427,7 @@ const mapButton = () => (
             justifyContent: isMobile() ? 'center' : 'flex-start',
             padding: isMobile() ? 0 : { left: 8, right: 10 }
         }}
-        uiBackground={{ color: HUD_BACKGROUND }}
+        uiBackground={{ color: BOTTOM_BUTTON_COLOR }}
         onMouseDown={() => {
             mapOpen = !mapOpen
             if (mapOpen) {
@@ -2515,7 +2517,7 @@ const bottomPanel = (panel: BottomPanel) => (
             borderWidth: 2,
             borderColor: panel.open ? BANK_GOLD : BANK_TRIM
         }}
-        uiBackground={{ color: HUD_BACKGROUND }}
+        uiBackground={{ color: BOTTOM_BUTTON_COLOR }}
         onMouseDown={panel.onToggle}
     >
         <UiEntity
