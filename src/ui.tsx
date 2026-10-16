@@ -131,6 +131,18 @@ const HUD_VALUE_SIZE = 28
 const HUD_BACKGROUND = Color4.create(0.07, 0.08, 0.1, 0.92)
 const HUD_DIVIDER = Color4.create(1, 1, 1, 0.14)
 const HUD_UNIT_SIZE = 13
+/** The segment captions (Ore, Coins, Rate): white, to read on the wooden plank. */
+const HUD_CAPTION_COLOR = Color4.White()
+// The wooden plank behind the HUD, nine-sliced: the frame and the bottom rivets keep their
+// shape while the middle stretches to the pill's width. The HUD hangs from the top of the
+// screen, so only the middle and bottom rows of slices are used: the UVs leave out the image's
+// top strip (its top edge and rivets) and there is no top slice.
+const HUD_BG_IMAGE = 'assets/images/hud_bg.png'
+/** Share of the image's height the top row of slices takes, and that the UVs leave out. */
+const HUD_BG_EDGE = 0.1
+const HUD_BG_SLICES = { top: 0, bottom: HUD_BG_EDGE, left: HUD_BG_EDGE, right: HUD_BG_EDGE }
+// Bottom-left, top-left, top-right, bottom-right; v runs bottom-up, so the top is 1 - edge.
+const HUD_BG_UVS = [0, 0, 0, 1 - HUD_BG_EDGE, 1, 1 - HUD_BG_EDGE, 1, 0]
 
 // The ore segment's storage bar: how full the storage is, with the amount written on it.
 const ORE_BAR_WIDTH = 170
@@ -252,7 +264,7 @@ const hudSegment = (icon: Icon, caption: string, value: string, color: Color4) =
     <UiEntity uiTransform={{ height: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexGrow: 1, flexShrink: 0 }}>
         {hudIcon(icon)}
         <UiEntity uiTransform={{ flexDirection: 'column', justifyContent: 'center' }}>
-            <BitmapText value={caption} fontSize={HUD_CAPTION_SIZE} color={MUTED_COLOR} />
+            <BitmapText value={caption} fontSize={HUD_CAPTION_SIZE} color={HUD_CAPTION_COLOR} />
             <UiEntity uiTransform={{ height: HUD_VALUE_SIZE, flexDirection: 'row', alignItems: 'center' }}>
                 <BitmapText value={value} fontSize={HUD_VALUE_SIZE} color={color} />
             </UiEntity>
@@ -272,7 +284,7 @@ const oreSegment = () => {
         <UiEntity uiTransform={{ height: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexGrow: 1, flexShrink: 0 }}>
             {hudIcon(ICON_ORE)}
             <UiEntity uiTransform={{ flexDirection: 'column', justifyContent: 'center' }}>
-                <BitmapText value="Ore" fontSize={HUD_CAPTION_SIZE} color={MUTED_COLOR} uiTransform={{ margin: { left: ORE_BAR_TEXT_INSET } }} />
+                <BitmapText value="Ore" fontSize={HUD_CAPTION_SIZE} color={HUD_CAPTION_COLOR} uiTransform={{ margin: { left: ORE_BAR_TEXT_INSET } }} />
                 <UiEntity uiTransform={{ height: HUD_VALUE_SIZE, flexDirection: 'row', alignItems: 'center' }}>
                 <UiEntity
                     uiTransform={{
@@ -308,7 +320,7 @@ const rateSegment = () => {
         <UiEntity uiTransform={{ height: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexGrow: 1, flexShrink: 0 }}>
             {hudIcon(ICON_RATE)}
             <UiEntity uiTransform={{ flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center' }}>
-                <BitmapText value="Rate" fontSize={HUD_CAPTION_SIZE} color={MUTED_COLOR} />
+                <BitmapText value="Rate" fontSize={HUD_CAPTION_SIZE} color={HUD_CAPTION_COLOR} />
                 <UiEntity uiTransform={{ height: HUD_VALUE_SIZE, flexDirection: 'row', alignItems: 'center' }}>
                     <BitmapText value={formatRate(rate)} fontSize={HUD_VALUE_SIZE} color={rateColor(rate)} />
                 </UiEntity>
@@ -328,7 +340,8 @@ const hud = () => {
         <UiEntity
             uiTransform={{
                 positionType: 'absolute',
-                position: { top: HUD_MARGIN },
+                // Flush with the top of the screen: the plank hangs from it.
+                position: { top: 0 },
                 width: '100%',
                 flexDirection: 'row',
                 justifyContent: 'center'
@@ -340,10 +353,9 @@ const hud = () => {
                 height: HUD_PILL_HEIGHT,
                 flexDirection: 'row',
                 alignItems: 'center',
-                padding: { left: 18, right: 22, top: HUD_PADDING_Y, bottom: HUD_PADDING_Y },
-                borderRadius: PANEL_RADIUS
+                padding: { left: 18, right: 22, top: HUD_PADDING_Y, bottom: HUD_PADDING_Y }
             }}
-            uiBackground={{ color: HUD_BACKGROUND }}
+            uiBackground={{ texture: { src: HUD_BG_IMAGE }, textureMode: 'nine-slices', textureSlices: HUD_BG_SLICES, uvs: HUD_BG_UVS }}
         >
             {oreSegment()}
             {hudDivider()}
