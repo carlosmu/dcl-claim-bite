@@ -2337,8 +2337,10 @@ const inventoryButton = () => (
             borderColor: inventoryOpen ? BANK_GOLD : BANK_TRIM,
             flexDirection: 'row',
             alignItems: 'center',
-            // Left-aligned with the same inset as the status panels.
-            padding: { left: 8, right: 10 }
+            // Left-aligned with the same inset as the status panels; on mobile the icon is
+            // alone, so centred.
+            justifyContent: isMobile() ? 'center' : 'flex-start',
+            padding: isMobile() ? 0 : { left: 8, right: 10 }
         }}
         uiBackground={{ color: HUD_BACKGROUND }}
         onMouseDown={() => {
@@ -2352,7 +2354,9 @@ const inventoryButton = () => (
         }}
     >
         <UiEntity uiTransform={bottomButtonIcon()} uiBackground={iconBackground(ICON_INVENTORY)} />
-        <Label value="Stuff" fontSize={bottomButtonFont()} color={Color4.White()} textAlign="middle-left" uiTransform={{ height: BOTTOM_PANEL_HEIGHT }} />
+        {isMobile() ? null : (
+            <Label value="Stuff" fontSize={bottomButtonFont()} color={Color4.White()} textAlign="middle-left" uiTransform={{ height: BOTTOM_PANEL_HEIGHT }} />
+        )}
     </UiEntity>
 )
 
@@ -2404,8 +2408,10 @@ const mapButton = () => (
             borderColor: mapOpen ? BANK_GOLD : BANK_TRIM,
             flexDirection: 'row',
             alignItems: 'center',
-            // Left-aligned with the same inset as the status panels.
-            padding: { left: 8, right: 10 }
+            // Left-aligned with the same inset as the status panels; on mobile the icon is
+            // alone, so centred.
+            justifyContent: isMobile() ? 'center' : 'flex-start',
+            padding: isMobile() ? 0 : { left: 8, right: 10 }
         }}
         uiBackground={{ color: HUD_BACKGROUND }}
         onMouseDown={() => {
@@ -2419,7 +2425,9 @@ const mapButton = () => (
         }}
     >
         <UiEntity uiTransform={bottomButtonIcon()} uiBackground={iconBackground(ICON_MAP)} />
-        <Label value="Map" fontSize={bottomButtonFont()} color={Color4.White()} textAlign="middle-left" uiTransform={{ height: BOTTOM_PANEL_HEIGHT }} />
+        {isMobile() ? null : (
+            <Label value="Map" fontSize={bottomButtonFont()} color={Color4.White()} textAlign="middle-left" uiTransform={{ height: BOTTOM_PANEL_HEIGHT }} />
+        )}
     </UiEntity>
 )
 
@@ -2429,27 +2437,27 @@ const mapButton = () => (
 // fleet — each opening its own dropdown above it. Map and Inventory on the bottom-right.
 
 const BOTTOM_BUTTON_Y = 28
-const BOTTOM_BUTTON_WIDTH = 120
 const BOTTOM_BUTTON_HEIGHT = 44
 const BOTTOM_BUTTON_GAP = 8
 
-// The mobile column is 640 wide, not 768: the status panels and the Map and Inventory buttons
-// narrow there so all four still fit one row without covering each other.
-const BOTTOM_BUTTON_WIDTH_MOBILE = 104
-const BOTTOM_PANEL_WIDTH = 200
-const BOTTOM_PANEL_WIDTH_MOBILE = 180
-const BOTTOM_PANEL_HEIGHT = 56
-const BOTTOM_PANEL_ICON = 32
+// The icons match the HUD's at the top. The mobile column is 640 wide, not 768: with icons that
+// size there is no room for four labelled buttons, so Map and Stuff drop to their icon alone
+// there and the status panels take the width.
+const BOTTOM_BUTTON_WIDTH = 136
+const BOTTOM_BUTTON_WIDTH_MOBILE = 64
+const BOTTOM_PANEL_WIDTH = 228
+const BOTTOM_PANEL_WIDTH_MOBILE = 236
+const BOTTOM_PANEL_HEIGHT = 64
+const BOTTOM_PANEL_ICON = HUD_ICON_SIZE
 const BOTTOM_PANEL_BAR_HEIGHT = 4
 
 function bottomButtonWidth(): number {
     return isMobile() ? BOTTOM_BUTTON_WIDTH_MOBILE : BOTTOM_BUTTON_WIDTH
 }
 
-/** The bottom row's icon and label size, a size down on mobile to fit the narrower buttons. */
+/** Map and Stuff's icon: the HUD's size; alone on mobile, so no gap after it there. */
 function bottomButtonIcon() {
-    const size = isMobile() ? 26 : 32
-    return { width: size, height: size, margin: { right: isMobile() ? 6 : 8 } }
+    return { width: BOTTOM_PANEL_ICON, height: BOTTOM_PANEL_ICON, margin: { right: isMobile() ? 0 : 8 }, flexShrink: 0 }
 }
 
 function bottomButtonFont(): number {
@@ -2768,7 +2776,7 @@ const muleButton = () => {
             left,
             open: muleDropdownOpen,
             onToggle,
-            icon: ICON_FUEL,
+            icon: ICON_MULE,
             iconTint: LOCKED_TINT,
             title: 'M.U.L.E.',
             value: 'Not Owned',
@@ -2783,7 +2791,7 @@ const muleButton = () => {
         left,
         open: muleDropdownOpen,
         onToggle,
-        icon: ICON_FUEL,
+        icon: ICON_MULE,
         title: 'M.U.L.E.',
         dot: { color: state.color, pulse: state.pulse },
         value: `${Math.floor(fuel.gallons)} / ${fuel.tank}`,

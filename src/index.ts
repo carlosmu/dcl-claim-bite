@@ -22,6 +22,7 @@ import { setupNametags } from './player/nametags'
 import { setupMusic } from './world/music'
 import { setupTumbleweeds } from './world/tumbleweeds'
 import { setupIsometricCamera } from './world/isometric-camera'
+import { setupTouchControls } from './world/touch-controls'
 import { setupServerLink } from './net/server-link'
 import { setupEconomyLink } from './net/economy-link'
 
@@ -41,6 +42,7 @@ export async function main() {
     setupEconomyLink()
     setupMusic()
     setupIsometricCamera()
+    setupTouchControls()
     setupRocks()
     setupBank()
     setupShop()
