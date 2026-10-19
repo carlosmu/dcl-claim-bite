@@ -9,6 +9,7 @@ import './shared/net/market-sync'
 import './shared/net/mule-yard-sync'
 import './shared/net/held-picks-sync'
 import './shared/net/property-lots-sync'
+import './shared/net/tiers-sync'
 import './shared/net/protocol'
 
 import { setupUi } from './ui'

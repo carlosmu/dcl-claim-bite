@@ -27,6 +27,7 @@ import {
   PropertyLots
 } from '../shared/net/property-lots-sync'
 import { SOCIAL_MINING_ENTITY_ENUM_ID, SocialMining } from '../shared/net/social-sync'
+import { housingTier, PLAYER_TIERS_ENTITY_ENUM_ID, PlayerTiers } from '../shared/net/tiers-sync'
 import { room } from '../shared/net/protocol'
 import { applySale, getRate, getSettledRate, oreForCoins, quoteSale, restoreRate, tickMarket } from '../shared/state/market'
 import { loadMarketPrice, loadPurse, savePurse, saveMarketPrice } from './persistence'
@@ -851,6 +852,34 @@ function publishLots(dt: number) {
   PropertyLots.getMutable(lotsEntity).lots = lots
 }
 
+// --- Player tiers ------------------------------------------------------------------------
+//
+// Each present player's best property, for the tag over their name. Same cadence as the lots:
+// an upgrade shows on the tag within the second.
+
+let tiersEntity = engine.RootEntity
+let lastPublishedTiers = ''
+let sinceLastTiersPublish = 0
+
+function publishTiers(dt: number) {
+  sinceLastTiersPublish += dt
+  if (sinceLastTiersPublish < PRESENCE_CHECK_PERIOD_SECONDS) return
+  sinceLastTiersPublish = 0
+
+  const players: { address: string; tier: number }[] = []
+  for (const address of present) {
+    const purse = purses.get(address)
+    if (purse === undefined) continue
+    players.push({ address, tier: housingTier((id) => purse.owned[id] ?? 0) })
+  }
+  players.sort((a, b) => (a.address < b.address ? -1 : 1))
+
+  const encoded = JSON.stringify(players)
+  if (encoded === lastPublishedTiers) return
+  lastPublishedTiers = encoded
+  PlayerTiers.getMutable(tiersEntity).players = players
+}
+
 // --- Held picks ---------------------------------------------------------------------------
 //
 // So everyone sees the pick in everyone else's hand. Same cadence as the yard: arrivals and
@@ -954,6 +983,10 @@ export function setupEconomy(): void {
   PropertyLots.create(lotsEntity, { lots: [] })
   syncEntity(lotsEntity, [PropertyLots.componentId], PROPERTY_LOTS_ENTITY_ENUM_ID)
 
+  tiersEntity = engine.addEntity()
+  PlayerTiers.create(tiersEntity, { players: [] })
+  syncEntity(tiersEntity, [PlayerTiers.componentId], PLAYER_TIERS_ENTITY_ENUM_ID)
+
   heldPicksEntity = engine.addEntity()
   HeldPicks.create(heldPicksEntity, { picks: [] })
   syncEntity(heldPicksEntity, [HeldPicks.componentId], HELD_PICKS_ENTITY_ENUM_ID)
@@ -1025,6 +1058,7 @@ export function setupEconomy(): void {
   engine.addSystem(checkPresence, undefined, 'server:presence')
   engine.addSystem(publishYard, undefined, 'server:mule-yard')
   engine.addSystem(publishLots, undefined, 'server:property-lots')
+  engine.addSystem(publishTiers, undefined, 'server:player-tiers')
   engine.addSystem(publishHeldPicks, undefined, 'server:held-picks')
   engine.addSystem(publishSocial, undefined, 'server:social-mining')
   engine.addSystem(moveSpentRocks, undefined, 'server:rock-move')
