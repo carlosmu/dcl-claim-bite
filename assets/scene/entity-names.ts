@@ -6,6 +6,7 @@
  */
 export enum EntityNames {
   Bank = "Bank",
+  Cabins_Area = "Cabins_Area",
   Cactus = "Cactus",
   Cactus_4 = "Cactus 4",
   Cactus_4_2 = "Cactus 4_2",

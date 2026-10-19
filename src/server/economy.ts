@@ -19,6 +19,13 @@ import { syncEntity } from '@dcl/sdk/network'
 import { MARKET_ENTITY_ENUM_ID, OreMarket } from '../shared/net/market-sync'
 import { MULE_YARD_ENTITY_ENUM_ID, MULE_YARD_MAX_SLOTS, MuleYard } from '../shared/net/mule-yard-sync'
 import { HELD_PICKS_ENTITY_ENUM_ID, HeldPicks } from '../shared/net/held-picks-sync'
+import {
+  PROPERTY_AREAS,
+  PROPERTY_KINDS,
+  PROPERTY_LOTS_ENTITY_ENUM_ID,
+  PropertyKind,
+  PropertyLots
+} from '../shared/net/property-lots-sync'
 import { SOCIAL_MINING_ENTITY_ENUM_ID, SocialMining } from '../shared/net/social-sync'
 import { room } from '../shared/net/protocol'
 import { applySale, getRate, getSettledRate, oreForCoins, quoteSale, restoreRate, tickMarket } from '../shared/state/market'
@@ -39,6 +46,7 @@ import {
   findItem,
   fuelOrder,
   muleCount,
+  ownedTier,
   PICKS,
   priceOf,
   ShopItem,
@@ -789,6 +797,60 @@ function publishYard(dt: number) {
   MuleYard.getMutable(yardEntity).mules = mules
 }
 
+// --- Property lots -----------------------------------------------------------------------
+//
+// Every owner who is here gets a lot in the area for their best property. Like the yard, a lot
+// is kept per kind for the address while the server runs, so stepping out and back finds the
+// property where it stood.
+
+let lotsEntity = engine.RootEntity
+const keptLots = new Map<PropertyKind, Map<string, number>>()
+let lastPublishedLots = ''
+let sinceLastLotsPublish = 0
+
+function lotFor(kind: PropertyKind, address: string): number {
+  let lots = keptLots.get(kind)
+  if (lots === undefined) {
+    lots = new Map()
+    keptLots.set(kind, lots)
+  }
+  const kept = lots.get(address)
+  if (kept !== undefined) return kept
+  const taken = new Set(lots.values())
+  for (let lot = 0; lot < PROPERTY_AREAS[kind].maxLots; lot++) {
+    if (taken.has(lot)) continue
+    lots.set(address, lot)
+    return lot
+  }
+  return -1
+}
+
+function publishLots(dt: number) {
+  sinceLastLotsPublish += dt
+  if (sinceLastLotsPublish < PRESENCE_CHECK_PERIOD_SECONDS) return
+  sinceLastLotsPublish = 0
+
+  const lots: { kind: string; lot: number; address: string; name: string }[] = []
+  for (const address of present) {
+    const purse = purses.get(address)
+    if (purse === undefined) continue
+    // Only the best tier stands: an upgrade moves the owner to that tier's area.
+    const top = ownedTier('housing', (id) => purse.owned[id] ?? 0)
+    const kind = PROPERTY_KINDS.find((k) => k === top?.id)
+    if (kind === undefined) continue
+    const lot = lotFor(kind, address)
+    if (lot < 0) continue
+    lots.push({ kind, lot, address, name: displayNameOf(address) })
+  }
+  lots.sort((a, b) => (a.kind === b.kind ? a.lot - b.lot : a.kind < b.kind ? -1 : 1))
+
+  // Only on a real change, like the yard.
+  const encoded = JSON.stringify(lots)
+  if (encoded === lastPublishedLots) return
+  lastPublishedLots = encoded
+  PropertyLots.getMutable(lotsEntity).lots = lots
+}
+
 // --- Held picks ---------------------------------------------------------------------------
 //
 // So everyone sees the pick in everyone else's hand. Same cadence as the yard: arrivals and
@@ -888,6 +950,10 @@ export function setupEconomy(): void {
   MuleYard.create(yardEntity, { mules: [] })
   syncEntity(yardEntity, [MuleYard.componentId], MULE_YARD_ENTITY_ENUM_ID)
 
+  lotsEntity = engine.addEntity()
+  PropertyLots.create(lotsEntity, { lots: [] })
+  syncEntity(lotsEntity, [PropertyLots.componentId], PROPERTY_LOTS_ENTITY_ENUM_ID)
+
   heldPicksEntity = engine.addEntity()
   HeldPicks.create(heldPicksEntity, { picks: [] })
   syncEntity(heldPicksEntity, [HeldPicks.componentId], HELD_PICKS_ENTITY_ENUM_ID)
@@ -958,6 +1024,7 @@ export function setupEconomy(): void {
   engine.addSystem(settlePresentMules, undefined, 'server:mule-settle')
   engine.addSystem(checkPresence, undefined, 'server:presence')
   engine.addSystem(publishYard, undefined, 'server:mule-yard')
+  engine.addSystem(publishLots, undefined, 'server:property-lots')
   engine.addSystem(publishHeldPicks, undefined, 'server:held-picks')
   engine.addSystem(publishSocial, undefined, 'server:social-mining')
   engine.addSystem(moveSpentRocks, undefined, 'server:rock-move')
