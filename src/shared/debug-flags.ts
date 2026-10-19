@@ -21,6 +21,10 @@ export const DEBUG_RESET_PROGRESS = true
  * rigs are actually doing, so their wording and layout can be checked without draining a tank. */
 export const DEBUG_SHOW_MULE_ALERTS = false
 
+/** Fills every lot of every property area with a stand-in owner, on this client only, so the
+ * whole neighbourhood can be seen at once. Real owners still take their own lots. */
+export const DEBUG_FILL_PROPERTY_LOTS = true
+
 /** The most a single debug grant can add, so a typo cannot overflow a purse. */
 export const DEBUG_MAX_COINS = 1_000_000
 

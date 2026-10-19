@@ -1,6 +1,7 @@
 import { engine, Entity, GltfContainer, Transform } from '@dcl/sdk/ecs'
 import { Color4, Quaternion, Vector3 } from '@dcl/sdk/math'
 
+import { DEBUG_FILL_PROPERTY_LOTS } from '../shared/debug-flags'
 import { forgetBitmapText3d, setBitmapText3d } from '../world/bitmap-text-3d'
 import { PROPERTY_AREAS, PROPERTY_KINDS, PropertyKind, PropertyLots } from '../shared/net/property-lots-sync'
 
@@ -15,7 +16,10 @@ const PROPERTY_MODELS: Record<PropertyKind, string> = {
 /** The same sign stands by every kind of property. */
 const OWNER_SIGN_MODEL = 'assets/models/owner.glb'
 
-/** Which way the properties face, turned about Y. */
+/** Which way the whole lot faces — property and sign together — turned about Y. */
+const LOT_YAW_DEGREES = -90
+
+/** Which way the properties face within their lot, turned about Y. */
 const PROPERTY_YAW_DEGREES = 0
 
 /** Where the sign stands from the lot's centre, and which way it faces. */
@@ -70,7 +74,11 @@ function buildArea(kind: PropertyKind): void {
 
 function build(kind: PropertyKind, area: Area, lot: Vector3): StandingProperty {
   const root = engine.addEntity()
-  Transform.create(root, { parent: area.root, position: Vector3.clone(lot) })
+  Transform.create(root, {
+    parent: area.root,
+    position: Vector3.clone(lot),
+    rotation: Quaternion.fromEulerDegrees(0, LOT_YAW_DEGREES, 0)
+  })
 
   const model = engine.addEntity()
   Transform.create(model, { parent: root, rotation: Quaternion.fromEulerDegrees(0, PROPERTY_YAW_DEGREES, 0) })
@@ -98,6 +106,7 @@ function build(kind: PropertyKind, area: Area, lot: Vector3): StandingProperty {
 function syncLots(): void {
   let entries: readonly { kind: string; lot: number; address: string; name: string }[] = []
   for (const [, lots] of engine.getEntitiesWith(PropertyLots)) entries = lots.lots
+  if (DEBUG_FILL_PROPERTY_LOTS) entries = withStandIns(entries)
 
   const seen = new Set<string>()
   for (const entry of entries) {
@@ -135,6 +144,23 @@ function syncLots(): void {
     forgetBitmapText3d(property.text)
     standing.delete(key)
   }
+}
+
+// Every lot nobody has, given to a made-up owner. Long and short names, to see both fit.
+const STAND_IN_NAMES = ['Calamity Jane', 'Doc', 'Wild Bill Hickok', 'Annie Oakley', 'Butch', 'Jesse James']
+
+function withStandIns(
+  entries: readonly { kind: string; lot: number; address: string; name: string }[]
+): { kind: string; lot: number; address: string; name: string }[] {
+  const filled = [...entries]
+  for (const [kind, area] of areas) {
+    const taken = new Set(entries.filter((entry) => entry.kind === kind).map((entry) => entry.lot))
+    for (let lot = 0; lot < area.lots.length; lot++) {
+      if (taken.has(lot)) continue
+      filled.push({ kind, lot, address: `debug-${lot}`, name: STAND_IN_NAMES[lot % STAND_IN_NAMES.length] })
+    }
+  }
+  return filled
 }
 
 export function setupProperties(): void {

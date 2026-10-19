@@ -27,8 +27,8 @@ type PropertyArea = {
 }
 
 export const PROPERTY_AREAS: Record<PropertyKind, PropertyArea> = {
-  // 30 x 80 m at 6 m: 5 x 13.
-  cabin: { areaName: 'Cabins_Area', spacingX: 6, spacingZ: 6, maxLots: 65 }
+  // 30 x 80 m at 8 m: 3 x 10.
+  cabin: { areaName: 'Cabins_Area', spacingX: 8, spacingZ: 8, maxLots: 30 }
 }
 
 export const PROPERTY_KINDS = Object.keys(PROPERTY_AREAS) as PropertyKind[]
