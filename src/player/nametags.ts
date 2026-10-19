@@ -9,13 +9,13 @@ import { PlayerTiers } from '../shared/net/tiers-sync'
 
 type TierStyle = { title: string; background: Color3; border: Color3 }
 
-// Dust, copper, silver, gold: each step reads richer than the last. The dark label stays the
-// same on all four so it keeps its contrast on a phone screen.
+// White, orange, yellow, green. The dark label stays the same on all four so it keeps its
+// contrast on a phone screen.
 const TIERS: Record<number, TierStyle> = {
-  1: { title: 'Prospector', background: Color3.create(0.78, 0.7, 0.56), border: Color3.create(0.42, 0.35, 0.25) },
-  2: { title: 'Cabin Owner', background: Color3.create(0.9, 0.58, 0.32), border: Color3.create(0.48, 0.25, 0.1) },
-  3: { title: 'Homeowner', background: Color3.create(0.84, 0.86, 0.9), border: Color3.create(0.4, 0.42, 0.48) },
-  4: { title: 'Ranch Owner', background: Color3.Yellow(), border: Color3.create(0.45, 0.3, 0.08) }
+  1: { title: 'Prospector', background: Color3.White(), border: Color3.create(0.45, 0.45, 0.45) },
+  2: { title: 'Cabin Owner', background: Color3.create(1, 0.6, 0.15), border: Color3.create(0.55, 0.28, 0.05) },
+  3: { title: 'Homeowner', background: Color3.Yellow(), border: Color3.create(0.45, 0.3, 0.08) },
+  4: { title: 'Ranch Owner', background: Color3.create(0.4, 0.85, 0.35), border: Color3.create(0.15, 0.4, 0.12) }
 }
 
 const LABEL_COLOR = Color3.create(0.2, 0.12, 0.02)

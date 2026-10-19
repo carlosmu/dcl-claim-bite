@@ -23,7 +23,7 @@ export const DEBUG_SHOW_MULE_ALERTS = false
 
 /** Fills every lot of every property area with a stand-in owner, on this client only, so the
  * whole neighbourhood can be seen at once. Real owners still take their own lots. */
-export const DEBUG_FILL_PROPERTY_LOTS = true
+export const DEBUG_FILL_PROPERTY_LOTS = false
 
 /** The most a single debug grant can add, so a typo cannot overflow a purse. */
 export const DEBUG_MAX_COINS = 1_000_000
