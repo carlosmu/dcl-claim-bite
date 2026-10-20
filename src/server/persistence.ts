@@ -18,6 +18,11 @@ const PURSE_KEY = 'purse'
 /** Scene-wide key: the town's ore price, which belongs to the world and not to anyone. */
 const MARKET_PRICE_KEY = 'market-price'
 
+/** Scene-wide key: every property standing in town, so it stays up while its owner is away. */
+const PROPERTY_LOTS_KEY = 'property-lots'
+
+export type StoredLot = { kind: string; lot: number; address: string; name: string }
+
 export type StoredPurse = {
   ore: number
   coins: number
@@ -94,4 +99,21 @@ export function saveMarketPrice(price: number): void {
       if (!ok) console.log('[Server] could not save market price')
     })
     .catch((error) => console.log(`[Server] could not save market price: ${error}`))
+}
+
+/** The town's stored lots, or null if none were ever saved. Throws if the read failed. */
+export function loadPropertyLots(): Promise<StoredLot[] | null> {
+  return readValue<StoredLot[]>(`/values/${encodeURIComponent(PROPERTY_LOTS_KEY)}`)
+}
+
+/** Resolves true once the write is confirmed, like savePurse. */
+export async function savePropertyLots(lots: StoredLot[]): Promise<boolean> {
+  try {
+    const ok = await Storage.set(PROPERTY_LOTS_KEY, lots)
+    if (!ok) console.log('[Server] could not save property lots')
+    return ok
+  } catch (error) {
+    console.log(`[Server] could not save property lots: ${error}`)
+    return false
+  }
 }

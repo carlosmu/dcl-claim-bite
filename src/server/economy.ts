@@ -30,7 +30,15 @@ import { SOCIAL_MINING_ENTITY_ENUM_ID, SocialMining } from '../shared/net/social
 import { housingTier, PLAYER_TIERS_ENTITY_ENUM_ID, PlayerTiers } from '../shared/net/tiers-sync'
 import { room } from '../shared/net/protocol'
 import { applySale, getRate, getSettledRate, oreForCoins, quoteSale, restoreRate, tickMarket } from '../shared/state/market'
-import { loadMarketPrice, loadPurse, savePurse, saveMarketPrice } from './persistence'
+import {
+  loadMarketPrice,
+  loadPropertyLots,
+  loadPurse,
+  savePropertyLots,
+  savePurse,
+  saveMarketPrice,
+  StoredLot
+} from './persistence'
 import {
   ORE_PER_ROCK,
   ROCK_ACTIVE_SECONDS,
@@ -716,6 +724,9 @@ function flushSaves(dt: number) {
     marketDirty = false
     saveMarketPrice(getSettledRate())
   }
+
+  if (!lotsLoaded) loadLots()
+  else saveLots()
 }
 
 // Only for players actually in the scene: an absent player's rig needs no attention, because
@@ -752,14 +763,20 @@ const yardSlots = new Map<string, number>()
 let lastPublishedYard = ''
 let sinceLastYardPublish = 0
 
-/** The display name the player's avatar carries, or a short address while it has none. */
-function displayNameOf(address: string): string {
+/** The display name the player's avatar carries, or '' while it has none. */
+function avatarNameOf(address: string): string {
   for (const [entity, identity] of engine.getEntitiesWith(PlayerIdentityData)) {
     if (identity.address !== address) continue
     const name = AvatarBase.getOrNull(entity)?.name ?? ''
     if (name !== '') return name
   }
-  return `${address.slice(0, 6)}…${address.slice(-4)}`
+  return ''
+}
+
+/** The display name the player's avatar carries, or a short address while it has none. */
+function displayNameOf(address: string): string {
+  const name = avatarNameOf(address)
+  return name !== '' ? name : `${address.slice(0, 6)}…${address.slice(-4)}`
 }
 
 function slotFor(address: string): number {
@@ -800,56 +817,105 @@ function publishYard(dt: number) {
 
 // --- Property lots -----------------------------------------------------------------------
 //
-// Every owner who is here gets a lot in the area for their best property. Like the yard, a lot
-// is kept per kind for the address while the server runs, so stepping out and back finds the
-// property where it stood.
+// Every owner's best property stands on a lot of its area, and stays there while they are away:
+// the lots are stored for the whole town, not per player. A present owner's lot follows their
+// purse — an upgrade or a reset takes it down — and an absent owner's lot is left as it was.
+//
+// Nothing is handed out until the stored lots have been read (or confirmed absent), so a failed
+// read on start can never give someone's lot away or save an empty town over the real one.
 
 let lotsEntity = engine.RootEntity
-const keptLots = new Map<PropertyKind, Map<string, number>>()
+/** One lot per owner, keyed by address. */
+const standingLots = new Map<string, StoredLot>()
+let lotsLoaded = false
+let lotsLoading = false
+let lotsRetryAt = 0
+let lotsDirty = false
 let lastPublishedLots = ''
 let sinceLastLotsPublish = 0
 
-function lotFor(kind: PropertyKind, address: string): number {
-  let lots = keptLots.get(kind)
-  if (lots === undefined) {
-    lots = new Map()
-    keptLots.set(kind, lots)
-  }
-  const kept = lots.get(address)
-  if (kept !== undefined) return kept
-  const taken = new Set(lots.values())
-  for (let lot = 0; lot < PROPERTY_AREAS[kind].maxLots; lot++) {
-    if (taken.has(lot)) continue
-    lots.set(address, lot)
-    return lot
-  }
+function loadLots(): void {
+  if (lotsLoaded || lotsLoading || serverClock < lotsRetryAt) return
+  lotsLoading = true
+  loadPropertyLots()
+    .then((stored) => {
+      lotsLoading = false
+      lotsLoaded = true
+      for (const lot of stored ?? []) standingLots.set(lot.address, lot)
+      console.log(`[Server] ${standingLots.size} property lots restored`)
+    })
+    .catch((error) => {
+      lotsLoading = false
+      lotsRetryAt = serverClock + LOAD_RETRY_SECONDS
+      console.log(`[Server] property lots restore failed, retrying in ${LOAD_RETRY_SECONDS}s: ${error}`)
+    })
+}
+
+function saveLots(): void {
+  if (!lotsDirty) return
+  lotsDirty = false
+  savePropertyLots([...standingLots.values()])
+    .then((ok) => {
+      if (!ok) lotsDirty = true
+    })
+    .catch(() => (lotsDirty = true))
+}
+
+function freeLot(kind: PropertyKind): number {
+  const taken = new Set<number>()
+  for (const standing of standingLots.values()) if (standing.kind === kind) taken.add(standing.lot)
+  for (let lot = 0; lot < PROPERTY_AREAS[kind].maxLots; lot++) if (!taken.has(lot)) return lot
   return -1
+}
+
+/** Brings a present owner's lot in line with their purse. */
+function settleLot(address: string): void {
+  const purse = purses.get(address)
+  if (purse === undefined) return
+  const standing = standingLots.get(address)
+  // Only the best tier stands: an upgrade moves the owner to that tier's area.
+  const top = ownedTier('housing', (id) => purse.owned[id] ?? 0)
+  const kind = PROPERTY_KINDS.find((k) => k === top?.id)
+
+  if (kind === undefined) {
+    if (standing === undefined) return
+    standingLots.delete(address)
+    lotsDirty = true
+    return
+  }
+
+  // The avatar's name may not have arrived yet; a stored one is better than a short address.
+  const name = avatarNameOf(address)
+  if (standing !== undefined && standing.kind === kind) {
+    if (name !== '' && name !== standing.name) {
+      standing.name = name
+      lotsDirty = true
+    }
+    return
+  }
+
+  const lot = freeLot(kind)
+  if (lot < 0) return
+  standingLots.set(address, { kind, lot, address, name: name !== '' ? name : displayNameOf(address) })
+  lotsDirty = true
 }
 
 function publishLots(dt: number) {
   sinceLastLotsPublish += dt
   if (sinceLastLotsPublish < PRESENCE_CHECK_PERIOD_SECONDS) return
   sinceLastLotsPublish = 0
+  if (!lotsLoaded) return
 
-  const lots: { kind: string; lot: number; address: string; name: string }[] = []
-  for (const address of present) {
-    const purse = purses.get(address)
-    if (purse === undefined) continue
-    // Only the best tier stands: an upgrade moves the owner to that tier's area.
-    const top = ownedTier('housing', (id) => purse.owned[id] ?? 0)
-    const kind = PROPERTY_KINDS.find((k) => k === top?.id)
-    if (kind === undefined) continue
-    const lot = lotFor(kind, address)
-    if (lot < 0) continue
-    lots.push({ kind, lot, address, name: displayNameOf(address) })
-  }
+  for (const address of present) settleLot(address)
+
+  const lots = [...standingLots.values()]
   lots.sort((a, b) => (a.kind === b.kind ? a.lot - b.lot : a.kind < b.kind ? -1 : 1))
 
   // Only on a real change, like the yard.
   const encoded = JSON.stringify(lots)
   if (encoded === lastPublishedLots) return
   lastPublishedLots = encoded
-  PropertyLots.getMutable(lotsEntity).lots = lots
+  PropertyLots.getMutable(lotsEntity).lots = lots.map((lot) => ({ ...lot }))
 }
 
 // --- Player tiers ------------------------------------------------------------------------
@@ -970,6 +1036,7 @@ function loadMarket(): void {
 
 export function setupEconomy(): void {
   loadMarket()
+  loadLots()
 
   marketEntity = engine.addEntity()
   OreMarket.create(marketEntity, { price: getRate() })
