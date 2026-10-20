@@ -361,7 +361,7 @@ const hud = () => {
         >
             {oreSegment()}
             {hudDivider()}
-            {hudSegment(ICON_COINS, 'Coins', `${shownCoins()}`, COIN_COLOR)}
+            {hudSegment(ICON_COINS, 'Bite Coins', `${shownCoins()}`, COIN_COLOR)}
             {hudDivider()}
             {rateSegment()}
         </UiEntity>
