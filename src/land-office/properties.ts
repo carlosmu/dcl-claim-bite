@@ -2,22 +2,27 @@ import { engine, Entity, GltfContainer, Transform } from '@dcl/sdk/ecs'
 import { Color4, Quaternion, Vector3 } from '@dcl/sdk/math'
 
 import { DEBUG_FILL_PROPERTY_LOTS } from '../shared/debug-flags'
-import { forgetBitmapText3d, setBitmapText3d } from '../world/bitmap-text-3d'
+import { setBitmapText3d } from '../world/bitmap-text-3d'
 import { PROPERTY_AREAS, PROPERTY_KINDS, PropertyKind, PropertyLots } from '../shared/net/property-lots-sync'
 
-// The properties standing in town. Every owner's best property stands on its own lot of the
-// grid laid over that kind's area, with the owner's sign by it. Which lot is whose comes from
-// the server (PropertyLots).
+// The properties standing in town. Every lot of the grid laid over each kind's area has its
+// property standing, with a sign by it: the owner's name, or FOR SALE while nobody has it.
+// Which lot is whose comes from the server (PropertyLots).
 
 const PROPERTY_MODELS: Record<PropertyKind, string> = {
-  cabin: 'assets/models/cabin.glb'
+  cabin: 'assets/models/cabin.glb',
+  house: 'assets/models/house.glb'
 }
 
 /** The same sign stands by every kind of property. */
 const OWNER_SIGN_MODEL = 'assets/models/owner.glb'
 
 /** Which way the whole lot faces — property and sign together — turned about Y. */
-const LOT_YAW_DEGREES = -90
+const LOT_YAW_DEGREES: Record<PropertyKind, number> = {
+  cabin: -90,
+  // Houses stand across town from the cabins, so they face the other way.
+  house: 90
+}
 
 /** Which way the properties face within their lot, turned about Y. */
 const PROPERTY_YAW_DEGREES = 0
@@ -39,11 +44,15 @@ const OWNER_NAME_SIZE = 0.14
 /** A long name shrinks to fit the board. */
 const OWNER_NAME_MAX_WIDTH_METERS = 1.2
 const OWNER_TEXT_COLOR = Color4.fromHexString('#2B1A0EFF')
+/** What the sign says while the lot has no owner. */
+const FOR_SALE_TEXT = 'FOR SALE'
+const FOR_SALE_SIZE = 0.16
 
 type Area = { root: Entity; lots: Vector3[] }
 type StandingProperty = { root: Entity; text: Entity; shownName: string | null }
 
 const areas = new Map<PropertyKind, Area>()
+/** Keyed by kind and lot. */
 const standing = new Map<string, StandingProperty>()
 
 // The area is a plane turned flat: its X scale is the width, its Y scale the depth (Z).
@@ -59,17 +68,21 @@ function buildArea(kind: PropertyKind): void {
   const depth = areaTransform.scale.y
   const columns = Math.max(1, Math.floor(width / spacingX))
   const rows = Math.max(1, Math.floor(depth / spacingZ))
+  // No more lots than the server may hand out, so none stands for sale that cannot be bought.
+  const lotCount = Math.min(columns * rows, PROPERTY_AREAS[kind].maxLots)
 
   const root = engine.addEntity()
   Transform.create(root, { parent: areaTransform.parent, position: areaTransform.position })
 
   const lots: Vector3[] = []
-  for (let row = 0; row < rows; row++) {
-    for (let column = 0; column < columns; column++) {
+  for (let row = 0; row < rows && lots.length < lotCount; row++) {
+    for (let column = 0; column < columns && lots.length < lotCount; column++) {
       lots.push(Vector3.create(-width / 2 + spacingX * (column + 0.5), 0, -depth / 2 + spacingZ * (row + 0.5)))
     }
   }
-  areas.set(kind, { root, lots })
+  const built = { root, lots }
+  areas.set(kind, built)
+  lots.forEach((lot, index) => standing.set(`${kind}:${index}`, build(kind, built, lot)))
 }
 
 function build(kind: PropertyKind, area: Area, lot: Vector3): StandingProperty {
@@ -77,7 +90,7 @@ function build(kind: PropertyKind, area: Area, lot: Vector3): StandingProperty {
   Transform.create(root, {
     parent: area.root,
     position: Vector3.clone(lot),
-    rotation: Quaternion.fromEulerDegrees(0, LOT_YAW_DEGREES, 0)
+    rotation: Quaternion.fromEulerDegrees(0, LOT_YAW_DEGREES[kind], 0)
   })
 
   const model = engine.addEntity()
@@ -102,47 +115,31 @@ function build(kind: PropertyKind, area: Area, lot: Vector3): StandingProperty {
   return { root, text, shownName: null }
 }
 
-// Keyed by kind and owner, so an upgrade takes the old property down and puts the new one up.
+// An upgrade moves the owner to the new kind's area, so their old lot goes back on sale.
 function syncLots(): void {
   let entries: readonly { kind: string; lot: number; address: string; name: string }[] = []
   for (const [, lots] of engine.getEntitiesWith(PropertyLots)) entries = lots.lots
   if (DEBUG_FILL_PROPERTY_LOTS) entries = withStandIns(entries)
 
-  const seen = new Set<string>()
-  for (const entry of entries) {
-    const kind = PROPERTY_KINDS.find((k) => k === entry.kind)
-    if (kind === undefined) continue
-    const area = areas.get(kind)
-    const lot = area?.lots[entry.lot]
-    if (area === undefined || lot === undefined) continue
-    const key = `${kind}:${entry.address}`
-    seen.add(key)
-
-    let property = standing.get(key)
-    if (property === undefined) {
-      property = build(kind, area, lot)
-      standing.set(key, property)
-    }
-    const transform = Transform.getMutable(property.root)
-    if (!Vector3.equals(transform.position, lot)) transform.position = Vector3.clone(lot)
-    if (property.shownName !== entry.name) {
-      property.shownName = entry.name
-      setBitmapText3d(
-        property.text,
-        [
-          { value: OWNER_CAPTION, size: OWNER_CAPTION_SIZE },
-          { value: entry.name.toUpperCase(), size: OWNER_NAME_SIZE, maxWidth: OWNER_NAME_MAX_WIDTH_METERS }
-        ],
-        OWNER_TEXT_COLOR
-      )
-    }
-  }
+  const owners = new Map<string, string>()
+  for (const entry of entries) owners.set(`${entry.kind}:${entry.lot}`, entry.name)
 
   for (const [key, property] of standing) {
-    if (seen.has(key)) continue
-    engine.removeEntityWithChildren(property.root)
-    forgetBitmapText3d(property.text)
-    standing.delete(key)
+    const owner = owners.get(key)
+    // Prefixed so an owner named "FOR SALE" still reads as owned.
+    const shown = owner === undefined ? FOR_SALE_TEXT : `owner:${owner}`
+    if (property.shownName === shown) continue
+    property.shownName = shown
+    setBitmapText3d(
+      property.text,
+      owner === undefined
+        ? [{ value: FOR_SALE_TEXT, size: FOR_SALE_SIZE }]
+        : [
+            { value: OWNER_CAPTION, size: OWNER_CAPTION_SIZE },
+            { value: owner.toUpperCase(), size: OWNER_NAME_SIZE, maxWidth: OWNER_NAME_MAX_WIDTH_METERS }
+          ],
+      OWNER_TEXT_COLOR
+    )
   }
 }
 

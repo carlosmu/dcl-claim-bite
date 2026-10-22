@@ -7,6 +7,7 @@
 export enum EntityNames {
   Bank = "Bank",
   Cabins_Area = "Cabins_Area",
+  Cabins_Area_2 = "Cabins_Area_2",
   Cactus = "Cactus",
   Cactus_4 = "Cactus 4",
   Cactus_4_2 = "Cactus 4_2",
@@ -28,6 +29,7 @@ export enum EntityNames {
   House_7_M_Blue_2 = "House 7 M Blue_2",
   House_7_M_Blue_3 = "House 7 M Blue_3",
   House_7_M_Blue_5 = "House 7 M Blue_5",
+  Houses_Area = "Houses_Area",
   Land_Office = "Land-Office",
   Layout = "Layout",
   MULE = "MULE",

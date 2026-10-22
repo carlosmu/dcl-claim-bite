@@ -11,7 +11,7 @@ import { AUTH_SERVER_PEER_ID } from '@dcl/sdk/network/message-bus-sync'
 export const PROPERTY_LOTS_ENTITY_ENUM_ID = 7
 
 /** The housing tiers that stand in the world. The wagon has no lot. */
-export type PropertyKind = 'cabin'
+export type PropertyKind = 'cabin' | 'house'
 
 type PropertyArea = {
   /** The plane in the scene the lots are laid over. */
@@ -28,7 +28,9 @@ type PropertyArea = {
 
 export const PROPERTY_AREAS: Record<PropertyKind, PropertyArea> = {
   // 30 x 80 m at 8 m: 3 x 10.
-  cabin: { areaName: 'Cabins_Area', spacingX: 8, spacingZ: 8, maxLots: 30 }
+  cabin: { areaName: 'Cabins_Area', spacingX: 8, spacingZ: 8, maxLots: 30 },
+  // 40 x 80 m at 10 m: 4 x 8.
+  house: { areaName: 'Houses_Area', spacingX: 10, spacingZ: 10, maxLots: 32 }
 }
 
 export const PROPERTY_KINDS = Object.keys(PROPERTY_AREAS) as PropertyKind[]
