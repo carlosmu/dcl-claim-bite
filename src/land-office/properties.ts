@@ -1,4 +1,4 @@
-import { engine, Entity, GltfContainer, Transform } from '@dcl/sdk/ecs'
+import { engine, Entity, executeTask, GltfContainer, Material, MeshRenderer, Transform } from '@dcl/sdk/ecs'
 import { Color4, Quaternion, Vector3 } from '@dcl/sdk/math'
 
 import { DEBUG_FILL_PROPERTY_LOTS } from '../shared/debug-flags'
@@ -33,7 +33,7 @@ const OWNER_SIGN_YAW_DEGREES = 0
 const OWNER_NAME_HEIGHT_METERS = 1.0
 const OWNER_TEXT_YAW_DEGREES = 180
 /** Where the board stands within owner.glb, from its origin, as the scene sees it (X mirrored from the glTF). */
-const OWNER_BOARD_X_METERS = 1
+const OWNER_BOARD_X_METERS = 1.54
 const OWNER_BOARD_Z_METERS = -2.75
 /** How far in front of the sign's centre the lettering sits, so it does not sink into the board. */
 const OWNER_TEXT_FORWARD_METERS = -0.06
@@ -49,6 +49,14 @@ const OWNER_TEXT_COLOR = Color4.fromHexString('#2B1A0EFF')
 const FOR_SALE_TEXT = 'FOR SALE'
 const FOR_SALE_SIZE = 0.16
 const FOR_SALE_COLOR = Color4.fromHexString('#B3261EFF')
+/** The owner's profile picture under their name: how far below where the lettering starts its top edge sits, and how big it is. */
+const OWNER_PICTURE_TOP_METERS = 0.28
+const OWNER_PICTURE_SIZE_METERS = 0.3
+/** The whole picture, the right way round on both faces (corners bottom-left, top-left, top-right, bottom-right). */
+const OWNER_PICTURE_UVS = [0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0]
+/** Shown while the owner's profile is looked up, and for good when it has no face. */
+const OWNER_PICTURE_FALLBACK = 'assets/images/fallback_profile_pic.png'
+const PROFILES_URL = 'https://peer.decentraland.org/lambdas/profiles/'
 
 /** Which end of each row the lots count from: the end nearest where players come in. */
 const LOTS_FROM_PLUS_X: Record<PropertyKind, boolean> = {
@@ -58,7 +66,7 @@ const LOTS_FROM_PLUS_X: Record<PropertyKind, boolean> = {
 
 type Lot = { corner: Vector3; yawDegrees: number }
 type Area = { root: Entity; lots: Lot[] }
-type StandingProperty = { root: Entity; text: Entity; shownName: string | null }
+type StandingProperty = { root: Entity; text: Entity; picture: Entity; shownName: string | null; ownerAddress?: string }
 
 const areas = new Map<PropertyKind, Area>()
 /** Keyed by kind and lot. */
@@ -134,7 +142,14 @@ function build(kind: PropertyKind, area: Area, lot: Lot): StandingProperty {
     rotation: Quaternion.fromEulerDegrees(0, OWNER_TEXT_YAW_DEGREES, 0)
   })
 
-  return { root, text, shownName: null }
+  const picture = engine.addEntity()
+  Transform.create(picture, {
+    parent: text,
+    position: Vector3.create(0, -OWNER_PICTURE_TOP_METERS - OWNER_PICTURE_SIZE_METERS / 2, 0),
+    scale: Vector3.create(OWNER_PICTURE_SIZE_METERS, OWNER_PICTURE_SIZE_METERS, 1)
+  })
+
+  return { root, text, picture, shownName: null }
 }
 
 // An upgrade moves the owner to the new kind's area, so their old lot goes back on sale.
@@ -143,13 +158,13 @@ function syncLots(): void {
   for (const [, lots] of engine.getEntitiesWith(PropertyLots)) entries = lots.lots
   if (DEBUG_FILL_PROPERTY_LOTS) entries = withStandIns(entries)
 
-  const owners = new Map<string, string>()
-  for (const entry of entries) owners.set(`${entry.kind}:${entry.lot}`, entry.name)
+  const owners = new Map<string, { address: string; name: string }>()
+  for (const entry of entries) owners.set(`${entry.kind}:${entry.lot}`, entry)
 
   for (const [key, property] of standing) {
     const owner = owners.get(key)
     // Prefixed so an owner named "FOR SALE" still reads as owned.
-    const shown = owner === undefined ? FOR_SALE_TEXT : `owner:${owner}`
+    const shown = owner === undefined ? FOR_SALE_TEXT : `owner:${owner.address}:${owner.name}`
     if (property.shownName === shown) continue
     property.shownName = shown
     setBitmapText3d(
@@ -158,11 +173,54 @@ function syncLots(): void {
         ? [{ value: FOR_SALE_TEXT, size: FOR_SALE_SIZE }]
         : [
             { value: OWNER_CAPTION, size: OWNER_CAPTION_SIZE },
-            { value: owner.toUpperCase(), size: OWNER_NAME_SIZE, maxWidth: OWNER_NAME_MAX_WIDTH_METERS }
+            { value: owner.name.toUpperCase(), size: OWNER_NAME_SIZE, maxWidth: OWNER_NAME_MAX_WIDTH_METERS }
           ],
       owner === undefined ? FOR_SALE_COLOR : OWNER_TEXT_COLOR
     )
+    property.ownerAddress = owner?.address
+    setOwnerPicture(property.picture, owner?.address)
   }
+}
+
+/** Whether each owner's profile has a face, once looked up. */
+const hasFace = new Map<string, boolean>()
+
+// The engine fetches and caches the owner's face itself; a lot on sale shows none, an owner
+// without a face (or not looked up yet) the fallback.
+function setOwnerPicture(picture: Entity, address: string | undefined): void {
+  if (address === undefined) {
+    MeshRenderer.deleteFrom(picture)
+    Material.deleteFrom(picture)
+    return
+  }
+  MeshRenderer.setPlane(picture, OWNER_PICTURE_UVS)
+  const face = hasFace.get(address)
+  Material.setBasicMaterial(picture, {
+    texture: face
+      ? Material.Texture.Avatar({ userId: address })
+      : Material.Texture.Common({ src: OWNER_PICTURE_FALLBACK })
+  })
+  if (face === undefined) lookUpFace(address)
+}
+
+function lookUpFace(address: string): void {
+  hasFace.set(address, false)
+  // Stand-in owners have no wallet, so no profile either.
+  if (!/^0x[0-9a-f]{40}$/i.test(address)) return
+  executeTask(async () => {
+    try {
+      const response = await fetch(PROFILES_URL + address)
+      const profile = (await response.json()) as { avatars?: { avatar?: { snapshots?: { face256?: string } } }[] }
+      if (!profile.avatars?.[0]?.avatar?.snapshots?.face256) return
+    } catch (error) {
+      console.error(`[properties] could not look up the profile of ${address}`, error)
+      return
+    }
+    hasFace.set(address, true)
+    for (const [, property] of standing) {
+      if (property.ownerAddress === address) setOwnerPicture(property.picture, address)
+    }
+  })
 }
 
 // Every lot nobody has, given to a made-up owner. Long and short names, to see both fit.
