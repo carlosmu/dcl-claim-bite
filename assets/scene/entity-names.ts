@@ -8,6 +8,7 @@ export enum EntityNames {
   Bank = "Bank",
   Cabins_Area = "Cabins_Area",
   Cabins_Area_2 = "Cabins_Area_2",
+  Cabins_Area_3 = "Cabins_Area_3",
   Cactus = "Cactus",
   Cactus_4 = "Cactus 4",
   Cactus_4_2 = "Cactus 4_2",

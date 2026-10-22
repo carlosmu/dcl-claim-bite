@@ -17,23 +17,24 @@ const PROPERTY_MODELS: Record<PropertyKind, string> = {
 /** The same sign stands by every kind of property. */
 const OWNER_SIGN_MODEL = 'assets/models/owner.glb'
 
-/** Which way the whole lot faces — property and sign together — turned about Y. */
-const LOT_YAW_DEGREES: Record<PropertyKind, number> = {
-  cabin: -90,
-  // Houses stand across town from the cabins, so they face the other way.
-  house: 90
-}
+// Rows pair up face to face, a street between them, and back to back with the next pair:
+// even rows face +Z, odd rows are turned round to face -Z. Each model's origin is a front
+// corner of its lot, the lot reaching into +X and back into -Z from it (as the scene sees the
+// model: loading a glTF mirrors its X).
 
 /** Which way the properties face within their lot, turned about Y. */
 const PROPERTY_YAW_DEGREES = 0
 
-/** Where the sign stands from the lot's centre, and which way it faces. */
+/** Where the sign stands from the lot's origin (a front corner), and which way it faces. */
 const OWNER_SIGN_OFFSET = Vector3.create(0, 0, 0)
 const OWNER_SIGN_YAW_DEGREES = 0
 
 /** How high above the sign's foot the lettering starts, and which way it faces. */
 const OWNER_NAME_HEIGHT_METERS = 1.0
 const OWNER_TEXT_YAW_DEGREES = 180
+/** Where the board stands within owner.glb, from its origin, as the scene sees it (X mirrored from the glTF). */
+const OWNER_BOARD_X_METERS = 1
+const OWNER_BOARD_Z_METERS = -2.75
 /** How far in front of the sign's centre the lettering sits, so it does not sink into the board. */
 const OWNER_TEXT_FORWARD_METERS = -0.06
 
@@ -47,8 +48,16 @@ const OWNER_TEXT_COLOR = Color4.fromHexString('#2B1A0EFF')
 /** What the sign says while the lot has no owner. */
 const FOR_SALE_TEXT = 'FOR SALE'
 const FOR_SALE_SIZE = 0.16
+const FOR_SALE_COLOR = Color4.fromHexString('#B3261EFF')
 
-type Area = { root: Entity; lots: Vector3[] }
+/** Which end of each row the lots count from: the end nearest where players come in. */
+const LOTS_FROM_PLUS_X: Record<PropertyKind, boolean> = {
+  cabin: true,
+  house: false
+}
+
+type Lot = { corner: Vector3; yawDegrees: number }
+type Area = { root: Entity; lots: Lot[] }
 type StandingProperty = { root: Entity; text: Entity; shownName: string | null }
 
 const areas = new Map<PropertyKind, Area>()
@@ -74,10 +83,19 @@ function buildArea(kind: PropertyKind): void {
   const root = engine.addEntity()
   Transform.create(root, { parent: areaTransform.parent, position: areaTransform.position })
 
-  const lots: Vector3[] = []
+  const lots: Lot[] = []
   for (let row = 0; row < rows && lots.length < lotCount; row++) {
+    const facesBack = row % 2 === 1
     for (let column = 0; column < columns && lots.length < lotCount; column++) {
-      lots.push(Vector3.create(-width / 2 + spacingX * (column + 0.5), 0, -depth / 2 + spacingZ * (row + 0.5)))
+      // The lot's low corner on the area; a lot turned round has its origin there instead.
+      // The first lots handed out are the nearest.
+      const place = LOTS_FROM_PLUS_X[kind] ? columns - 1 - column : column
+      const x = (-columns * spacingX) / 2 + spacingX * place
+      const z = (-rows * spacingZ) / 2 + spacingZ * row
+      lots.push({
+        corner: facesBack ? Vector3.create(x + spacingX, 0, z) : Vector3.create(x, 0, z + spacingZ),
+        yawDegrees: facesBack ? 180 : 0
+      })
     }
   }
   const built = { root, lots }
@@ -85,12 +103,12 @@ function buildArea(kind: PropertyKind): void {
   lots.forEach((lot, index) => standing.set(`${kind}:${index}`, build(kind, built, lot)))
 }
 
-function build(kind: PropertyKind, area: Area, lot: Vector3): StandingProperty {
+function build(kind: PropertyKind, area: Area, lot: Lot): StandingProperty {
   const root = engine.addEntity()
   Transform.create(root, {
     parent: area.root,
-    position: Vector3.clone(lot),
-    rotation: Quaternion.fromEulerDegrees(0, LOT_YAW_DEGREES[kind], 0)
+    position: Vector3.clone(lot.corner),
+    rotation: Quaternion.fromEulerDegrees(0, lot.yawDegrees, 0)
   })
 
   const model = engine.addEntity()
@@ -108,7 +126,11 @@ function build(kind: PropertyKind, area: Area, lot: Vector3): StandingProperty {
   const text = engine.addEntity()
   Transform.create(text, {
     parent: ownerSign,
-    position: Vector3.create(0, OWNER_NAME_HEIGHT_METERS, OWNER_TEXT_FORWARD_METERS),
+    position: Vector3.create(
+      OWNER_BOARD_X_METERS,
+      OWNER_NAME_HEIGHT_METERS,
+      OWNER_BOARD_Z_METERS + OWNER_TEXT_FORWARD_METERS
+    ),
     rotation: Quaternion.fromEulerDegrees(0, OWNER_TEXT_YAW_DEGREES, 0)
   })
 
@@ -138,7 +160,7 @@ function syncLots(): void {
             { value: OWNER_CAPTION, size: OWNER_CAPTION_SIZE },
             { value: owner.toUpperCase(), size: OWNER_NAME_SIZE, maxWidth: OWNER_NAME_MAX_WIDTH_METERS }
           ],
-      OWNER_TEXT_COLOR
+      owner === undefined ? FOR_SALE_COLOR : OWNER_TEXT_COLOR
     )
   }
 }

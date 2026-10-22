@@ -16,7 +16,10 @@ export type PropertyKind = 'cabin' | 'house'
 type PropertyArea = {
   /** The plane in the scene the lots are laid over. */
   areaName: string
-  /** Metres between lots across the area (X) and along it (Z). */
+  /**
+   * A lot's width (X) and depth (Z) in metres, the street in front included: the model brings
+   * its own half of the street, so lots sit edge to edge.
+   */
   spacingX: number
   spacingZ: number
   /**
@@ -27,10 +30,10 @@ type PropertyArea = {
 }
 
 export const PROPERTY_AREAS: Record<PropertyKind, PropertyArea> = {
-  // 30 x 80 m at 8 m: 3 x 10.
-  cabin: { areaName: 'Cabins_Area', spacingX: 8, spacingZ: 8, maxLots: 30 },
-  // 40 x 80 m at 10 m: 4 x 8.
-  house: { areaName: 'Houses_Area', spacingX: 10, spacingZ: 10, maxLots: 32 }
+  // 40 x 80 m at 6 x 8 m: 6 x 10.
+  cabin: { areaName: 'Cabins_Area', spacingX: 6, spacingZ: 8, maxLots: 60 },
+  // 40 x 80 m at 8 x 10 m: 5 x 8.
+  house: { areaName: 'Houses_Area', spacingX: 8, spacingZ: 10, maxLots: 40 }
 }
 
 export const PROPERTY_KINDS = Object.keys(PROPERTY_AREAS) as PropertyKind[]
