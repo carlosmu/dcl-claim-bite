@@ -11,6 +11,8 @@ import './shared/net/held-picks-sync'
 import './shared/net/property-lots-sync'
 import './shared/net/tiers-sync'
 import './shared/net/protocol'
+// Scene Feedback starts on import, on both halves: the client asks, the server stores the CSV.
+import './scene-feedback'
 
 import { setupUi } from './ui'
 import { setupRocks } from './mining/rocks'
@@ -29,6 +31,7 @@ import { setupIsometricCamera } from './world/isometric-camera'
 import { setupTouchControls } from './world/touch-controls'
 import { setupServerLink } from './net/server-link'
 import { setupEconomyLink } from './net/economy-link'
+import { setupPlaytest } from './playtest'
 
 // One bundle, two runtimes. The server runs this same file headlessly, so everything that
 // draws, plays or listens has to sit behind the isServer() branch — on the server there is
@@ -59,4 +62,5 @@ export async function main() {
     setupHeldPicks()
     setupNametags()
     setupUi()
+    setupPlaytest()
 }

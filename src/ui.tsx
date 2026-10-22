@@ -339,11 +339,11 @@ const rateSegment = () => {
         <UiEntity uiTransform={{ height: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexGrow: 1, flexShrink: 0 }}>
             {hudIcon(ICON_RATE)}
             <UiEntity uiTransform={{ flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center' }}>
-                <BitmapText value="Rate" fontSize={HUD_CAPTION_SIZE} color={HUD_CAPTION_COLOR} />
+                <BitmapText value="Sell Rate" fontSize={HUD_CAPTION_SIZE} color={HUD_CAPTION_COLOR} />
                 <UiEntity uiTransform={{ height: HUD_VALUE_SIZE, flexDirection: 'row', alignItems: 'center' }}>
                     <BitmapText value={formatRate(rate)} fontSize={HUD_VALUE_SIZE} color={rateColor(rate)} />
                 </UiEntity>
-                {hudUnitLine('ORE / COIN', MUTED_COLOR, undefined, 'middle-left')}
+                {hudUnitLine('', MUTED_COLOR, undefined, 'middle-left')}
             </UiEntity>
         </UiEntity>
     )
@@ -2355,7 +2355,7 @@ const inventoryPanel = () => {
     )
 }
 
-// Dressed like the Map button next to it, and like the status panels: icon, then label.
+// Dressed like the Map button next to it: an icon alone, no label.
 const inventoryButton = () => (
     <UiEntity
         uiTransform={{
@@ -2368,10 +2368,8 @@ const inventoryButton = () => (
             borderColor: inventoryOpen ? BANK_GOLD : BANK_TRIM,
             flexDirection: 'row',
             alignItems: 'center',
-            // Left-aligned with the same inset as the status panels; on mobile the icon is
-            // alone, so centred.
-            justifyContent: isMobile() ? 'center' : 'flex-start',
-            padding: isMobile() ? 0 : { left: 8, right: 10 }
+            // The icon is alone, so centred.
+            justifyContent: 'center'
         }}
         uiBackground={{ color: BOTTOM_BUTTON_COLOR }}
         onMouseDown={() => {
@@ -2385,9 +2383,6 @@ const inventoryButton = () => (
         }}
     >
         <UiEntity uiTransform={bottomButtonIcon()} uiBackground={iconBackground(ICON_INVENTORY)} />
-        {isMobile() ? null : (
-            <Label value="Stuff" fontSize={bottomButtonFont()} color={Color4.White()} textAlign="middle-left" uiTransform={{ height: BOTTOM_PANEL_HEIGHT }} />
-        )}
     </UiEntity>
 )
 
@@ -2439,10 +2434,8 @@ const mapButton = () => (
             borderColor: mapOpen ? BANK_GOLD : BANK_TRIM,
             flexDirection: 'row',
             alignItems: 'center',
-            // Left-aligned with the same inset as the status panels; on mobile the icon is
-            // alone, so centred.
-            justifyContent: isMobile() ? 'center' : 'flex-start',
-            padding: isMobile() ? 0 : { left: 8, right: 10 }
+            // The icon is alone, so centred.
+            justifyContent: 'center'
         }}
         uiBackground={{ color: BOTTOM_BUTTON_COLOR }}
         onMouseDown={() => {
@@ -2456,9 +2449,6 @@ const mapButton = () => (
         }}
     >
         <UiEntity uiTransform={bottomButtonIcon()} uiBackground={iconBackground(ICON_MAP)} />
-        {isMobile() ? null : (
-            <Label value="Map" fontSize={bottomButtonFont()} color={Color4.White()} textAlign="middle-left" uiTransform={{ height: BOTTOM_PANEL_HEIGHT }} />
-        )}
     </UiEntity>
 )
 
@@ -2471,11 +2461,10 @@ const BOTTOM_BUTTON_Y = 28
 const BOTTOM_BUTTON_HEIGHT = 44
 const BOTTOM_BUTTON_GAP = 8
 
-// The icons match the HUD's at the top. The mobile column is 640 wide, not 768: with icons that
-// size there is no room for four labelled buttons, so Map and Stuff drop to their icon alone
-// there and the status panels take the width.
-const BOTTOM_BUTTON_WIDTH = 136
-const BOTTOM_BUTTON_WIDTH_MOBILE = 64
+// The icons match the HUD's at the top. Map and Stuff are their icon alone on every platform:
+// a label didn't always fit ("Stuff" wrapped its last letter), and the mobile column has no
+// room for one anyway.
+const BOTTOM_BUTTON_WIDTH = 64
 const BOTTOM_PANEL_WIDTH = 228
 const BOTTOM_PANEL_WIDTH_MOBILE = 236
 const BOTTOM_PANEL_HEIGHT = 64
@@ -2483,12 +2472,12 @@ const BOTTOM_PANEL_ICON = HUD_ICON_SIZE
 const BOTTOM_PANEL_BAR_HEIGHT = 4
 
 function bottomButtonWidth(): number {
-    return isMobile() ? BOTTOM_BUTTON_WIDTH_MOBILE : BOTTOM_BUTTON_WIDTH
+    return BOTTOM_BUTTON_WIDTH
 }
 
-/** Map and Stuff's icon: the HUD's size; alone on mobile, so no gap after it there. */
+/** Map and Stuff's icon: the HUD's size, alone in its button. */
 function bottomButtonIcon() {
-    return { width: BOTTOM_PANEL_ICON, height: BOTTOM_PANEL_ICON, margin: { right: isMobile() ? 0 : 8 }, flexShrink: 0 }
+    return { width: BOTTOM_PANEL_ICON, height: BOTTOM_PANEL_ICON, flexShrink: 0 }
 }
 
 function bottomButtonFont(): number {
