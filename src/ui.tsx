@@ -332,16 +332,16 @@ const oreSegment = () => {
     )
 }
 
-/** Rate: the town's selling rate, as the bank quotes it. */
+/** Ore Price: the town's selling rate as a word, the same verdict the bank shows. */
 const rateSegment = () => {
     const rate = quotedRate(getSyncedRate())
     return (
         <UiEntity uiTransform={{ height: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexGrow: 1, flexShrink: 0 }}>
             {hudIcon(ICON_RATE)}
             <UiEntity uiTransform={{ flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center' }}>
-                <BitmapText value="Sell Rate" fontSize={HUD_CAPTION_SIZE} color={HUD_CAPTION_COLOR} />
+                <BitmapText value="Ore Price" fontSize={HUD_CAPTION_SIZE} color={HUD_CAPTION_COLOR} />
                 <UiEntity uiTransform={{ height: HUD_VALUE_SIZE, flexDirection: 'row', alignItems: 'center' }}>
-                    <BitmapText value={formatRate(rate)} fontSize={HUD_VALUE_SIZE} color={rateColor(rate)} />
+                    <BitmapText value={priceVerdict(rate).word} fontSize={HUD_VALUE_SIZE} color={priceVerdict(rate).color} />
                 </UiEntity>
                 {hudUnitLine('', MUTED_COLOR, undefined, 'middle-left')}
             </UiEntity>
@@ -486,20 +486,27 @@ function recoveryText(rate: number): string {
     return `Back to equilibrium (${RATE_BASE}) in ~${minutes} min`
 }
 
-// A plain reading of the rate, so the number does not have to be interpreted: traffic-light
-// thirds of the 10–12 range. Judged in whole tenths, the way the rate is quoted, so 10.6 is
-// exactly good and never a float's hair over.
-const PRICE_GOOD_MAX_TENTHS = 106
-const PRICE_FAIR_MAX_TENTHS = 113
-const PRICE_GOOD_COLOR = Color4.create(0.42, 0.8, 0.36, 1)
+// A plain reading of the rate, so the number does not have to be interpreted: five equal
+// bands of the 10–12 range, best first. The best is the resting state, so it is what players
+// see most. Judged in whole tenths, the way the rate is quoted, so 10.4 is exactly best and
+// never a float's hair over.
+const PRICE_BEST_MAX_TENTHS = 104
+const PRICE_GOOD_MAX_TENTHS = 108
+const PRICE_FAIR_MAX_TENTHS = 112
+const PRICE_LOW_MAX_TENTHS = 116
+const PRICE_BEST_COLOR = Color4.create(0.42, 0.8, 0.36, 1)
+const PRICE_GOOD_COLOR = Color4.create(0.7, 0.85, 0.3, 1)
 const PRICE_FAIR_COLOR = Color4.create(0.96, 0.82, 0.25, 1)
+const PRICE_LOW_COLOR = Color4.create(0.95, 0.56, 0.24, 1)
 const PRICE_BAD_COLOR = Color4.create(0.9, 0.33, 0.28, 1)
 
-function priceVerdict(rate: number): { text: string; color: Color4 } {
+function priceVerdict(rate: number): { word: string; color: Color4 } {
     const tenths = Math.round(rate * 10)
-    if (tenths <= PRICE_GOOD_MAX_TENTHS) return { text: 'GOOD PRICE', color: PRICE_GOOD_COLOR }
-    if (tenths <= PRICE_FAIR_MAX_TENTHS) return { text: 'FAIR PRICE', color: PRICE_FAIR_COLOR }
-    return { text: 'BAD PRICE', color: PRICE_BAD_COLOR }
+    if (tenths <= PRICE_BEST_MAX_TENTHS) return { word: 'BEST', color: PRICE_BEST_COLOR }
+    if (tenths <= PRICE_GOOD_MAX_TENTHS) return { word: 'GOOD', color: PRICE_GOOD_COLOR }
+    if (tenths <= PRICE_FAIR_MAX_TENTHS) return { word: 'FAIR', color: PRICE_FAIR_COLOR }
+    if (tenths <= PRICE_LOW_MAX_TENTHS) return { word: 'LOW', color: PRICE_LOW_COLOR }
+    return { word: 'BAD', color: PRICE_BAD_COLOR }
 }
 
 // A small pill beside the recovery note, under the chart: smaller than the rate itself, coloured so it scans at a glance.
@@ -507,7 +514,7 @@ const priceVerdictPill = (rate: number) => {
     const verdict = priceVerdict(rate)
     return (
         <Label
-            value={verdict.text}
+            value={`${verdict.word} PRICE`}
             fontSize={14}
             color={BANK_INK}
             textAlign="middle-center"
