@@ -18,6 +18,7 @@ import { setupBank } from './bank/bank'
 import { setupShop } from './shop/shop'
 import { setupLandOffice } from './land-office/land-office'
 import { setupProperties } from './land-office/properties'
+import { setupOwnerCard } from './land-office/owner-card'
 import { setupMule } from './mule/mule'
 import { setupMayor } from './mayor/mayor'
 import { setupHeldPicks } from './player/held-pick'
@@ -51,6 +52,7 @@ export async function main() {
     setupShop()
     setupLandOffice()
     setupProperties()
+    setupOwnerCard()
     setupMule()
     setupMayor()
     setupTumbleweeds()

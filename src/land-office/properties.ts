@@ -1,8 +1,19 @@
-import { engine, Entity, executeTask, GltfContainer, Material, MeshRenderer, Transform } from '@dcl/sdk/ecs'
+import {
+  engine,
+  Entity,
+  executeTask,
+  GltfContainer,
+  InputAction,
+  Material,
+  MeshRenderer,
+  pointerEventsSystem,
+  Transform
+} from '@dcl/sdk/ecs'
 import { Color4, Quaternion, Vector3 } from '@dcl/sdk/math'
 
 import { DEBUG_FILL_PROPERTY_LOTS } from '../shared/debug-flags'
 import { setBitmapText3d } from '../world/bitmap-text-3d'
+import { openOwnerCard } from './owner-card'
 import { PROPERTY_AREAS, PROPERTY_KINDS, PropertyKind, PropertyLots } from '../shared/net/property-lots-sync'
 
 // The properties standing in town. Every lot of the grid laid over each kind's area has its
@@ -58,6 +69,9 @@ const OWNER_PICTURE_UVS = [0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0]
 const OWNER_PICTURE_FALLBACK = 'assets/images/fallback_profile_pic.png'
 const PROFILES_URL = 'https://peer.decentraland.org/lambdas/profiles/'
 
+/** How far off an owned property can be clicked to see its owner's card. */
+const OWNER_CARD_REACH_METERS = 12
+
 /** Which end of each row the lots count from: the end nearest where players come in. */
 const LOTS_FROM_PLUS_X: Record<PropertyKind, boolean> = {
   cabin: true,
@@ -66,7 +80,16 @@ const LOTS_FROM_PLUS_X: Record<PropertyKind, boolean> = {
 
 type Lot = { corner: Vector3; yawDegrees: number }
 type Area = { root: Entity; lots: Lot[] }
-type StandingProperty = { root: Entity; text: Entity; picture: Entity; shownName: string | null; ownerAddress?: string }
+type StandingProperty = {
+  root: Entity
+  /** The property and its sign, which open the owner's card while the lot is owned. */
+  model: Entity
+  sign: Entity
+  text: Entity
+  picture: Entity
+  shownName: string | null
+  ownerAddress?: string
+}
 
 const areas = new Map<PropertyKind, Area>()
 /** Keyed by kind and lot. */
@@ -149,7 +172,7 @@ function build(kind: PropertyKind, area: Area, lot: Lot): StandingProperty {
     scale: Vector3.create(OWNER_PICTURE_SIZE_METERS, OWNER_PICTURE_SIZE_METERS, 1)
   })
 
-  return { root, text, picture, shownName: null }
+  return { root, model, sign: ownerSign, text, picture, shownName: null }
 }
 
 // An upgrade moves the owner to the new kind's area, so their old lot goes back on sale.
@@ -179,6 +202,19 @@ function syncLots(): void {
     )
     property.ownerAddress = owner?.address
     setOwnerPicture(property.picture, owner?.address)
+    setOwnerClick(property, owner)
+  }
+}
+
+// A lot on sale answers no click: the Land Office is where it is bought.
+function setOwnerClick(property: StandingProperty, owner: { address: string; name: string } | undefined): void {
+  for (const entity of [property.model, property.sign]) {
+    pointerEventsSystem.removeOnPointerDown(entity)
+    if (owner === undefined) continue
+    pointerEventsSystem.onPointerDown(
+      { entity, opts: { button: InputAction.IA_POINTER, hoverText: `${owner.name}'s place`, maxDistance: OWNER_CARD_REACH_METERS } },
+      () => openOwnerCard(owner.address, owner.name)
+    )
   }
 }
 
@@ -201,6 +237,11 @@ function setOwnerPicture(picture: Entity, address: string | undefined): void {
       : Material.Texture.Common({ src: OWNER_PICTURE_FALLBACK })
   })
   if (face === undefined) lookUpFace(address)
+}
+
+/** Whether the owner's profile is known to have a face; the fallback picture stands in otherwise. */
+export function ownerHasFace(address: string): boolean {
+  return hasFace.get(address) === true
 }
 
 function lookUpFace(address: string): void {

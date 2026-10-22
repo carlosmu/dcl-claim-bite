@@ -19,6 +19,23 @@ import { buyItem, closeStorePanel, currentPrice, getSelectedProduct, isStorePane
 import { closeMulePanel, isMulePanelOpen } from './mule/mule'
 import { closeLandOfficePanel, getSelectedProperty, isLandOfficePanelOpen, selectProperty } from './land-office/land-office'
 import {
+    canSendNote,
+    clearMyNotes,
+    closeOwnerCard,
+    getMyNotes,
+    getNoteDraft,
+    getNoteStatus,
+    getOpenOwner,
+    getOpenOwnerName,
+    getOwnerCard,
+    isOwnCard,
+    isOwnerCardOpen,
+    sendNote,
+    setNoteDraft
+} from './land-office/owner-card'
+import { ownerHasFace } from './land-office/properties'
+import { Note, NOTE_MAX_CHARS, NOTE_MAX_KEPT } from './shared/notes'
+import {
     activePick,
     CATALOGUE,
     findItem,
@@ -2909,6 +2926,232 @@ const objectiveTracker = () => {
     )
 }
 
+// --- Owner card ---------------------------------------------------------------------------
+//
+// Clicking an owned property: who lives there and what they have, dressed like the
+// notifications. At someone else's door, a note to leave; at your own, the notes left there,
+// one at a time.
+
+const OWNER_CARD_WIDTH = 600
+const OWNER_PHOTO_SIZE = 132
+const OWNER_STAT_ICON = 30
+const OWNER_STAT_HEIGHT = 32
+const OWNER_ONLINE_DOT = 12
+const OWNER_NOTE_INPUT_HEIGHT = 48
+const OWNER_PICTURE_FALLBACK = 'assets/images/fallback_profile_pic.png'
+
+let ownerNotesPage = 0
+
+/** "just now", "3 min ago", "2 h ago", "4 d ago", from a wall-clock moment. */
+function noteAge(at: number): string {
+    const seconds = Math.max(0, (Date.now() - at) / 1000)
+    if (seconds < 60) return 'just now'
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)} h ago`
+    return `${Math.floor(seconds / 86400)} d ago`
+}
+
+const ownerStat = (icon: Icon, text: string, color: Color4 = BANK_CREAM) => (
+    <UiEntity uiTransform={{ flexDirection: 'row', alignItems: 'center', height: OWNER_STAT_HEIGHT, margin: { bottom: 4 } }}>
+        <UiEntity uiTransform={{ width: OWNER_STAT_ICON, height: OWNER_STAT_ICON, margin: { right: 10 }, flexShrink: 0 }} uiBackground={iconBackground(icon)} />
+        <Label value={text} fontSize={18} color={color} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: OWNER_STAT_HEIGHT }} />
+    </UiEntity>
+)
+
+const ownerStats = () => {
+    const card = getOwnerCard()
+    if (card === null) {
+        return <Label value="Asking around town..." fontSize={18} color={BANK_CAPTION} textAlign="middle-left" uiTransform={{ height: OWNER_STAT_HEIGHT }} />
+    }
+    if (!card.found) {
+        return <Label value="Nobody on record here" fontSize={18} color={BANK_CAPTION} textAlign="middle-left" uiTransform={{ height: OWNER_STAT_HEIGHT }} />
+    }
+    const property = findItem(card.property as ShopItemId)
+    const pick = findItem(card.pick as ShopItemId)
+    const storage = findItem(card.storage as ShopItemId)
+    return (
+        <UiEntity uiTransform={{ flexDirection: 'column' }}>
+            <UiEntity uiTransform={{ flexDirection: 'row', alignItems: 'center', height: OWNER_STAT_HEIGHT, margin: { bottom: 4 } }}>
+                <UiEntity
+                    uiTransform={{ width: OWNER_ONLINE_DOT, height: OWNER_ONLINE_DOT, borderRadius: OWNER_ONLINE_DOT / 2, margin: { left: 9, right: 19 } }}
+                    uiBackground={{ color: card.online ? SERVER_ONLINE_COLOR : MUTED_COLOR }}
+                />
+                <Label value={card.online ? 'In town' : 'Away'} fontSize={18} color={card.online ? SERVER_ONLINE_COLOR : MUTED_COLOR} textAlign="middle-left" uiTransform={{ height: OWNER_STAT_HEIGHT }} />
+            </UiEntity>
+            {ownerStat(PROPERTY_ICONS[card.property] ?? ICON_HOUSE, property?.label ?? 'Property')}
+            {ownerStat(PICK_ICONS[card.pick] ?? ICON_PICK_IRON, pick?.label ?? 'No pick', pick !== null ? BANK_CREAM : MUTED_COLOR)}
+            {ownerStat(ICON_MULE, card.mules > 0 ? `${card.mules} M.U.L.E.` : 'No M.U.L.E.', card.mules > 0 ? BANK_CREAM : MUTED_COLOR)}
+            {ownerStat(ICON_WAREHOUSE, storage?.label ?? 'Basic storage')}
+        </UiEntity>
+    )
+}
+
+const leaveNoteSection = () => {
+    const status = getNoteStatus()
+    const draft = getNoteDraft()
+    const ready = canSendNote()
+    return (
+        <UiEntity uiTransform={{ width: '100%', flexDirection: 'column' }}>
+            <BitmapText value="LEAVE A NOTE" fontSize={24} color={BANK_GOLD_LIGHT} uiTransform={{ margin: { bottom: 8 } }} />
+            <Input
+                placeholder={`Say howdy to ${getOpenOwnerName()}...`}
+                value={draft}
+                fontSize={18}
+                color={BANK_CREAM}
+                placeholderColor={MUTED_COLOR}
+                uiTransform={{ width: '100%', height: OWNER_NOTE_INPUT_HEIGHT, borderRadius: 8, borderWidth: 2, borderColor: BANK_TRIM }}
+                uiBackground={{ color: BANK_WOOD }}
+                onChange={setNoteDraft}
+                onSubmit={(value) => {
+                    setNoteDraft(value)
+                    sendNote()
+                }}
+            />
+            <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', margin: { top: 8 } }}>
+                <Label
+                    value={status !== null ? status.text : `${draft.length}/${NOTE_MAX_CHARS}`}
+                    fontSize={15}
+                    color={status === null ? BANK_CAPTION : status.ok ? PRICE_GOOD_COLOR : SHORT_COLOR}
+                    textAlign="middle-left"
+                    textWrap="nowrap"
+                    uiTransform={{ height: 44 }}
+                />
+                <UiEntity
+                    uiTransform={{ width: 140, height: 44, justifyContent: 'center', alignItems: 'center', borderRadius: 8, borderWidth: 2, borderColor: BANK_TRIM }}
+                    uiBackground={{ color: ready ? BANK_GOLD : DISABLED_COLOR }}
+                    onMouseDown={sendNote}
+                >
+                    <BitmapText value="SEND" fontSize={24} color={ready ? BANK_INK : MUTED_COLOR} />
+                </UiEntity>
+            </UiEntity>
+        </UiEntity>
+    )
+}
+
+// No key: the one row stays and only its text changes from note to note. A key that changed with
+// the note made a new row each time, and the old one could linger under it.
+const ownerNoteRow = (note: Note) => (
+    <UiEntity
+        uiTransform={{
+            width: '100%',
+            flexDirection: 'column',
+            padding: { left: 14, right: 14, top: 8, bottom: 10 },
+            margin: { bottom: 8 },
+            borderRadius: 10,
+            borderWidth: 2,
+            borderColor: BANK_TRIM
+        }}
+        uiBackground={{ color: BANK_WOOD }}
+    >
+        <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Label value={note.from} fontSize={17} color={BANK_GOLD_LIGHT} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 22 }} />
+            <Label value={noteAge(note.at)} fontSize={13} color={BANK_CAPTION} textAlign="middle-right" textWrap="nowrap" uiTransform={{ height: 20 }} />
+        </UiEntity>
+        {/* Room for the longest note there can be. */}
+        <Label value={note.text} fontSize={16} color={BANK_CREAM} textAlign="top-left" textWrap="wrap" uiTransform={{ width: '100%', height: 66 }} />
+    </UiEntity>
+)
+
+const pageButton = (label: string, enabled: boolean, onPress: () => void) => (
+    <UiEntity
+        uiTransform={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center', borderRadius: 8, borderWidth: 2, borderColor: BANK_TRIM }}
+        uiBackground={{ color: enabled ? BANK_STEP_COLOR : DISABLED_COLOR }}
+        onMouseDown={() => {
+            if (enabled) onPress()
+        }}
+    >
+        <Label value={label} fontSize={20} color={enabled ? BANK_CREAM : MUTED_COLOR} textAlign="middle-center" />
+    </UiEntity>
+)
+
+const myNotesSection = () => {
+    const notes = getMyNotes()
+    const pages = Math.max(1, notes.length)
+    // A note the list no longer reaches (notes cleared) falls back.
+    ownerNotesPage = Math.min(ownerNotesPage, pages - 1)
+    const note = notes[ownerNotesPage]
+    return (
+        <UiEntity uiTransform={{ width: '100%', flexDirection: 'column' }}>
+            <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', margin: { bottom: 8 } }}>
+                <BitmapText value="NOTES AT YOUR DOOR" fontSize={24} color={BANK_GOLD_LIGHT} />
+                {notes.length >= NOTE_MAX_KEPT ? (
+                    <Label value="Mailbox full: clear it for new notes" fontSize={14} color={SHORT_COLOR} textAlign="middle-right" textWrap="nowrap" uiTransform={{ height: 24 }} />
+                ) : null}
+            </UiEntity>
+            <UiEntity uiTransform={{ width: '100%', flexDirection: 'column' }}>
+                {note === undefined ? (
+                    <Label value="Nobody has left a note yet" fontSize={16} color={BANK_CAPTION} textAlign="middle-center" uiTransform={{ width: '100%', height: 60 }} />
+                ) : (
+                    ownerNoteRow(note)
+                )}
+            </UiEntity>
+            <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', margin: { top: 4 } }}>
+                {notes.length > 0 ? (
+                    <UiEntity uiTransform={{ flexDirection: 'row', alignItems: 'center' }}>
+                        {pageButton('<', ownerNotesPage > 0, () => (ownerNotesPage -= 1))}
+                        <Label value={`${ownerNotesPage + 1}/${pages}`} fontSize={16} color={BANK_CAPTION} textAlign="middle-center" uiTransform={{ width: 60, height: 44 }} />
+                        {pageButton('>', ownerNotesPage < pages - 1, () => (ownerNotesPage += 1))}
+                    </UiEntity>
+                ) : (
+                    <UiEntity />
+                )}
+                <UiEntity
+                    uiTransform={{ width: 160, height: 44, justifyContent: 'center', alignItems: 'center', borderRadius: 8, borderWidth: 2, borderColor: BANK_TRIM }}
+                    uiBackground={{ color: notes.length > 0 ? BANK_GOLD : DISABLED_COLOR }}
+                    onMouseDown={() => {
+                        if (notes.length > 0) clearMyNotes()
+                    }}
+                >
+                    <BitmapText value="CLEAR" fontSize={24} color={notes.length > 0 ? BANK_INK : MUTED_COLOR} />
+                </UiEntity>
+            </UiEntity>
+        </UiEntity>
+    )
+}
+
+const ownerCardPanel = () => {
+    const owner = getOpenOwner()
+    return (
+        <UiEntity
+            uiTransform={{
+                width: OWNER_CARD_WIDTH,
+                flexDirection: 'column',
+                alignItems: 'center',
+                padding: BANK_PANEL_PADDING,
+                borderRadius: PANEL_RADIUS,
+                borderWidth: 3,
+                borderColor: BANK_TRIM
+            }}
+            uiBackground={{ color: BANK_WOOD_DARK }}
+        >
+            <BitmapText value="PROPERTY OF" fontSize={20} color={BANK_CAPTION} align="center" uiTransform={{ width: '100%' }} />
+            <BitmapText value={getOpenOwnerName().toUpperCase()} fontSize={40} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%', margin: { bottom: 12 } }} />
+            {/* Closed from the corner, like the other screens. */}
+            <Button
+                value="X"
+                fontSize={30}
+                color={Color4.White()}
+                uiTransform={{ positionType: 'absolute', position: { top: BANK_PANEL_PADDING, right: BANK_PANEL_PADDING }, width: 48, height: 48, borderRadius: PANEL_RADIUS }}
+                uiBackground={{ color: MAP_CLOSE_COLOR }}
+                onMouseDown={closeOwnerCard}
+            />
+            <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', alignItems: 'flex-start', margin: { bottom: 16 } }}>
+                <UiEntity
+                    uiTransform={{ width: OWNER_PHOTO_SIZE, height: OWNER_PHOTO_SIZE, margin: { right: 20 }, flexShrink: 0, borderRadius: 10, borderWidth: 3, borderColor: BANK_TRIM }}
+                    uiBackground={
+                        ownerHasFace(owner)
+                            ? { textureMode: 'stretch', avatarTexture: { userId: owner } }
+                            : { textureMode: 'stretch', texture: { src: OWNER_PICTURE_FALLBACK } }
+                    }
+                />
+                {ownerStats()}
+            </UiEntity>
+            <UiEntity uiTransform={{ width: '100%', height: 2, margin: { bottom: 12 } }} uiBackground={{ color: BANK_TRIM }} />
+            {isOwnCard() ? myNotesSection() : leaveNoteSection()}
+        </UiEntity>
+    )
+}
+
 // --- Notifications ------------------------------------------------------------------------
 //
 // A bell just above the tracker's top-right corner opens the tracker's last few messages
@@ -3084,6 +3327,7 @@ export const uiMenu = () => (
             {!mapOpen && !inventoryOpen && !notificationsOpen && isStorePanelOpen() ? storePanel() : null}
             {!mapOpen && !inventoryOpen && !notificationsOpen && isLandOfficePanelOpen() ? landOfficePanel() : null}
             {!mapOpen && !inventoryOpen && !notificationsOpen && isMulePanelOpen() && getMuleCount() > 0 ? mulePanel() : null}
+            {!mapOpen && !inventoryOpen && !notificationsOpen && isOwnerCardOpen() ? ownerCardPanel() : null}
             {pickSelector()}
             {muleDropdown()}
         </UiEntity>

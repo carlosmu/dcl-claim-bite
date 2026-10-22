@@ -12,8 +12,13 @@ import { Storage } from '@dcl/sdk/server'
 import { getStorageServerUrl } from '@dcl/sdk/server/storage-url'
 import { signedFetch } from '~system/SignedFetch'
 
+import { Note } from '../shared/notes'
+
 /** Per-player key. One record holds the whole purse: a partial save is worse than none. */
 const PURSE_KEY = 'purse'
+
+/** Per-player key: the notes left at their door. Apart from the purse, so a note never rewrites it. */
+const NOTES_KEY = 'notes'
 
 /** Scene-wide key: the town's ore price, which belongs to the world and not to anyone. */
 const MARKET_PRICE_KEY = 'market-price'
@@ -114,6 +119,23 @@ export async function savePropertyLots(lots: StoredLot[]): Promise<boolean> {
     return ok
   } catch (error) {
     console.log(`[Server] could not save property lots: ${error}`)
+    return false
+  }
+}
+
+/** The notes left at a player's door, or null if none ever were. Throws if the read failed. */
+export function loadNotes(address: string): Promise<Note[] | null> {
+  return readValue<Note[]>(`/players/${encodeURIComponent(address)}/values/${encodeURIComponent(NOTES_KEY)}`)
+}
+
+/** Resolves true once the write is confirmed, like savePurse. */
+export async function saveNotes(address: string, notes: Note[]): Promise<boolean> {
+  try {
+    const ok = await Storage.player.set(address, NOTES_KEY, notes)
+    if (!ok) console.log(`[Server] could not save notes for ${address}`)
+    return ok
+  } catch (error) {
+    console.log(`[Server] could not save notes for ${address}: ${error}`)
     return false
   }
 }

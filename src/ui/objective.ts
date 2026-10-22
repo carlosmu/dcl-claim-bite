@@ -26,6 +26,7 @@ import { quotedRate } from '../shared/state/market'
 import { getCoins, getOre } from '../shared/state/wallet'
 import { getActiveMiners } from '../shared/net/social-sync'
 import { socialBonus } from '../shared/economy/constants'
+import { getNoteNews } from '../land-office/owner-card'
 
 export type Objective = {
   /** Shown beside the bell: OBJECTIVE for a goal, the alert's own name for an alert. */
@@ -54,6 +55,9 @@ const PRICE_ALERT_SECONDS = 6
 /** How long the note that a pick broke stays up. */
 const PICK_BROKEN_SECONDS = 8
 
+/** How long the news of a note left at the player's door stays up. */
+const NOTE_ALERT_SECONDS = 8
+
 /**
  * How long the Social Bonus note stays up once two or more are mining, or their number changes.
  * Not for as long as the crowd lasts: it would sit on top of the upgrade alerts the whole time.
@@ -67,6 +71,8 @@ let lastMiners = 0
 let lastBrokenCount = 0
 let pickBrokenUntil = 0
 let socialAlertUntil = 0
+let lastNoteNews = 0
+let noteAlertUntil = 0
 let current: Objective | null = null
 
 /** One message the tracker showed, and when (seconds on this client's clock). */
@@ -131,6 +137,13 @@ function pick(): Objective | null {
     return alert('PICK BROKEN', `${broken?.label ?? 'Your pick'} is worn out`, next)
   }
 
+  // Somebody left a note at the door, while the player was here or away.
+  if (clock < noteAlertUntil) {
+    const news = getNoteNews()
+    const message = news.waiting === 1 ? `${news.from} left you a note` : `${news.waiting} notes at your door`
+    return alert('NEW NOTE', message, 'Click your property to read them')
+  }
+
   // Nothing to mine with: the mayor is the whole first step.
   if (getHitsPerRock() <= 0) return goal('Talk to the Mayor', 'He has a free pick for you')
 
@@ -190,6 +203,10 @@ function update(dt: number): void {
   const broken = getBrokenPick().count
   if (broken !== lastBrokenCount) pickBrokenUntil = clock + PICK_BROKEN_SECONDS
   lastBrokenCount = broken
+
+  const notes = getNoteNews().count
+  if (notes !== lastNoteNews) noteAlertUntil = clock + NOTE_ALERT_SECONDS
+  lastNoteNews = notes
 
   const miners = getActiveMiners()
   if (miners >= 2 && miners !== lastMiners) socialAlertUntil = clock + SOCIAL_ALERT_SECONDS

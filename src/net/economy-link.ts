@@ -19,6 +19,7 @@ import { quoteSaleAt } from '../shared/state/market'
 import { playSfx } from '../world/sfx'
 import { equipPick, unequipPick } from '../player/held-pick'
 import { onMayorPickGiven } from '../mayor/mayor'
+import { onNoteResult } from '../land-office/owner-card'
 
 const BANK_SOUND_CLIP = 'assets/sounds/bank.mp3'
 const BUY_SOUND_CLIP = 'assets/sounds/buy.mp3'
@@ -221,6 +222,8 @@ export function setupEconomyLink(): void {
   }
 
   room.onMessage('actionResult', (data) => {
+    // Refused or not, the card says what became of the note.
+    if (data.action === 'leaveNote') onNoteResult(data.ok, data.detail)
     if (!data.ok) {
       console.log(`[economy] ${data.action} refused: ${data.detail}`)
       return

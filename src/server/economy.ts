@@ -64,6 +64,7 @@ import {
   STARTING_ITEMS
 } from '../shared/economy/catalogue'
 import { addFuelGallons, fuelGallons, fuelHoursLeft, settleMule } from './mule'
+import { clearNotes, leaveNote, sendNotes, setupNotes } from './notes'
 import { TUTORIAL_ROCK_SEQS } from '../shared/net/rock-sync'
 import { advanceRock, getRockSeqs, hasFinishedRock, isRock, isRockStarted, markFinished } from './rock'
 
@@ -918,6 +919,70 @@ function publishLots(dt: number) {
   PropertyLots.getMutable(lotsEntity).lots = lots.map((lot) => ({ ...lot }))
 }
 
+// --- Owner cards and notes --------------------------------------------------------------
+//
+// Clicking a property asks who owns it. The answer is the owner's gear, never their coins or ore,
+// read from their purse — straight from storage when they are away, without keeping it: only a
+// present player's purse lives in `purses`, and only that one is ever saved.
+
+/** One card per asker this often, since an away owner's costs a storage read. */
+const OWNER_CARD_COOLDOWN_SECONDS = 0.5
+
+const lastCardAt = new Map<string, number>()
+
+function sendOwnerCard(asker: string, owner: string, lot: StoredLot | undefined, owned: Record<string, number> | null, equipped: string): void {
+  const count = (id: ShopItemId) => owned?.[id] ?? 0
+  room.send(
+    'ownerCard',
+    {
+      owner,
+      found: lot !== undefined,
+      name: lot?.name ?? '',
+      // The lot only says cabin or house; the purse knows a ranch too.
+      property: (owned !== null ? ownedTier('housing', count)?.id : undefined) ?? lot?.kind ?? '',
+      pick: owned !== null ? activePick(count, equipped)?.id ?? '' : '',
+      storage: owned !== null ? ownedTier('storage', count)?.id ?? '' : '',
+      mules: owned !== null ? muleCount(count) : 0,
+      online: present.has(owner)
+    },
+    { to: [asker] }
+  )
+}
+
+function handleOwnerCard(asker: string, owner: string): void {
+  if (serverClock - (lastCardAt.get(asker) ?? -Infinity) < OWNER_CARD_COOLDOWN_SECONDS) return
+  lastCardAt.set(asker, serverClock)
+
+  const lot = standingLots.get(owner)
+  if (lot === undefined) {
+    sendOwnerCard(asker, owner, undefined, null, '')
+    return
+  }
+  const purse = purses.get(owner)
+  if (purse !== undefined) {
+    sendOwnerCard(asker, owner, lot, purse.owned, purse.equipped)
+    return
+  }
+  loadPurse(owner)
+    .then((stored) => sendOwnerCard(asker, owner, lot, stored?.owned ?? null, stored?.equipped ?? ''))
+    // The card still has a name and a property to show.
+    .catch(() => sendOwnerCard(asker, owner, lot, null, ''))
+}
+
+function handleLeaveNote(from: string, owner: string, text: string): void {
+  // Only at a door that stands: a note to an address with no property would wait for nobody.
+  if (!standingLots.has(owner)) {
+    sendResult(from, 'leaveNote', false, 'nobody lives there')
+    return
+  }
+  leaveNote(from, displayNameOf(from), owner, text)
+    .then((refused) => {
+      sendResult(from, 'leaveNote', refused === null, refused ?? 'note left')
+      if (refused === null && present.has(owner)) sendNotes(owner)
+    })
+    .catch((error) => console.log(`[Server] note from ${from} to ${owner} failed: ${error}`))
+}
+
 // --- Player tiers ------------------------------------------------------------------------
 //
 // Each present player's best property, for the tag over their name. Same cadence as the lots:
@@ -1067,6 +1132,23 @@ export function setupEconomy(): void {
     // purseOf starts the read if it has not happened yet; the load's own completion sends the
     // wallet in that case, so this only sends when there is already something true to send.
     if (purseOf(context.from) !== null) sendWallet(context.from)
+    // Whatever was left at their door while they were away.
+    sendNotes(context.from)
+  })
+
+  room.onMessage('askOwnerCard', (data, context) => {
+    if (!context) return
+    handleOwnerCard(context.from, data.owner)
+  })
+
+  room.onMessage('leaveNote', (data, context) => {
+    if (!context) return
+    handleLeaveNote(context.from, data.owner, data.text)
+  })
+
+  room.onMessage('clearNotes', (_data, context) => {
+    if (!context) return
+    clearNotes(context.from)
   })
 
   room.onMessage('claimPick', (_data, context) => {
@@ -1129,4 +1211,5 @@ export function setupEconomy(): void {
   engine.addSystem(publishHeldPicks, undefined, 'server:held-picks')
   engine.addSystem(publishSocial, undefined, 'server:social-mining')
   engine.addSystem(moveSpentRocks, undefined, 'server:rock-move')
+  setupNotes()
 }
