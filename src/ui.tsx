@@ -86,7 +86,7 @@ export function setupUi() {
 const PANEL_WIDTH = 500
 
 // Everything this scene draws lives inside one centred column: full screen height, but only
-// 40% of its width.
+// 45% of its width.
 //
 // The narrowness is the point, not a layout accident. The left and right edges of the screen
 // belong to the explorer's own interface — chat, minimap, the emote wheel — and anything we
@@ -95,10 +95,10 @@ const PANEL_WIDTH = 500
 //
 // So nothing here is positioned against the SCREEN. An absolute child with `top`/`left`
 // anchors to this column, which is what makes the HUD land inside the safe band.
-const MAIN_CONTAINER_WIDTH = '40%'
+const MAIN_CONTAINER_WIDTH = '45%'
 
-// The big panels (bank, store, rig, inventory) are laid out for the desktop column: 40% of
-// 1920 = 768. On mobile the SDK swaps the 16:9 virtual screen for 1600x720, which shrinks the
+// The big panels (bank, store, rig, inventory) were laid out for the old 40% desktop column:
+// 40% of 1920 = 768. On mobile the SDK swaps the 16:9 virtual screen for 1600x720, which shrinks the
 // column to 640 and squeezes their rows until text spills over its neighbours. They keep at
 // least this width instead, overflowing the column evenly on both sides — the screen around
 // it has the room.
@@ -143,6 +143,14 @@ const HUD_HEIGHT = 64
 /** Breathing room above and below the segments, so the captions don't touch the pill's top edge. */
 const HUD_PADDING_Y = 8
 const HUD_PILL_HEIGHT = HUD_HEIGHT + HUD_PADDING_Y * 2
+/** On mobile an empty line shows above the plank — the image's transparent top margin, it seems,
+ *  the UVs not trimming it there. The plank starts this far above the screen's edge instead, so
+ *  that strip is off screen, and its padding takes the same back so the contents stay put. */
+const HUD_MOBILE_BLEED = 12
+
+function hudBleed(): number {
+    return isMobile() ? HUD_MOBILE_BLEED : 0
+}
 const HUD_ICON_SIZE = HUD_HEIGHT - 8
 const HUD_CAPTION_SIZE = 18
 const HUD_VALUE_SIZE = 28
@@ -361,7 +369,7 @@ const hud = () => {
             uiTransform={{
                 positionType: 'absolute',
                 // Flush with the top of the screen: the plank hangs from it.
-                position: { top: 0 },
+                position: { top: -hudBleed() },
                 width: '100%',
                 flexDirection: 'row',
                 justifyContent: 'center'
@@ -370,10 +378,10 @@ const hud = () => {
         <UiEntity
             uiTransform={{
                 width: '100%',
-                height: HUD_PILL_HEIGHT,
+                height: HUD_PILL_HEIGHT + hudBleed(),
                 flexDirection: 'row',
                 alignItems: 'center',
-                padding: { left: 18, right: 22, top: HUD_PADDING_Y, bottom: HUD_PADDING_Y }
+                padding: { left: 18, right: 22, top: HUD_PADDING_Y + hudBleed(), bottom: HUD_PADDING_Y }
             }}
             uiBackground={{ texture: { src: HUD_BG_IMAGE }, textureMode: 'nine-slices', textureSlices: HUD_BG_SLICES, uvs: HUD_BG_UVS }}
         >
@@ -2363,12 +2371,12 @@ const inventoryPanel = () => {
     )
 }
 
-// Dressed like the Map button next to it: an icon alone, no label.
+// Dressed like the Map button next to it: an icon alone, no label. The last piece of the dock.
 const inventoryButton = () => (
     <UiEntity
         uiTransform={{
             positionType: 'absolute',
-            position: { bottom: BOTTOM_BUTTON_Y, right: 0 },
+            ...dockPosition(dockInventoryLeft(), BOTTOM_BUTTON_Y),
             width: bottomButtonWidth(),
             height: BOTTOM_PANEL_HEIGHT,
             borderRadius: 8,
@@ -2435,7 +2443,7 @@ const mapButton = () => (
     <UiEntity
         uiTransform={{
             positionType: 'absolute',
-            position: { bottom: BOTTOM_BUTTON_Y, right: bottomButtonWidth() + BOTTOM_BUTTON_GAP },
+            ...dockPosition(dockMapLeft(), BOTTOM_BUTTON_Y),
             width: bottomButtonWidth(),
             height: BOTTOM_PANEL_HEIGHT,
             borderRadius: 8,
@@ -2464,8 +2472,9 @@ const mapButton = () => (
 
 // --- Bottom buttons -----------------------------------------------------------------------
 //
-// Two status panels on the bottom-left of the column — the pick in hand and the M.U.L.E.
-// fleet — each opening its own dropdown above it. Map and Inventory on the bottom-right.
+// One dock centred at the bottom of the column, four pieces in a row: two status panels — the
+// pick in hand and the M.U.L.E. fleet, each opening its own dropdown above it — then Map and
+// Inventory. The centre is also the part of the bottom edge the mobile controls leave free.
 
 const BOTTOM_BUTTON_Y = 28
 const BOTTOM_BUTTON_HEIGHT = 44
@@ -2498,6 +2507,32 @@ function bottomPanelWidth(): number {
     return isMobile() ? BOTTOM_PANEL_WIDTH_MOBILE : BOTTOM_PANEL_WIDTH
 }
 
+/** Where each piece of the dock starts, from the dock's left edge. */
+function dockPickLeft(): number {
+    return 0
+}
+function dockMuleLeft(): number {
+    return bottomPanelWidth() + BOTTOM_BUTTON_GAP
+}
+function dockMapLeft(): number {
+    return 2 * (bottomPanelWidth() + BOTTOM_BUTTON_GAP)
+}
+function dockInventoryLeft(): number {
+    return dockMapLeft() + bottomButtonWidth() + BOTTOM_BUTTON_GAP
+}
+function dockWidth(): number {
+    return dockInventoryLeft() + bottomButtonWidth()
+}
+
+/**
+ * Places something `left` pixels in from the dock's left edge. The column's width is a share of
+ * the screen, so the dock is anchored at its centre and shifted back by half its width; the
+ * shift goes in the margin, since percentages and pixels do not add.
+ */
+function dockPosition(left: number, bottom: number) {
+    return { position: { bottom, left: '50%' as const }, margin: { left: left - dockWidth() / 2 } }
+}
+
 /** Where a dropdown starts: just above the status panels. */
 const DROPDOWN_BOTTOM = BOTTOM_BUTTON_Y + BOTTOM_PANEL_HEIGHT + BOTTOM_BUTTON_GAP
 
@@ -2523,7 +2558,7 @@ const bottomPanel = (panel: BottomPanel) => (
         key={panel.key}
         uiTransform={{
             positionType: 'absolute',
-            position: { bottom: BOTTOM_BUTTON_Y, left: panel.left },
+            ...dockPosition(panel.left, BOTTOM_BUTTON_Y),
             width: bottomPanelWidth(),
             height: BOTTOM_PANEL_HEIGHT,
             flexDirection: 'row',
@@ -2586,7 +2621,7 @@ const dropdown = (left: number, title: string, onClose: () => void, children: Re
     <UiEntity
         uiTransform={{
             positionType: 'absolute',
-            position: { bottom: DROPDOWN_BOTTOM, left },
+            ...dockPosition(left, DROPDOWN_BOTTOM),
             flexDirection: 'column',
             padding: { left: 8, right: 8, bottom: 8, top: 2 },
             borderRadius: 10,
@@ -2667,7 +2702,7 @@ const pickButton = () => {
     const max = pick?.durability ?? 0
     return bottomPanel({
         key: 'pick-panel',
-        left: 0,
+        left: dockPickLeft(),
         open: pickSelectorOpen,
         onToggle: () => {
             pickSelectorOpen = !pickSelectorOpen
@@ -2745,14 +2780,14 @@ const pickSelector = () => {
     const pick = activePick((id) => getOwned(id), getEquipped())
     // No pick at all: say so, and where the free one comes from, like the M.U.L.E. dropdown does.
     if (pick === null) {
-        return dropdown(0, 'Manual Tool', closePickSelector, [
+        return dropdown(dockPickLeft(), 'Manual Tool', closePickSelector, [
             dropdownCard('pick-card', [
                 dropdownLine('state', 'Not Owned', 17, MUTED_COLOR),
                 dropdownLine('hint', 'Claim your welcome pick from the Mayor', 14, BANK_CAPTION, 2)
             ])
         ])
     }
-    return dropdown(0, 'Manual Tool', closePickSelector, PICKS.map((item) => pickRow(item, item.id === pick.id)))
+    return dropdown(dockPickLeft(), 'Manual Tool', closePickSelector, PICKS.map((item) => pickRow(item, item.id === pick.id)))
 }
 
 // --- M.U.L.E. summary ---------------------------------------------------------------------
@@ -2799,7 +2834,7 @@ const muleButton = () => {
             pickSelectorOpen = false
         }
     }
-    const left = bottomPanelWidth() + BOTTOM_BUTTON_GAP
+    const left = dockMuleLeft()
     if (mules <= 0) {
         return bottomPanel({
             key: 'mule-panel',
@@ -2853,7 +2888,7 @@ const muleDropdown = () => {
             dropdownLine('hint', 'Visit your M.U.L.E. for details', 13, BANK_CAPTION)
         )
     }
-    return dropdown(bottomPanelWidth() + BOTTOM_BUTTON_GAP, 'M.U.L.E.', closeMuleDropdown, [dropdownCard('mule-card', rows)])
+    return dropdown(dockMuleLeft(), 'M.U.L.E.', closeMuleDropdown, [dropdownCard('mule-card', rows)])
 }
 
 // --- Objective tracker --------------------------------------------------------------------
