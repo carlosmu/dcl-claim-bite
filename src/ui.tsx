@@ -207,7 +207,7 @@ const ICON_MULE = atlasCell(2, 2) // B2
 const ICON_FUEL = atlasCell(3, 2) // C2
 const ICON_WAREHOUSE = atlasCell(4, 2) // D2
 const ICON_BANK = atlasCell(1, 3) // A3
-const ICON_HOUSE = atlasCell(2, 3) // B3
+const ICON_SOUND = atlasCell(2, 3) // B3 — speaker
 const ICON_LOCK = atlasCell(3, 3) // C3
 const ICON_TIMER = atlasCell(4, 3) // D3
 const ICON_FORBIDDEN = atlasCell(1, 4) // A4 — skull / prohibited
@@ -2977,7 +2977,7 @@ const ownerStats = () => {
                 />
                 <Label value={card.online ? 'In town' : 'Away'} fontSize={18} color={card.online ? SERVER_ONLINE_COLOR : MUTED_COLOR} textAlign="middle-left" uiTransform={{ height: OWNER_STAT_HEIGHT }} />
             </UiEntity>
-            {ownerStat(PROPERTY_ICONS[card.property] ?? ICON_HOUSE, property?.label ?? 'Property')}
+            {ownerStat(PROPERTY_ICONS[card.property] ?? ICON_HOUSE_HOME, property?.label ?? 'Property')}
             {ownerStat(PICK_ICONS[card.pick] ?? ICON_PICK_IRON, pick?.label ?? 'No pick', pick !== null ? BANK_CREAM : MUTED_COLOR)}
             {ownerStat(ICON_MULE, card.mules > 0 ? `${card.mules} M.U.L.E.` : 'No M.U.L.E.', card.mules > 0 ? BANK_CREAM : MUTED_COLOR)}
             {ownerStat(ICON_WAREHOUSE, storage?.label ?? 'Basic storage')}
@@ -3153,13 +3153,38 @@ const ownerCardPanel = () => {
 
 // --- Notifications ------------------------------------------------------------------------
 //
-// A bell just above the tracker's top-right corner opens the tracker's last few messages
+// A bell in the screen's top-right corner, level with the HUD, opens the tracker's last few messages
 // (ui/objective.ts keeps them), newest first, with a Clear that empties the list. Dressed like
 // the inventory, and like it, one screen at a time: opening it closes the map and the inventory.
 
-const NOTIFY_BUTTON_SIZE = 40
-const NOTIFY_BUTTON_GAP = 6
 const NOTIFY_PANEL_WIDTH = 560
+/** How far in from the screen's right edge Notifications sits: far enough that Sound's left
+ *  edge lines up with the objective tracker's below. */
+const CORNER_BUTTON_RIGHT = HUD_MARGIN + OBJECTIVE_WIDTH - (2 * BOTTOM_BUTTON_WIDTH + BOTTOM_BUTTON_GAP)
+
+/** Sound and Notifications: square icon buttons like Map and Inventory, side by side on the
+ *  screen's top-right corner, Notifications at the edge. `slot` counts from the right. Centred
+ *  on the HUD's height: the plank hangs from the top of the screen. */
+const cornerButton = (slot: number, open: boolean, icon: Icon, onPress: () => void) => (
+    <UiEntity
+        uiTransform={{
+            positionType: 'absolute',
+            position: { top: (HUD_PILL_HEIGHT - BOTTOM_PANEL_HEIGHT) / 2, right: CORNER_BUTTON_RIGHT + slot * (bottomButtonWidth() + BOTTOM_BUTTON_GAP) },
+            width: bottomButtonWidth(),
+            height: BOTTOM_PANEL_HEIGHT,
+            borderRadius: 8,
+            borderWidth: 2,
+            borderColor: open ? BANK_GOLD : BANK_TRIM,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center'
+        }}
+        uiBackground={{ color: BOTTOM_BUTTON_COLOR }}
+        onMouseDown={onPress}
+    >
+        <UiEntity uiTransform={bottomButtonIcon()} uiBackground={iconBackground(icon)} />
+    </UiEntity>
+)
 
 let notificationsOpen = false
 
@@ -3171,41 +3196,17 @@ function timeAgo(at: number): string {
     return `${Math.floor(seconds / 3600)} h ago`
 }
 
-const notificationsButton = () => (
-    <UiEntity
-        uiTransform={{
-            positionType: 'absolute',
-            position: { top: OBJECTIVE_TOP, right: HUD_MARGIN },
-            // Lifted clear of the tracker, which starts at OBJECTIVE_TOP; the units do not add.
-            margin: { top: -(NOTIFY_BUTTON_SIZE + NOTIFY_BUTTON_GAP) },
-            height: NOTIFY_BUTTON_SIZE,
-            flexDirection: 'row',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: { left: 6, right: 12 },
-            borderRadius: 8,
-            borderWidth: 2,
-            borderColor: notificationsOpen ? BANK_GOLD : BANK_TRIM
-        }}
-        uiBackground={{ color: HUD_BACKGROUND }}
-        onMouseDown={() => {
-            notificationsOpen = !notificationsOpen
-            if (notificationsOpen) {
-                soundOpen = false
-                mapOpen = false
-                inventoryOpen = false
-                pickSelectorOpen = false
-                muleDropdownOpen = false
-            }
-        }}
-    >
-        <UiEntity
-            uiTransform={{ width: NOTIFY_BUTTON_SIZE - 12, height: NOTIFY_BUTTON_SIZE - 12, margin: { right: 6 }, flexShrink: 0 }}
-            uiBackground={iconBackground(ICON_NOTIFICATION)}
-        />
-        <BitmapText value="NOTIFICATIONS" fontSize={20} color={notificationsOpen ? BANK_GOLD_LIGHT : BANK_CREAM} />
-    </UiEntity>
-)
+const notificationsButton = () =>
+    cornerButton(0, notificationsOpen, ICON_NOTIFICATION, () => {
+        notificationsOpen = !notificationsOpen
+        if (notificationsOpen) {
+            soundOpen = false
+            mapOpen = false
+            inventoryOpen = false
+            pickSelectorOpen = false
+            muleDropdownOpen = false
+        }
+    })
 
 const notificationRow = (entry: PastObjective, index: number) => (
     <UiEntity
@@ -3287,7 +3288,7 @@ const notificationsPanel = () => {
 // --- Sound -------------------------------------------------------------------------------
 //
 // Music and SFX volume, each a row of VOLUME_STEPS segments: tap one to set the level there,
-// or step with - and +. The button stacks above Notifications and opens like it.
+// or step with - and +. The button sits left of Notifications and opens like it.
 
 const SOUND_PANEL_WIDTH = 520
 const SOUND_SEGMENT_WIDTH = 26
@@ -3298,37 +3299,17 @@ const SOUND_SEGMENT_OFF = Color4.create(0.23, 0.16, 0.1, 1)
 
 let soundOpen = false
 
-const soundButton = () => (
-    <UiEntity
-        uiTransform={{
-            positionType: 'absolute',
-            position: { top: OBJECTIVE_TOP, right: HUD_MARGIN },
-            // One more button's height above Notifications.
-            margin: { top: -2 * (NOTIFY_BUTTON_SIZE + NOTIFY_BUTTON_GAP) },
-            height: NOTIFY_BUTTON_SIZE,
-            flexDirection: 'row',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: { left: 12, right: 12 },
-            borderRadius: 8,
-            borderWidth: 2,
-            borderColor: soundOpen ? BANK_GOLD : BANK_TRIM
-        }}
-        uiBackground={{ color: HUD_BACKGROUND }}
-        onMouseDown={() => {
-            soundOpen = !soundOpen
-            if (soundOpen) {
-                notificationsOpen = false
-                mapOpen = false
-                inventoryOpen = false
-                pickSelectorOpen = false
-                muleDropdownOpen = false
-            }
-        }}
-    >
-        <BitmapText value="SOUND" fontSize={20} color={soundOpen ? BANK_GOLD_LIGHT : BANK_CREAM} />
-    </UiEntity>
-)
+const soundButton = () =>
+    cornerButton(1, soundOpen, ICON_SOUND, () => {
+        soundOpen = !soundOpen
+        if (soundOpen) {
+            notificationsOpen = false
+            mapOpen = false
+            inventoryOpen = false
+            pickSelectorOpen = false
+            muleDropdownOpen = false
+        }
+    })
 
 const soundStepButton = (label: string, enabled: boolean, onPress: () => void) => (
     <UiEntity
