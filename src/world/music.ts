@@ -1,4 +1,5 @@
 import { AudioSource, Entity, engine, Transform } from '@dcl/sdk/ecs'
+import { musicVolume, onMusicVolumeChange } from './volume'
 
 // Background music: one looping, non-positional track for the whole town.
 //
@@ -25,7 +26,7 @@ export function setupMusic(): void {
     audioClipUrl: INTRO_CLIP,
     playing: true,
     loop: true,
-    volume: INTRO_VOLUME,
+    volume: INTRO_VOLUME * musicVolume(),
     global: true
   })
 
@@ -36,8 +37,13 @@ export function setupMusic(): void {
     audioClipUrl: MUSIC_CLIP,
     playing: false,
     loop: true,
-    volume: MUSIC_VOLUME,
+    volume: MUSIC_VOLUME * musicVolume(),
     global: true
+  })
+
+  onMusicVolumeChange(() => {
+    if (introEntity !== undefined) AudioSource.getMutable(introEntity).volume = INTRO_VOLUME * musicVolume()
+    if (musicEntity !== undefined) AudioSource.getMutable(musicEntity).volume = MUSIC_VOLUME * musicVolume()
   })
 }
 

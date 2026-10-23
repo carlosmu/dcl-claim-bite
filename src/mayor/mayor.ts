@@ -6,6 +6,7 @@ import { getHitsPerRock, sendClaimPick } from '../net/economy-link'
 import { placeTutorialRock } from '../mining/rocks'
 import { TUTORIAL_ROCK_SEQS } from '../shared/net/rock-sync'
 import { playSubtitles } from '../world/subtitles'
+import { sfxVolume } from '../world/volume'
 import { getIntroChoice, isWelcomePlaying } from '../world/intro-state'
 
 // The town mayor, standing at spawn. Walking up to him with no pick gets you one — free, and
@@ -93,7 +94,7 @@ function showPracticeRock(dt: number): void {
   if (line !== null) engine.removeEntity(line)
   line = engine.addEntity()
   Transform.create(line, { position: Vector3.add(at.position, Vector3.create(0, 1.6, 0)) })
-  AudioSource.create(line, { audioClipUrl: MINING_LINE, playing: true, loop: false, volume: 1, global: true })
+  AudioSource.create(line, { audioClipUrl: MINING_LINE, playing: true, loop: false, volume: sfxVolume(), global: true })
   playSubtitles(MINING_LINE_SUBTITLES, MINING_LINE_SECONDS)
   turnTimer = MINING_LINE_SUBTITLES[1].at
 }

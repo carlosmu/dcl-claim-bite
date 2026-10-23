@@ -5,6 +5,7 @@ import { movePlayerTo } from '~system/RestrictedActions'
 
 import { MAYOR_ENTITY_NAME } from '../mayor/mayor'
 import { setWelcomePlaying } from './intro-state'
+import { sfxVolume } from './volume'
 
 // The welcome shot, played once when the title card has faded: a camera just behind the
 // player looks over their shoulder at the town mayor, black bars come in, and after a beat
@@ -106,7 +107,7 @@ function welcomeSystem(dt: number): void {
   if (before < AUDIO_DELAY_SECONDS && elapsed >= AUDIO_DELAY_SECONDS) {
     audio = engine.addEntity()
     Transform.create(audio, {})
-    AudioSource.create(audio, { audioClipUrl: WELCOME_AUDIO, playing: true, loop: false, volume: 1, global: true })
+    AudioSource.create(audio, { audioClipUrl: WELCOME_AUDIO, playing: true, loop: false, volume: sfxVolume(), global: true })
   }
 
   if (elapsed >= TOTAL_SECONDS) finish()

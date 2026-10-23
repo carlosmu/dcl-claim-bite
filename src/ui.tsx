@@ -69,6 +69,7 @@ import { quotedRate } from './shared/state/market'
 import { BitmapText } from './ui/bitmap-text'
 import { introScreen } from './ui/intro-screen'
 import { welcomeOverlay } from './ui/welcome-overlay'
+import { getMusicStep, getSfxStep, setMusicStep, setSfxStep, VOLUME_STEPS } from './world/volume'
 import { clearObjectiveHistory, getObjective, getObjectiveClock, getObjectiveHistory, Objective, PastObjective, setupObjective } from './ui/objective'
 
 export function setupUi() {
@@ -2383,6 +2384,7 @@ const inventoryButton = () => (
             inventoryOpen = !inventoryOpen
             if (inventoryOpen) {
                 notificationsOpen = false
+                soundOpen = false
                 mapOpen = false
                 pickSelectorOpen = false
                 muleDropdownOpen = false
@@ -2449,6 +2451,7 @@ const mapButton = () => (
             mapOpen = !mapOpen
             if (mapOpen) {
                 notificationsOpen = false
+                soundOpen = false
                 inventoryOpen = false
                 pickSelectorOpen = false
                 muleDropdownOpen = false
@@ -3188,6 +3191,7 @@ const notificationsButton = () => (
         onMouseDown={() => {
             notificationsOpen = !notificationsOpen
             if (notificationsOpen) {
+                soundOpen = false
                 mapOpen = false
                 inventoryOpen = false
                 pickSelectorOpen = false
@@ -3280,6 +3284,142 @@ const notificationsPanel = () => {
     )
 }
 
+// --- Sound -------------------------------------------------------------------------------
+//
+// Music and SFX volume, each a row of VOLUME_STEPS segments: tap one to set the level there,
+// or step with - and +. The button stacks above Notifications and opens like it.
+
+const SOUND_PANEL_WIDTH = 520
+const SOUND_SEGMENT_WIDTH = 26
+const SOUND_SEGMENT_HEIGHT = 32
+const SOUND_SEGMENT_GAP = 4
+const SOUND_STEP_SIZE = 40
+const SOUND_SEGMENT_OFF = Color4.create(0.23, 0.16, 0.1, 1)
+
+let soundOpen = false
+
+const soundButton = () => (
+    <UiEntity
+        uiTransform={{
+            positionType: 'absolute',
+            position: { top: OBJECTIVE_TOP, right: HUD_MARGIN },
+            // One more button's height above Notifications.
+            margin: { top: -2 * (NOTIFY_BUTTON_SIZE + NOTIFY_BUTTON_GAP) },
+            height: NOTIFY_BUTTON_SIZE,
+            flexDirection: 'row',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: { left: 12, right: 12 },
+            borderRadius: 8,
+            borderWidth: 2,
+            borderColor: soundOpen ? BANK_GOLD : BANK_TRIM
+        }}
+        uiBackground={{ color: HUD_BACKGROUND }}
+        onMouseDown={() => {
+            soundOpen = !soundOpen
+            if (soundOpen) {
+                notificationsOpen = false
+                mapOpen = false
+                inventoryOpen = false
+                pickSelectorOpen = false
+                muleDropdownOpen = false
+            }
+        }}
+    >
+        <BitmapText value="SOUND" fontSize={20} color={soundOpen ? BANK_GOLD_LIGHT : BANK_CREAM} />
+    </UiEntity>
+)
+
+const soundStepButton = (label: string, enabled: boolean, onPress: () => void) => (
+    <UiEntity
+        uiTransform={{
+            width: SOUND_STEP_SIZE,
+            height: SOUND_STEP_SIZE,
+            justifyContent: 'center',
+            alignItems: 'center',
+            flexShrink: 0,
+            borderRadius: 8,
+            borderWidth: 2,
+            borderColor: BANK_TRIM
+        }}
+        uiBackground={{ color: enabled ? BANK_GOLD : DISABLED_COLOR }}
+        onMouseDown={() => {
+            if (enabled) onPress()
+        }}
+    >
+        <BitmapText value={label} fontSize={28} color={enabled ? BANK_INK : MUTED_COLOR} />
+    </UiEntity>
+)
+
+const soundRow = (title: string, step: number, setStep: (step: number) => void) => (
+    <UiEntity
+        uiTransform={{
+            width: '100%',
+            flexDirection: 'column',
+            padding: { left: 14, right: 14, top: 8, bottom: 12 },
+            margin: { bottom: 10 },
+            borderRadius: 10,
+            borderWidth: 2,
+            borderColor: BANK_TRIM
+        }}
+        uiBackground={{ color: BANK_WOOD }}
+    >
+        <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', margin: { bottom: 6 } }}>
+            <BitmapText value={title} fontSize={22} color={BANK_GOLD_LIGHT} />
+            <Label value={step === 0 ? 'Off' : `${step * (100 / VOLUME_STEPS)}%`} fontSize={16} color={BANK_CREAM} textAlign="middle-right" textWrap="nowrap" uiTransform={{ height: 22 }} />
+        </UiEntity>
+        <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            {soundStepButton('-', step > 0, () => setStep(step - 1))}
+            <UiEntity uiTransform={{ flexDirection: 'row', alignItems: 'center' }}>
+                {Array.from({ length: VOLUME_STEPS }, (_, i) => (
+                    <UiEntity
+                        key={`${title}-${i}`}
+                        uiTransform={{
+                            width: SOUND_SEGMENT_WIDTH,
+                            height: SOUND_SEGMENT_HEIGHT,
+                            margin: { left: i === 0 ? 0 : SOUND_SEGMENT_GAP },
+                            borderRadius: 4
+                        }}
+                        uiBackground={{ color: i < step ? BANK_GOLD : SOUND_SEGMENT_OFF }}
+                        // Tapping the lit top segment turns it off, so the bar can reach zero.
+                        onMouseDown={() => setStep(i + 1 === step ? i : i + 1)}
+                    />
+                ))}
+            </UiEntity>
+            {soundStepButton('+', step < VOLUME_STEPS, () => setStep(step + 1))}
+        </UiEntity>
+    </UiEntity>
+)
+
+const soundPanel = () => (
+    <UiEntity
+        uiTransform={{
+            width: SOUND_PANEL_WIDTH,
+            flexDirection: 'column',
+            alignItems: 'center',
+            padding: BANK_PANEL_PADDING,
+            borderRadius: PANEL_RADIUS,
+            borderWidth: 3,
+            borderColor: BANK_TRIM
+        }}
+        uiBackground={{ color: BANK_WOOD_DARK }}
+    >
+        <BitmapText value="SOUND" fontSize={40} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%', margin: { bottom: 12 } }} />
+        <Button
+            value="X"
+            fontSize={30}
+            color={Color4.White()}
+            uiTransform={{ positionType: 'absolute', position: { top: BANK_PANEL_PADDING, right: BANK_PANEL_PADDING }, width: 48, height: 48, borderRadius: PANEL_RADIUS }}
+            uiBackground={{ color: MAP_CLOSE_COLOR }}
+            onMouseDown={() => {
+                soundOpen = false
+            }}
+        />
+        {soundRow('MUSIC', getMusicStep(), setMusicStep)}
+        {soundRow('SFX', getSfxStep(), setSfxStep)}
+    </UiEntity>
+)
+
 export const uiMenu = () => (
     <UiEntity
         uiTransform={{
@@ -3294,6 +3434,7 @@ export const uiMenu = () => (
             edge. They come first because later siblings draw on top: an open panel covers them. */}
         {objectiveTracker()}
         {notificationsButton()}
+        {soundButton()}
         {DEBUG_RESET_PROGRESS || DEBUG_ADD_COINS || DEBUG_ADD_ORE || DEBUG_SERVER_STATUS ? debugBox() : null}
         {/* main-container: every piece of UI goes in here */}
         <UiEntity
@@ -3319,11 +3460,12 @@ export const uiMenu = () => (
             {mapOpen ? mapPanel() : null}
             {inventoryOpen ? inventoryPanel() : null}
             {notificationsOpen ? notificationsPanel() : null}
-            {!mapOpen && !inventoryOpen && !notificationsOpen && isBankPanelOpen() ? bankPanel() : null}
-            {!mapOpen && !inventoryOpen && !notificationsOpen && isStorePanelOpen() ? storePanel() : null}
-            {!mapOpen && !inventoryOpen && !notificationsOpen && isLandOfficePanelOpen() ? landOfficePanel() : null}
-            {!mapOpen && !inventoryOpen && !notificationsOpen && isMulePanelOpen() && getMuleCount() > 0 ? mulePanel() : null}
-            {!mapOpen && !inventoryOpen && !notificationsOpen && isOwnerCardOpen() ? ownerCardPanel() : null}
+            {soundOpen ? soundPanel() : null}
+            {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && isBankPanelOpen() ? bankPanel() : null}
+            {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && isStorePanelOpen() ? storePanel() : null}
+            {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && isLandOfficePanelOpen() ? landOfficePanel() : null}
+            {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && isMulePanelOpen() && getMuleCount() > 0 ? mulePanel() : null}
+            {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && isOwnerCardOpen() ? ownerCardPanel() : null}
             {pickSelector()}
             {muleDropdown()}
         </UiEntity>

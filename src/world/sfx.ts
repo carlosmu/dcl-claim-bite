@@ -1,4 +1,5 @@
 import { AudioSource, Entity, engine, Transform } from '@dcl/sdk/ecs'
+import { sfxVolume } from './volume'
 
 // One-shot sounds that aren't tied to any object in the world.
 //
@@ -7,7 +8,8 @@ import { AudioSource, Entity, engine, Transform } from '@dcl/sdk/ecs'
 // a CRDT PUT — the same reason the mining tap uses it: toggling `playing` false->true inside
 // a single tick ships only the final state, and the renderer never sees a change.
 //
-// playSound spreads the existing component, so the volume set at creation survives.
+// playSound spreads the existing component, so the volume set just before it survives; it is
+// set on every play so the SFX slider applies to the next sound.
 
 const entitiesByClip = new Map<string, Entity>()
 
@@ -21,11 +23,11 @@ export function playSfx(clip: string, volume: number = 1): void {
       audioClipUrl: clip,
       playing: false,
       loop: false,
-      volume,
       global: true
     })
     entitiesByClip.set(clip, entity)
   }
 
+  AudioSource.getMutable(entity).volume = volume * sfxVolume()
   AudioSource.playSound(entity, clip, true)
 }

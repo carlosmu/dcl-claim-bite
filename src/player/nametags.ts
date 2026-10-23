@@ -12,7 +12,7 @@ type TierStyle = { title: string; background: Color3; border: Color3 }
 // White, orange, yellow, green. The dark label stays the same on all four so it keeps its
 // contrast on a phone screen.
 const TIERS: Record<number, TierStyle> = {
-  1: { title: 'Prospector', background: Color3.White(), border: Color3.create(0.45, 0.45, 0.45) },
+  1: { title: 'Drifter', background: Color3.White(), border: Color3.create(0.45, 0.45, 0.45) },
   2: { title: 'Cabin Owner', background: Color3.create(1, 0.6, 0.15), border: Color3.create(0.55, 0.28, 0.05) },
   3: { title: 'Homeowner', background: Color3.Yellow(), border: Color3.create(0.45, 0.3, 0.08) },
   4: { title: 'Ranch Owner', background: Color3.create(0.4, 0.85, 0.35), border: Color3.create(0.15, 0.4, 0.12) }

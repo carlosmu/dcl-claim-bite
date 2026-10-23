@@ -11,6 +11,7 @@ import { Color4, Vector3 } from '@dcl/sdk/math'
 
 import { activePick } from '../shared/economy/catalogue'
 import { getEquipped, getOwned } from '../shared/state/inventory'
+import { sfxVolume } from '../world/volume'
 
 // How each pick FEELS, on top of how fast it digs (that is the catalogue's hitsPerRock). Going
 // Stranger → Miner → Master should be felt in the hands, not only read in a number: every tier
@@ -91,7 +92,7 @@ export function playHitFeedback(spot: Vector3): void {
 
   // playSound keeps the rest of the component, so the tier's volume and pitch go in first.
   const audio = AudioSource.getMutable(soundEntity())
-  audio.volume = feel.volume
+  audio.volume = feel.volume * sfxVolume()
   audio.pitch = feel.pitch
   AudioSource.playSound(soundEntity(), HIT_SOUND, true)
 

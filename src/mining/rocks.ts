@@ -477,7 +477,7 @@ function update(dt: number): void {
       sendRockDone(rock.seq)
       if (rock === tutorial) removeTutorialRock()
       playSfx(ROCK_DONE_SOUND, 0.8)
-      playSfx(ROCK_BREAK_SOUND)
+      playSfx(ROCK_BREAK_SOUND, 0.5)
       playRockBreak(rock.spot)
       // Shown immediately rather than when the wallet comes back: the swing earned it, and a
       // popup a round trip late would not read as this rock's payout. The HUD is still the one
