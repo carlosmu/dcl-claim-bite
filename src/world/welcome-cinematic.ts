@@ -15,8 +15,11 @@ import { sfxVolume } from './volume'
 // The shot starts by putting the player back at spawn, facing the mayor, and is framed from
 // there rather than from wherever they were. A reload keeps the avatar where it last stood,
 // and a shot built from that could be anywhere, looking anywhere.
+//
+// A player who already owns a pick gets a shorter greeting: the first one hands over a pickaxe.
 
 const WELCOME_AUDIO = 'assets/sounds/mayor_welcome.mp3'
+const WELCOME_BACK_AUDIO = 'assets/sounds/mayor_welcome_back.mp3'
 
 // --- Dials -------------------------------------------------------------------------------
 // The middle of SpawnArea1 in scene.json. Keep the two in step if the spawn moves.
@@ -33,6 +36,8 @@ const AUDIO_DELAY_SECONDS = 2
 // Seconds from the greeting's start to the end of the shot. Set to the clip's length plus a
 // breath once it is final.
 const AUDIO_SECONDS = 8
+// The same, for the welcome back.
+const WELCOME_BACK_AUDIO_SECONDS = 3
 // How long the bars take to slide in, and out at the end.
 const BARS_SECONDS = 0.5
 // How long the shot's camera outlives the shot. The blend back to the player's camera starts
@@ -51,7 +56,15 @@ const SUBTITLES: { at: number; text: string }[] = [
   { at: 5, text: 'Here, take this free pickaxe!' }
 ]
 
-const TOTAL_SECONDS = AUDIO_DELAY_SECONDS + AUDIO_SECONDS
+/** The welcome back's lines, timed the same way. */
+const WELCOME_BACK_SUBTITLES: { at: number; text: string }[] = [{ at: 0, text: 'Welcome back, stranger!' }]
+
+type Greeting = { audio: string; seconds: number; subtitles: { at: number; text: string }[] }
+const FIRST_VISIT: Greeting = { audio: WELCOME_AUDIO, seconds: AUDIO_SECONDS, subtitles: SUBTITLES }
+const RETURNING: Greeting = { audio: WELCOME_BACK_AUDIO, seconds: WELCOME_BACK_AUDIO_SECONDS, subtitles: WELCOME_BACK_SUBTITLES }
+
+let greeting: Greeting = FIRST_VISIT
+let totalSeconds = AUDIO_DELAY_SECONDS + AUDIO_SECONDS
 
 let elapsed = -1
 let camera: Entity | null = null
@@ -62,7 +75,7 @@ let audio: Entity | null = null
 export function getWelcomeBars(): number {
   if (elapsed < 0) return 0
   const into = Math.min(1, elapsed / BARS_SECONDS)
-  const out = Math.min(1, (TOTAL_SECONDS - elapsed) / BARS_SECONDS)
+  const out = Math.min(1, (totalSeconds - elapsed) / BARS_SECONDS)
   return Math.max(0, Math.min(into, out))
 }
 
@@ -71,7 +84,7 @@ export function getWelcomeSubtitle(): string {
   if (elapsed < AUDIO_DELAY_SECONDS) return ''
   const t = elapsed - AUDIO_DELAY_SECONDS
   let line = ''
-  for (const subtitle of SUBTITLES) if (t >= subtitle.at) line = subtitle.text
+  for (const subtitle of greeting.subtitles) if (t >= subtitle.at) line = subtitle.text
   return line
 }
 
@@ -107,15 +120,20 @@ function welcomeSystem(dt: number): void {
   if (before < AUDIO_DELAY_SECONDS && elapsed >= AUDIO_DELAY_SECONDS) {
     audio = engine.addEntity()
     Transform.create(audio, {})
-    AudioSource.create(audio, { audioClipUrl: WELCOME_AUDIO, playing: true, loop: false, volume: sfxVolume(), global: true })
+    AudioSource.create(audio, { audioClipUrl: greeting.audio, playing: true, loop: false, volume: sfxVolume(), global: true })
   }
 
-  if (elapsed >= TOTAL_SECONDS) finish()
+  if (elapsed >= totalSeconds) finish()
 }
 
-/** Starts the welcome shot. Does nothing if the mayor or the player cannot be found. */
-export function playWelcomeCinematic(): void {
+/**
+ * Starts the welcome shot, with the welcome back greeting when `returning`. Does nothing if
+ * the mayor or the player cannot be found.
+ */
+export function playWelcomeCinematic(returning: boolean): void {
   if (elapsed >= 0) return
+  greeting = returning ? RETURNING : FIRST_VISIT
+  totalSeconds = AUDIO_DELAY_SECONDS + greeting.seconds
   const mayor = engine.getEntityOrNullByName(MAYOR_ENTITY_NAME)
   const mayorTransform = mayor === null ? null : Transform.getOrNull(mayor)
   if (mayorTransform === null) {

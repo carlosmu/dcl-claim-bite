@@ -6,9 +6,13 @@ import { isMobile } from '@dcl/sdk/platform'
 import { startTownMusic, stopIntroMusic } from '../world/music'
 import { playWelcomeCinematic } from '../world/welcome-cinematic'
 import { setIntroChoice } from '../world/intro-state'
+import { getHitsPerRock, hasWallet } from '../net/economy-link'
 
 // Title card shown when the game starts: black screen, logo, Start Game button. Tapping the
 // button hides logo and button, then the black backdrop fades to nothing and goes away.
+//
+// The button waits for the server to say whether the player already owns a pick, which picks
+// the mayor's greeting. Until then a Loading bar stands in its place.
 const LOGO = 'assets/images/logo.png'
 // Rounded corners and the black border are baked into the image: the renderer doesn't round
 // a textured background, so borderRadius on the transform showed square corners. The image is
@@ -33,6 +37,19 @@ const SKIP_HIT_PADDING = 14
 // On mobile the screen is only 720 high: the logo and the Start button shrink by this much so
 // the column fits with room to spare, and "Skip intro" stops hugging the bottom edge.
 const MOBILE_SCALE = 0.7
+// "Skip intro" is kept but not shown, so no one skips the welcome by accident.
+const SHOW_SKIP = false
+// Seconds to wait for the server before showing Start Game anyway, as a first visit.
+const LOADING_TIMEOUT_SECONDS = 10
+// The Loading bar: its size, and how fast it creeps towards LOADING_CREEP_MAX while it waits
+// (seconds to cover about two thirds of the way). It never fills on its own.
+const LOADING_BAR_WIDTH = 360
+const LOADING_BAR_HEIGHT = 16
+const LOADING_CREEP_SECONDS = 2
+const LOADING_CREEP_MAX = 0.9
+const LOADING_FONT_SIZE = 28
+// The mining bar's gold.
+const LOADING_FILL = Color4.create(1, 198 / 255, 0, 1)
 
 /** Logo and Start button scale: smaller on mobile. */
 function introScale(): number {
@@ -43,6 +60,24 @@ type Phase = 'title' | 'fading' | 'done'
 let phase: Phase = 'title'
 let fadeElapsed = 0
 let pulseTime = 0
+let loadingElapsed = 0
+
+engine.addSystem(function introLoadingSystem(dt: number) {
+    if (isLoaded()) {
+        engine.removeSystem(introLoadingSystem)
+        return
+    }
+    loadingElapsed += dt
+})
+
+/** Whether the server has said if the player owns a pick, or we gave up waiting. */
+function isLoaded(): boolean {
+    return hasWallet() || loadingElapsed >= LOADING_TIMEOUT_SECONDS
+}
+
+function loadingProgress(): number {
+    return LOADING_CREEP_MAX * (1 - Math.exp(-loadingElapsed / LOADING_CREEP_SECONDS))
+}
 
 engine.addSystem(function introPulseSystem(dt: number) {
     if (phase !== 'title') {
@@ -65,7 +100,7 @@ function startGame(withWelcome: boolean) {
     stopIntroMusic()
     // The shot starts under the fade, so the title dissolves straight into it. It starts the
     // town music itself once the mayor is done; without it, the music starts now.
-    if (withWelcome) playWelcomeCinematic()
+    if (withWelcome) playWelcomeCinematic(getHitsPerRock() > 0)
     else startTownMusic()
     fadeElapsed = 0
     engine.addSystem(function introFadeSystem(dt: number) {
@@ -100,7 +135,30 @@ export function introScreen() {
                     uiBackground={{ textureMode: 'stretch', texture: { src: LOGO } }}
                 />
             ) : null}
-            {phase === 'title' ? (
+            {phase === 'title' && !isLoaded() ? (
+                // In the button's slot, so the logo does not move when the button replaces it.
+                <UiEntity
+                    uiTransform={{
+                        width: BUTTON_WIDTH * scale * PULSE_MAX,
+                        height: BUTTON_HEIGHT * scale * PULSE_MAX,
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                        alignItems: 'center'
+                    }}
+                >
+                    <BitmapText value="Loading" fontSize={LOADING_FONT_SIZE * scale} color={Color4.White()} align="center" />
+                    <UiEntity
+                        uiTransform={{ width: LOADING_BAR_WIDTH * scale, height: LOADING_BAR_HEIGHT * scale, margin: { top: 12 } }}
+                        uiBackground={{ color: Color4.create(0, 0, 0, 0.4) }}
+                    >
+                        <UiEntity
+                            uiTransform={{ width: `${loadingProgress() * 100}%`, height: '100%' }}
+                            uiBackground={{ color: LOADING_FILL }}
+                        />
+                    </UiEntity>
+                </UiEntity>
+            ) : null}
+            {phase === 'title' && isLoaded() ? (
                 // A fixed slot sized for the largest pulse, so the growing button never pushes the logo.
                 <UiEntity
                     uiTransform={{
@@ -126,7 +184,7 @@ export function introScreen() {
                 </UiEntity>
                 </UiEntity>
             ) : null}
-            {phase === 'title' ? (
+            {phase === 'title' && SHOW_SKIP ? (
                 <UiEntity
                     uiTransform={{ margin: { top: SKIP_MARGIN_TOP - SKIP_HIT_PADDING }, padding: SKIP_HIT_PADDING }}
                     onMouseDown={() => startGame(false)}
