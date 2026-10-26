@@ -1,4 +1,4 @@
-import { engine } from '@dcl/sdk/ecs'
+import { engine, UiCanvasInformation } from '@dcl/sdk/ecs'
 import ReactEcs, { UiEntity } from '@dcl/sdk/react-ecs'
 import { BitmapText } from './bitmap-text'
 import { Color4 } from '@dcl/sdk/math'
@@ -8,8 +8,8 @@ import { playWelcomeCinematic } from '../world/welcome-cinematic'
 import { setIntroChoice } from '../world/intro-state'
 import { getHitsPerRock, hasWallet } from '../net/economy-link'
 
-// Title card shown when the game starts: black screen, logo, Start Game button. Tapping the
-// button hides logo and button, then the black backdrop fades to nothing and goes away.
+// Title card shown when the game starts: scrolling backdrop, logo, Start Game button. Tapping the
+// button hides logo and button, then the backdrop fades to nothing and goes away.
 //
 // The button waits for the server to say whether the player already owns a pick, which picks
 // the mayor's greeting. Until then a Loading bar stands in its place.
@@ -18,8 +18,11 @@ const LOGO = 'assets/images/logo.png'
 // a textured background, so borderRadius on the transform showed square corners. The image is
 // drawn at the button's exact aspect ratio (2x), so stretching it doesn't distort the corners.
 const BUTTON_GRADIENT = 'assets/images/button_gradient.png'
-// #4b3d34, a dark earthy brown.
-const BACKDROP = Color4.fromHexString('#4b3d34')
+// The backdrop: a square image, shown at full screen height and repeated across, drifting
+// slowly from right to left.
+const BACKDROP_IMAGE = 'assets/images/intro_background.jpg'
+// How long the backdrop takes to drift one image width.
+const BACKDROP_SCROLL_SECONDS = 15
 const LOGO_SIZE = 520
 const BUTTON_WIDTH = 360
 const BUTTON_HEIGHT = 90
@@ -61,6 +64,23 @@ let phase: Phase = 'title'
 let fadeElapsed = 0
 let pulseTime = 0
 let loadingElapsed = 0
+let scrollTime = 0
+
+engine.addSystem(function introScrollSystem(dt: number) {
+    if (phase === 'done') {
+        engine.removeSystem(introScrollSystem)
+        return
+    }
+    scrollTime += dt
+})
+
+/** UVs that fit the square image to the screen's height and repeat it across, scrolled. */
+function backdropUvs(): number[] {
+    const canvas = UiCanvasInformation.getOrNull(engine.RootEntity)
+    const across = canvas === null || canvas.height <= 0 ? 1 : canvas.width / canvas.height
+    const offset = (scrollTime / BACKDROP_SCROLL_SECONDS) % 1
+    return [offset, 0, offset, 1, offset + across, 1, offset + across, 0]
+}
 
 engine.addSystem(function introLoadingSystem(dt: number) {
     if (isLoaded()) {
@@ -127,7 +147,12 @@ export function introScreen() {
                 justifyContent: 'center',
                 alignItems: 'center'
             }}
-            uiBackground={{ color: Color4.create(BACKDROP.r, BACKDROP.g, BACKDROP.b, alpha) }}
+            uiBackground={{
+                texture: { src: BACKDROP_IMAGE, wrapMode: 'repeat' },
+                textureMode: 'stretch',
+                uvs: backdropUvs(),
+                color: Color4.create(1, 1, 1, alpha)
+            }}
         >
             {phase === 'title' ? (
                 <UiEntity
