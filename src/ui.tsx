@@ -183,6 +183,18 @@ const ORE_BAR_TRACK = Color4.create(0.12, 0.1, 0.06, 1)
 const ORE_BAR_FILL = Color4.create(0.62, 0.48, 0.2, 1)
 const ORE_BAR_FULL_FILL = Color4.create(0.7, 0.24, 0.2, 1)
 const STORAGE_FULL_COLOR = Color4.create(0.95, 0.4, 0.35, 1)
+// The "storage full" badge under the bar: white on red, its red flashing between two shades so
+// it catches the eye on the wood without ever dropping out of sight. Taller than the unit line
+// it stands in, overflowing it evenly, so the segment does not shift when it appears.
+const STORAGE_FULL_BADGE_COLOR = Color4.create(0.85, 0.12, 0.1, 1)
+const STORAGE_FULL_BADGE_DIM_COLOR = Color4.create(0.45, 0.05, 0.04, 1)
+const STORAGE_FULL_BADGE_BLINK_SECONDS = 0.5
+const STORAGE_FULL_BADGE_SIZE = 15
+const STORAGE_FULL_BADGE_HEIGHT = 24
+const STORAGE_FULL_BADGE_PADDING = 10
+const STORAGE_FULL_BADGE_BORDER = 1
+/** How far below the unit line's centre the badge sits. */
+const STORAGE_FULL_BADGE_DROP = 10
 
 /**
  * UVs for one cell of the atlas, addressed like a spreadsheet: column 1 is the left, row 1 is
@@ -336,7 +348,32 @@ const oreSegment = () => {
                     <BitmapText value={`${ore}`} fontSize={ORE_BAR_VALUE_SIZE} color={ORE_COLOR} />
                 </UiEntity>
                 </UiEntity>
-                {hudUnitLine(full ? 'STORAGE FULL' : '', STORAGE_FULL_COLOR, ORE_BAR_WIDTH)}
+                {full ? storageFullBadge() : hudUnitLine('', STORAGE_FULL_COLOR, ORE_BAR_WIDTH)}
+            </UiEntity>
+        </UiEntity>
+    )
+}
+
+/** Stands in the ore segment's unit line while the storage is full; its text starts where "Ore" and the amount do. */
+const storageFullBadge = () => {
+    const bright = Math.floor(uiClock / STORAGE_FULL_BADGE_BLINK_SECONDS) % 2 === 0
+    return (
+        <UiEntity uiTransform={{ width: ORE_BAR_WIDTH, height: HUD_UNIT_SIZE + 2, flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'center' }}>
+            <UiEntity
+                uiTransform={{
+                    height: STORAGE_FULL_BADGE_HEIGHT,
+                    flexShrink: 0,
+                    margin: { left: ORE_BAR_TEXT_INSET - STORAGE_FULL_BADGE_PADDING - STORAGE_FULL_BADGE_BORDER, top: STORAGE_FULL_BADGE_DROP * 2 },
+                    padding: { left: STORAGE_FULL_BADGE_PADDING, right: STORAGE_FULL_BADGE_PADDING },
+                    borderRadius: STORAGE_FULL_BADGE_HEIGHT / 2,
+                    borderWidth: STORAGE_FULL_BADGE_BORDER,
+                    borderColor: Color4.White(),
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                }}
+                uiBackground={{ color: bright ? STORAGE_FULL_BADGE_COLOR : STORAGE_FULL_BADGE_DIM_COLOR }}
+            >
+                <Label value="STORAGE FULL" fontSize={STORAGE_FULL_BADGE_SIZE} color={Color4.White()} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: STORAGE_FULL_BADGE_HEIGHT }} />
             </UiEntity>
         </UiEntity>
     )
