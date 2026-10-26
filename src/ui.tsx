@@ -61,6 +61,7 @@ import {
 import { getActiveMiners } from './shared/net/social-sync'
 import { getDurability, getEquipped, getOwned } from './shared/state/inventory'
 import { getServerTick, isServerOnline } from './net/server-link'
+import { getDeployStamp } from './net/deploy-stamp'
 import { getMiningStatus, getRingPulse, showMoveCloserHint } from './mining/rocks'
 import { setupRollingCounters, shownCoins, shownOre } from './ui/rolling-counter'
 import { getOrePopup, setupOrePopup } from './ui/ore-popup'
@@ -1543,6 +1544,7 @@ const debugBox = () => (
         {DEBUG_ADD_COINS ? debugGrantTool('coins', 'Free coins') : null}
         {DEBUG_ADD_ORE ? debugGrantTool('ore', 'Free ore') : null}
         {DEBUG_SERVER_STATUS ? serverStatus() : null}
+        {DEBUG_SERVER_STATUS ? deployStamp() : null}
     </UiEntity>
 )
 
@@ -1759,6 +1761,13 @@ const serverStatus = () => {
             uiTransform={{ height: SERVER_LABEL_HEIGHT, margin: { top: 6 } }}
         />
     )
+}
+
+/** Under the server status; only once deployed, never in preview. */
+const deployStamp = () => {
+    const stamp = getDeployStamp()
+    if (stamp === undefined) return null
+    return <Label value={`deploy: ${stamp}`} fontSize={14} color={MUTED_COLOR} textAlign="middle-left" uiTransform={{ height: 18 }} />
 }
 
 function fuelLeftText(): string {
