@@ -18,7 +18,7 @@ export const ROCK_ENTITY_ENUM_ID = 3
 export const TUTORIAL_ROCK_SEQS = [-999999, -999998, -999997, -999996]
 
 /** How many rocks stand in the area at once. */
-export const ROCKS_AT_ONCE = 5
+export const ROCKS_AT_ONCE = 10
 
 /**
  * How close two rocks may stand, as a fraction of the area. A new spot is drawn until it is at

@@ -9,15 +9,12 @@ import { AUTH_SERVER_PEER_ID } from '@dcl/sdk/network/message-bus-sync'
 /** Pairs the server's yard entity with its client-side counterpart. */
 export const MULE_YARD_ENTITY_ENUM_ID = 4
 
-/** Metres between spots across the area (X) and along it (Z). */
-export const MULE_YARD_SPACING_X = 4
-export const MULE_YARD_SPACING_Z = 4
+/** Spots across the area (X) and along it (Z); the spacing stretches to fill `Mule_Area`. */
+export const MULE_YARD_COLUMNS = 8
+export const MULE_YARD_ROWS = 8
 
-/**
- * How many slots the server may hand out. Matches the 30 x 20 m `Mule_Area` at the spacing
- * above (7 x 5); a client drops any slot its own grid has no room for.
- */
-export const MULE_YARD_MAX_SLOTS = 35
+/** How many slots the server may hand out: one per spot of the grid. */
+export const MULE_YARD_MAX_SLOTS = MULE_YARD_COLUMNS * MULE_YARD_ROWS
 
 // One entry per parked rig. `slot` counts across the grid row by row; `name` is the owner's
 // display name as the server saw it; `level` drives the "xN" sign.

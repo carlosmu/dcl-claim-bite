@@ -1,4 +1,4 @@
-import { createClickCube } from '../world/click-cube'
+import { ColliderLayer, engine, GltfContainer } from '@dcl/sdk/ecs'
 import { focusPanel, registerPanel } from '../world/panel-focus'
 import { createProximityZone, ProximityZone } from '../world/proximity-zone'
 import { itemsOf } from '../shared/economy/catalogue'
@@ -8,7 +8,8 @@ import { itemsOf } from '../shared/economy/catalogue'
 //
 // Ownership only for now: nothing bought here is placed in the world yet.
 
-export const LAND_OFFICE_ENTITY_NAME = 'Land-Office'
+/** The officer at the counter: clicking him opens the office, and walking up to him does too. */
+const LAND_OFFICER_ENTITY_NAME = 'land_officer'
 export const LAND_OFFICE_RADIUS_METERS = 4
 let zone: ProximityZone | null = null
 
@@ -41,14 +42,14 @@ export function selectProperty(key: string): void {
 }
 
 export function setupLandOffice(): void {
-  // The sign above the door is a TextShape the Creator Hub names 'Text_3'.
-  const cube = createClickCube(LAND_OFFICE_ENTITY_NAME, 'Text_3')
+  const officer = engine.getEntityOrNullByName(LAND_OFFICER_ENTITY_NAME)
+  // His visible meshes take the pointer too: the model may have no invisible collider to click.
+  const model = officer === null ? null : GltfContainer.getMutableOrNull(officer)
+  if (model !== null) model.visibleMeshesCollisionMask = (model.visibleMeshesCollisionMask ?? 0) | ColliderLayer.CL_POINTER
   zone = createProximityZone({
-    entityName: LAND_OFFICE_ENTITY_NAME,
+    entityName: LAND_OFFICER_ENTITY_NAME,
     radiusMeters: LAND_OFFICE_RADIUS_METERS,
-    // Measured from the cube by the door, not the building.
-    entity: cube ?? undefined,
-    click: cube !== null ? { entity: cube, hoverText: 'Open Land & Claim Office' } : undefined,
+    click: officer !== null ? { entity: officer, hoverText: 'Open Land & Claim Office' } : undefined,
     onEnter: () => {
       closed = false
       selected = null

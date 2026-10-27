@@ -1,4 +1,4 @@
-import { createClickCube } from '../world/click-cube'
+import { ColliderLayer, engine, GltfContainer } from '@dcl/sdk/ecs'
 import { focusPanel, registerPanel } from '../world/panel-focus'
 import { createProximityZone, ProximityZone } from '../world/proximity-zone'
 import { getOwned } from '../shared/state/inventory'
@@ -9,7 +9,8 @@ import { sendBuy } from '../net/economy-link'
 // The Market: where coins turn back into gear. Not to be confused with `state/market.ts`,
 // which is the town's ore *price* — this module is the shop the player walks into.
 
-export const SHOP_ENTITY_NAME = 'Market'
+/** The officer at the counter: clicking him opens the store, and walking up to him does too. */
+const SHOP_OFFICER_ENTITY_NAME = 'store_officer'
 export const SHOP_RADIUS_METERS = 4
 let zone: ProximityZone | null = null
 
@@ -70,14 +71,14 @@ export function buyItem(id: ShopItemId): void {
 }
 
 export function setupShop(): void {
-  // The sign above the door is a TextShape the Creator Hub names 'Text_2'.
-  const cube = createClickCube(SHOP_ENTITY_NAME, 'Text_2')
+  const officer = engine.getEntityOrNullByName(SHOP_OFFICER_ENTITY_NAME)
+  // His visible meshes take the pointer too: the model may have no invisible collider to click.
+  const model = officer === null ? null : GltfContainer.getMutableOrNull(officer)
+  if (model !== null) model.visibleMeshesCollisionMask = (model.visibleMeshesCollisionMask ?? 0) | ColliderLayer.CL_POINTER
   zone = createProximityZone({
-    entityName: SHOP_ENTITY_NAME,
+    entityName: SHOP_OFFICER_ENTITY_NAME,
     radiusMeters: SHOP_RADIUS_METERS,
-    // Measured from the cube by the door, not the building.
-    entity: cube ?? undefined,
-    click: cube !== null ? { entity: cube, hoverText: 'Open General Store' } : undefined,
+    click: officer !== null ? { entity: officer, hoverText: 'Open General Store' } : undefined,
     onEnter: () => {
       closed = false
       selected = null

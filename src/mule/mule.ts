@@ -17,7 +17,7 @@ import { Color4, Quaternion, Vector3 } from '@dcl/sdk/math'
 import { getPlayer } from '@dcl/sdk/players'
 
 import { focusPanel, registerPanel } from '../world/panel-focus'
-import { MULE_YARD_SPACING_X, MULE_YARD_SPACING_Z, MuleYard } from '../shared/net/mule-yard-sync'
+import { MULE_YARD_COLUMNS, MULE_YARD_ROWS, MuleYard } from '../shared/net/mule-yard-sync'
 
 // The idle rigs standing in the world. They dig straight into the player's storage; walking up
 // to your rig is where you check on it. Fuel is bought at the General Store.
@@ -57,15 +57,11 @@ export function closeMulePanel(): void {
 
 // --- The yard ------------------------------------------------------------------------------
 //
-// Every owner's rig stands in its own spot of a grid laid over `Mule_Area`, with a black pad
-// marking each spot. Which spot is whose comes from the server (MuleYard). The `MULE` placed in
+// Every owner's rig stands in its own spot of a grid laid over `Mule_Area`. Which spot is whose comes from the server (MuleYard). The `MULE` placed in
 // the Creator Hub is only the template: its model is copied onto each parked rig and the
 // original is emptied, so it can stay where it is for tuning without standing around twice.
 
 export const MULE_AREA_ENTITY_NAME = 'Mule_Area'
-
-/** Size of the black pad under each spot, in metres. */
-const PAD_SIZE_METERS = 1
 
 /** How far above the level sign the owner's name floats. */
 const NAME_SIGN_GAP_METERS = 0.7
@@ -95,31 +91,15 @@ function buildGrid(): void {
   const areaTransform = Transform.get(area)
   const width = areaTransform.scale.x
   const depth = areaTransform.scale.y
-  const columns = Math.max(1, Math.floor(width / MULE_YARD_SPACING_X))
-  const rows = Math.max(1, Math.floor(depth / MULE_YARD_SPACING_Z))
+  const spacingX = width / MULE_YARD_COLUMNS
+  const spacingZ = depth / MULE_YARD_ROWS
 
   yardRoot = engine.addEntity()
   Transform.create(yardRoot, { parent: areaTransform.parent, position: areaTransform.position })
 
-  const flat = Quaternion.fromEulerDegrees(90, 0, 0)
-  for (let row = 0; row < rows; row++) {
-    for (let column = 0; column < columns; column++) {
-      const spot = Vector3.create(
-        -width / 2 + MULE_YARD_SPACING_X * (column + 0.5),
-        0,
-        -depth / 2 + MULE_YARD_SPACING_Z * (row + 0.5)
-      )
-      spots.push(spot)
-
-      const pad = engine.addEntity()
-      Transform.create(pad, {
-        parent: yardRoot,
-        position: Vector3.create(spot.x, 0.01, spot.z),
-        rotation: flat,
-        scale: Vector3.create(PAD_SIZE_METERS, PAD_SIZE_METERS, 1)
-      })
-      MeshRenderer.setPlane(pad)
-      Material.setPbrMaterial(pad, { albedoColor: Color4.Black(), metallic: 0, roughness: 1 })
+  for (let row = 0; row < MULE_YARD_ROWS; row++) {
+    for (let column = 0; column < MULE_YARD_COLUMNS; column++) {
+      spots.push(Vector3.create(-width / 2 + spacingX * (column + 0.5), 0, -depth / 2 + spacingZ * (row + 0.5)))
     }
   }
 }

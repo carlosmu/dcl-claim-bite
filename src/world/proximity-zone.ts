@@ -1,4 +1,4 @@
-import { engine, Entity, InputAction, pointerEventsSystem, Transform } from '@dcl/sdk/ecs'
+import { engine, Entity, getWorldPosition, InputAction, pointerEventsSystem, Transform } from '@dcl/sdk/ecs'
 import { Vector3 } from '@dcl/sdk/math'
 
 // A radius around an entity authored in the Creator Hub, found here by name.
@@ -7,8 +7,8 @@ import { Vector3 } from '@dcl/sdk/math'
 // proximity events are new in SDK 7.27 and an older Explorer never emits them, so the
 // callback would silently never fire. A plain distance check works on every client.
 //
-// A zone can also be clicked open: clicking its click entity (a cube by the door, not the
-// building itself) from further off counts as being there,
+// A zone can also be clicked open: clicking its click entity (the officer at the counter, not
+// the building itself) from further off counts as being there,
 // the same way the M.U.L.E. opens, until the player wanders away or the zone is released.
 
 /** How far you can be from the click entity and still click it. */
@@ -57,12 +57,11 @@ export function createProximityZone(options: ProximityZoneOptions): ProximityZon
   }
 
   function update() {
-    const target = Transform.getOrNull(entity!)
     const player = Transform.getOrNull(engine.PlayerEntity)
-    if (target === null || player === null) return
+    if (player === null || !Transform.has(entity!)) return
 
-    // These entities hang off the scene root, so their local position is already world space.
-    const distance = Vector3.distance(player.position, target.position)
+    // World space: the officers are children of their buildings, so their local position is not.
+    const distance = Vector3.distance(player.position, getWorldPosition(engine, entity!))
     if (clicked && distance > CLICK_KEEP_METERS) clicked = false
     setInside(distance <= options.radiusMeters || clicked, `${distance.toFixed(1)}m`)
   }
