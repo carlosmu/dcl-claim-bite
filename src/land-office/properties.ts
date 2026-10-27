@@ -22,7 +22,8 @@ import { PROPERTY_AREAS, PROPERTY_KINDS, PropertyKind, PropertyLots } from '../s
 
 const PROPERTY_MODELS: Record<PropertyKind, string> = {
   cabin: 'assets/models/cabin.glb',
-  house: 'assets/models/house.glb'
+  house: 'assets/models/house.glb',
+  ranch: 'assets/models/ranch.glb'
 }
 
 /** The same sign stands by every kind of property. */
@@ -35,6 +36,16 @@ const OWNER_SIGN_MODEL = 'assets/models/owner.glb'
 
 /** Which way the properties face within their lot, turned about Y. */
 const PROPERTY_YAW_DEGREES = 0
+
+/**
+ * Kinds whose whole lot, property and sign together, is turned round: even rows face -Z and odd
+ * rows +Z, the other way from the rule above. The lot stays where it is; only its facing flips.
+ */
+const LOTS_TURNED: Record<PropertyKind, boolean> = {
+  cabin: false,
+  house: false,
+  ranch: true
+}
 
 /** Where the sign stands from the lot's origin (a front corner), and which way it faces. */
 const OWNER_SIGN_OFFSET = Vector3.create(0, 0, 0)
@@ -57,7 +68,7 @@ const OWNER_NAME_SIZE = 0.14
 const OWNER_NAME_MAX_WIDTH_METERS = 1.2
 const OWNER_TEXT_COLOR = Color4.fromHexString('#2B1A0EFF')
 /** What the sign says while the lot has no owner. */
-const FOR_SALE_TEXT = 'FOR SALE'
+const forSaleText = (kind: PropertyKind) => `${kind.toUpperCase()}\nFOR SALE`
 const FOR_SALE_SIZE = 0.16
 const FOR_SALE_COLOR = Color4.Black()
 /** How much lower than the owner's lettering FOR SALE starts. */
@@ -77,12 +88,14 @@ const OWNER_CARD_REACH_METERS = 12
 /** Which end of each row the lots count from: the end nearest where players come in. */
 const LOTS_FROM_PLUS_X: Record<PropertyKind, boolean> = {
   cabin: true,
-  house: false
+  house: false,
+  ranch: false
 }
 
 type Lot = { corner: Vector3; yawDegrees: number }
 type Area = { root: Entity; lots: Lot[] }
 type StandingProperty = {
+  kind: PropertyKind
   root: Entity
   /** The property and its sign, which open the owner's card while the lot is owned. */
   model: Entity
@@ -97,7 +110,8 @@ const areas = new Map<PropertyKind, Area>()
 /** Keyed by kind and lot. */
 const standing = new Map<string, StandingProperty>()
 
-// The area is a plane turned flat: its X scale is the width, its Y scale the depth (Z).
+// The area is a plane turned flat, maybe also a quarter round about Y: its X and Y scales are
+// its sides, and the turn decides which of them runs along X (the width) and which along Z.
 function buildArea(kind: PropertyKind): void {
   const { areaName, spacingX, spacingZ } = PROPERTY_AREAS[kind]
   const area = engine.getEntityOrNullByName(areaName)
@@ -106,8 +120,10 @@ function buildArea(kind: PropertyKind): void {
     return
   }
   const areaTransform = Transform.get(area)
-  const width = areaTransform.scale.x
-  const depth = areaTransform.scale.y
+  const sideX = Vector3.rotate(Vector3.create(areaTransform.scale.x, 0, 0), areaTransform.rotation)
+  const sideY = Vector3.rotate(Vector3.create(0, areaTransform.scale.y, 0), areaTransform.rotation)
+  const width = Math.abs(sideX.x) + Math.abs(sideY.x)
+  const depth = Math.abs(sideX.z) + Math.abs(sideY.z)
   const columns = Math.max(1, Math.floor(width / spacingX))
   const rows = Math.max(1, Math.floor(depth / spacingZ))
   // No more lots than the server may hand out, so none stands for sale that cannot be bought.
@@ -118,7 +134,8 @@ function buildArea(kind: PropertyKind): void {
 
   const lots: Lot[] = []
   for (let row = 0; row < rows && lots.length < lotCount; row++) {
-    const facesBack = row % 2 === 1
+    // Turning a lot round about its middle is the same as swapping which corner is its origin.
+    const facesBack = (row % 2 === 1) !== LOTS_TURNED[kind]
     for (let column = 0; column < columns && lots.length < lotCount; column++) {
       // The lot's low corner on the area; a lot turned round has its origin there instead.
       // The first lots handed out are the nearest.
@@ -174,7 +191,7 @@ function build(kind: PropertyKind, area: Area, lot: Lot): StandingProperty {
     scale: Vector3.create(OWNER_PICTURE_SIZE_METERS, OWNER_PICTURE_SIZE_METERS, 1)
   })
 
-  return { root, model, sign: ownerSign, text, picture, shownName: null }
+  return { kind, root, model, sign: ownerSign, text, picture, shownName: null }
 }
 
 // An upgrade moves the owner to the new kind's area, so their old lot goes back on sale.
@@ -189,14 +206,17 @@ function syncLots(): void {
   for (const [key, property] of standing) {
     const owner = owners.get(key)
     // Prefixed so an owner named "FOR SALE" still reads as owned.
-    const shown = owner === undefined ? FOR_SALE_TEXT : `owner:${owner.address}:${owner.name}`
+    const shown = owner === undefined ? forSaleText(property.kind) : `owner:${owner.address}:${owner.name}`
     if (property.shownName === shown) continue
     property.shownName = shown
     Transform.getMutable(property.text).position.y = OWNER_NAME_HEIGHT_METERS - (owner === undefined ? FOR_SALE_DROP_METERS : 0)
     setBitmapText3d(
       property.text,
       owner === undefined
-        ? [{ value: FOR_SALE_TEXT, size: FOR_SALE_SIZE }]
+        ? [
+            { value: property.kind.toUpperCase(), size: FOR_SALE_SIZE },
+            { value: 'FOR SALE', size: FOR_SALE_SIZE }
+          ]
         : [
             { value: OWNER_CAPTION, size: OWNER_CAPTION_SIZE },
             { value: owner.name.toUpperCase(), size: OWNER_NAME_SIZE, maxWidth: OWNER_NAME_MAX_WIDTH_METERS }

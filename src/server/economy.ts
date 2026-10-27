@@ -938,7 +938,7 @@ function sendOwnerCard(asker: string, owner: string, lot: StoredLot | undefined,
       owner,
       found: lot !== undefined,
       name: lot?.name ?? '',
-      // The lot only says cabin or house; the purse knows a ranch too.
+      // The purse is the truth; the lot only stands in when the purse could not be read.
       property: (owned !== null ? ownedTier('housing', count)?.id : undefined) ?? lot?.kind ?? '',
       pick: owned !== null ? activePick(count, equipped)?.id ?? '' : '',
       storage: owned !== null ? ownedTier('storage', count)?.id ?? '' : '',

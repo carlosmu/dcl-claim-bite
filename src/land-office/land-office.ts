@@ -6,7 +6,7 @@ import { itemsOf } from '../shared/economy/catalogue'
 // The Land & Claim Office: where housing is sold. Buying goes through the same `buy` message
 // and the same server checks as the Market (`shop/shop.ts`); only the counter is different.
 //
-// Ownership only for now: nothing bought here is placed in the world yet.
+// What is bought here stands in its kind's area (`properties.ts`); the wagon has no lot.
 
 /** The officer at the counter: clicking him opens the office, and walking up to him does too. */
 const LAND_OFFICER_ENTITY_NAME = 'land_officer'
