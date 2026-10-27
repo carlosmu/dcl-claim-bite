@@ -2451,7 +2451,7 @@ const inventoryButton = () => (
 
 // --- Map ----------------------------------------------------------------------------------
 
-const MAP_IMAGE = 'assets/images/map.jpg'
+const MAP_IMAGE = 'assets/images/map.png'
 /** Share of the screen's width the map takes. It is square, so the height follows the width. */
 const MAP_SCREEN_WIDTH = 0.4
 /** Used until the canvas reports its size, on the first frame or two. */
