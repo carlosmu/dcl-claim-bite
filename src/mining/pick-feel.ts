@@ -15,16 +15,14 @@ import { sfxVolume } from '../world/volume'
 
 // How each pick FEELS, on top of how fast it digs (that is the catalogue's hitsPerRock). Going
 // Stranger → Miner → Master should be felt in the hands, not only read in a number: every tier
-// jolts the rock harder, strikes louder and brighter, and throws more sparks.
+// strikes louder and brighter, and throws more sparks.
 //
-// Sparks are a ParticleSystem, which only the Unity explorer draws; the jolt and the sound work
+// Sparks are a ParticleSystem, which only the Unity explorer draws; the sound works
 // everywhere, so no tier depends on the sparks to feel better.
 
 const HIT_SOUND = 'assets/sounds/picking.mp3'
 
 type Feel = {
-  /** Scale the rock snaps to on a hit, settling back to 1. */
-  bump: number
   volume: number
   /** Higher reads as a harder, cleaner strike. */
   pitch: number
@@ -36,9 +34,9 @@ type Feel = {
 }
 
 const FEELS: Record<string, Feel> = {
-  pick: { bump: 1.08, volume: 0.75, pitch: 0.95, sparks: 4, sparkSize: 0.05, sparkSpeed: 1.5, sparkColor: Color4.create(1, 0.75, 0.4, 1) },
-  'steel-pick': { bump: 1.12, volume: 0.9, pitch: 1.05, sparks: 9, sparkSize: 0.07, sparkSpeed: 2.2, sparkColor: Color4.create(1, 0.85, 0.45, 1) },
-  'miners-pick': { bump: 1.18, volume: 1, pitch: 1.15, sparks: 16, sparkSize: 0.09, sparkSpeed: 3, sparkColor: Color4.create(0.7, 0.9, 1, 1) }
+  pick: { volume: 0.75, pitch: 0.95, sparks: 4, sparkSize: 0.05, sparkSpeed: 1.5, sparkColor: Color4.create(1, 0.75, 0.4, 1) },
+  'steel-pick': { volume: 0.9, pitch: 1.05, sparks: 9, sparkSize: 0.07, sparkSpeed: 2.2, sparkColor: Color4.create(1, 0.85, 0.45, 1) },
+  'miners-pick': { volume: 1, pitch: 1.15, sparks: 16, sparkSize: 0.09, sparkSpeed: 3, sparkColor: Color4.create(0.7, 0.9, 1, 1) }
 }
 
 /** How high above the rock's base the sparks fly from. */

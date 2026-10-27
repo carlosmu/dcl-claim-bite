@@ -8,7 +8,7 @@ import { getOre } from '../shared/state/wallet'
 import { startMineEmote, stopMineEmote } from '../player/mine-emote'
 import { playSfx } from '../world/sfx'
 import { showOrePopup } from '../ui/ore-popup'
-import { currentFeel, playHitFeedback, playRockBreak } from './pick-feel'
+import { playHitFeedback, playRockBreak } from './pick-feel'
 import { ActiveRock, pickRockSpot, ROCKS_AT_ONCE, } from '../shared/net/rock-sync'
 
 // Manual mining (design/balance.md §2, 2026-09-17). No timing bar: a handful of rocks stand at
@@ -55,8 +55,6 @@ type Rock = {
   finished: boolean
   /** Offline only: seconds before a finished rock comes back somewhere else. Negative if not. */
   reshow: number
-  /** Seconds left of the jolt from the last hit. Zero while at rest. */
-  bump: number
 }
 
 /** What the HUD draws under itself while mining. Null while there is nothing to say. */
@@ -152,16 +150,6 @@ let mining = -1
  */
 const OFFLINE_RESHOW_SECONDS = 3
 
-// The jolt a hit gives the rock: it snaps to the pick's bump scale (pick-feel.ts) and settles
-// back to 1 over the time below (10 frames at 30 fps).
-const HIT_BUMP_SECONDS = 10 / 30
-
-// The frame of the mining emote (30 fps) where the pick meets the rock: the jolt starts there
-// rather than the moment the hit is counted, at the end of the swing.
-const HIT_BUMP_EMOTE_FRAME = 30
-// The same moment as the time left on the swing timer, which counts down from SWING_SECONDS.
-const HIT_BUMP_LEAD_SECONDS = SWING_SECONDS - HIT_BUMP_EMOTE_FRAME / 30
-
 /** Seconds until the swing in progress lands. Negative while not swinging. */
 let swingTimer = -1
 
@@ -205,7 +193,7 @@ function findArea(): void {
     const entity = engine.addEntity()
     Transform.create(entity, { scale: Vector3.Zero() })
     GltfContainer.create(entity, { src: ROCK_MODEL, visibleMeshesCollisionMask: 0, invisibleMeshesCollisionMask: 3 })
-    const rock: Rock = { entity, spot: Vector3.Zero(), u: 0, v: 0, seq: 0, hits: 0, finished: false, reshow: -1, bump: 0 }
+    const rock: Rock = { entity, spot: Vector3.Zero(), u: 0, v: 0, seq: 0, hits: 0, finished: false, reshow: -1 }
     const spot = pickRockSpot(rocks)
     rocks.push(rock)
     showRock(rock, spot.u, spot.v, Math.random() * 360, nextOfflineSeq--)
@@ -230,24 +218,11 @@ function showRock(rock: Rock, u: number, v: number, yaw: number, seq: number): v
   rock.hits = 0
   rock.finished = false
   rock.reshow = -1
-  rock.bump = 0
   rock.spot = areaPoint(u, v)
   const t = Transform.getMutable(rock.entity)
   t.position = Vector3.create(rock.spot.x, rock.spot.y + ROCK_LIFT_METERS, rock.spot.z)
   t.rotation = Quaternion.fromEulerDegrees(0, yaw, 0)
   t.scale = Vector3.One()
-}
-
-/** Settles each rock that was just hit back from its jolt to rest. */
-function settleBumps(dt: number): void {
-  for (const rock of allRocks()) {
-    if (rock.bump <= 0) continue
-    rock.bump = Math.max(0, rock.bump - dt)
-    // A finished rock is hidden at scale zero; its jolt must not bring it back.
-    if (rock.finished) continue
-    const size = 1 + (currentFeel().bump - 1) * (rock.bump / HIT_BUMP_SECONDS)
-    Transform.getMutable(rock.entity).scale = Vector3.create(size, size, size)
-  }
 }
 
 /** Follows the server's rocks; before it has said anything, the rocks placed at load stand in. */
@@ -388,7 +363,6 @@ function update(dt: number): void {
   trackStanding(dt)
   if (rocks.length === 0) return
   followSharedRocks(dt)
-  settleBumps(dt)
 
   // Turning from one rock to another drops the swing in flight; the hits on each stay.
   const at = rockAtPlayer()
@@ -440,9 +414,7 @@ function update(dt: number): void {
     swingAnchor = Vector3.clone(Transform.get(engine.PlayerEntity).position)
   }
 
-  const before = swingTimer
   swingTimer -= dt
-  if (before > HIT_BUMP_LEAD_SECONDS && swingTimer <= HIT_BUMP_LEAD_SECONDS) rock.bump = HIT_BUMP_SECONDS
   if (swingTimer <= 0) {
     rock.hits += 1
     // Carried over rather than reset to the full swing, so the hits stay in step with a loop
@@ -508,8 +480,7 @@ export function placeTutorialRock(position: Vector3, seq: number, onDone?: () =>
     seq,
     hits: 0,
     finished: false,
-    reshow: -1,
-    bump: 0
+    reshow: -1
   }
 }
 

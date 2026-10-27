@@ -21,8 +21,8 @@ const PICK_MODELS: Record<string, string> = {
   'miners-pick': 'assets/models/pick-2.glb'
 }
 
-const HELD_POSITION = Vector3.create(0, 0, 0)
-const HELD_ROTATION = Quaternion.fromEulerDegrees(0, 75, 0)
+const HELD_POSITION = Vector3.create(0.05, 0.1, 0)
+const HELD_ROTATION = Quaternion.fromEulerDegrees(0.15, 80, 75)
 const HELD_SCALE = Vector3.create(1, 1, 1)
 
 let anchor: Entity | null = null
