@@ -71,7 +71,7 @@ import { BitmapText } from './ui/bitmap-text'
 import { introScreen } from './ui/intro-screen'
 import { welcomeOverlay } from './ui/welcome-overlay'
 import { getMusicStep, getSfxStep, setMusicStep, setSfxStep, VOLUME_STEPS } from './world/volume'
-import { clearObjectiveHistory, getObjective, getObjectiveClock, getObjectiveHistory, Objective, PastObjective, setupObjective, SOCIAL_BONUS_TITLE } from './ui/objective'
+import { clearObjectiveHistory, dismissObjective, getObjectiveClock, getObjectives, getObjectiveHistory, Objective, PastObjective, setupObjective, SOCIAL_BONUS_TITLE } from './ui/objective'
 
 export function setupUi() {
     setupRollingCounters()
@@ -2939,22 +2939,25 @@ const muleDropdown = () => {
 
 // --- Objective tracker --------------------------------------------------------------------
 //
-// On the right edge of the screen: a bell, a title and two short lines saying the one thing
-// that matters now (see ui/objective.ts). Hidden when there is nothing to say. Alerts wear the
-// warning colour; objectives the bank's gold.
+// On the right edge of the screen: a stack of cards, each a bell, a title and two short lines
+// saying something that matters now (see ui/objective.ts), the first on top. Each closes from its
+// X. Hidden when there is nothing to say. Alerts wear the warning colour; objectives the bank's gold.
 
-const OBJECTIVE_TOP = '30vh'
 const OBJECTIVE_WIDTH = 348
 const OBJECTIVE_ICON_SIZE = 28
 const OBJECTIVE_BAR_HEIGHT = 8
+const OBJECTIVE_GAP = 8
+/** Just under the HUD's bottom edge, the same gap as between the cards. */
+const OBJECTIVE_TOP = HUD_PILL_HEIGHT + OBJECTIVE_GAP
+const OBJECTIVE_CLOSE_SIZE = 32
 
 /** The Social Bonus wears its own green; other alerts the warning colour, objectives gold. */
 const objectiveTitleColor = (objective: Objective) =>
     objective.title === SOCIAL_BONUS_TITLE ? SOCIAL_BONUS_COLOR : objective.alert ? STORAGE_FULL_COLOR : BANK_GOLD_LIGHT
 
 const objectiveTracker = () => {
-    const objective: Objective | null = getObjective()
-    if (objective === null) return null
+    const objectives = getObjectives()
+    if (objectives.length === 0) return null
 
     return (
         <UiEntity
@@ -2962,7 +2965,22 @@ const objectiveTracker = () => {
                 positionType: 'absolute',
                 position: { top: OBJECTIVE_TOP, right: HUD_MARGIN },
                 width: OBJECTIVE_WIDTH,
+                flexDirection: 'column'
+            }}
+        >
+            {objectives.map(objectiveCard)}
+        </UiEntity>
+    )
+}
+
+const objectiveCard = (objective: Objective, index: number) => {
+    return (
+        <UiEntity
+            key={objective.id}
+            uiTransform={{
+                width: '100%',
                 flexDirection: 'column',
+                margin: { top: index === 0 ? 0 : OBJECTIVE_GAP },
                 padding: { left: 14, right: 14, top: 10, bottom: 12 },
                 borderRadius: PANEL_RADIUS,
                 borderWidth: 2,
@@ -2977,6 +2995,14 @@ const objectiveTracker = () => {
                 />
                 <BitmapText value={objective.title} fontSize={20} color={objectiveTitleColor(objective)} />
             </UiEntity>
+            <Button
+                value="X"
+                fontSize={24}
+                color={BANK_GOLD_LIGHT}
+                uiTransform={{ positionType: 'absolute', position: { top: 6, right: 8 }, width: OBJECTIVE_CLOSE_SIZE, height: OBJECTIVE_CLOSE_SIZE }}
+                uiBackground={{ color: Color4.Clear() }}
+                onMouseDown={() => dismissObjective(objective.id)}
+            />
             <Label
                 value={objective.message}
                 fontSize={17}
