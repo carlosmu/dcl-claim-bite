@@ -25,6 +25,10 @@ export const DEBUG_SHOW_MULE_ALERTS = false
  * whole neighbourhood can be seen at once. Real owners still take their own lots. */
 export const DEBUG_FILL_PROPERTY_LOTS = false
 
+/** Starts straight in the game: no title card, no welcome shot, and the player is not moved back
+ * to the spawn by the mayor. The practice rocks still come with the mayor's pick. */
+export const DEBUG_SKIP_INTRO = true
+
 /** The most a single debug grant can add, so a typo cannot overflow a purse. */
 export const DEBUG_MAX_COINS = 1_000_000
 

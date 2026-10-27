@@ -59,7 +59,9 @@ const OWNER_TEXT_COLOR = Color4.fromHexString('#2B1A0EFF')
 /** What the sign says while the lot has no owner. */
 const FOR_SALE_TEXT = 'FOR SALE'
 const FOR_SALE_SIZE = 0.16
-const FOR_SALE_COLOR = Color4.fromHexString('#B3261EFF')
+const FOR_SALE_COLOR = Color4.Black()
+/** How much lower than the owner's lettering FOR SALE starts. */
+const FOR_SALE_DROP_METERS = 0.1
 /** The owner's profile picture under their name: how far below where the lettering starts its top edge sits, and how big it is. */
 const OWNER_PICTURE_TOP_METERS = 0.28
 const OWNER_PICTURE_SIZE_METERS = 0.3
@@ -190,6 +192,7 @@ function syncLots(): void {
     const shown = owner === undefined ? FOR_SALE_TEXT : `owner:${owner.address}:${owner.name}`
     if (property.shownName === shown) continue
     property.shownName = shown
+    Transform.getMutable(property.text).position.y = OWNER_NAME_HEIGHT_METERS - (owner === undefined ? FOR_SALE_DROP_METERS : 0)
     setBitmapText3d(
       property.text,
       owner === undefined

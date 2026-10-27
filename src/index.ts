@@ -33,6 +33,8 @@ import { setupServerLink } from './net/server-link'
 import { setupDeployStamp } from './net/deploy-stamp'
 import { setupEconomyLink } from './net/economy-link'
 import { setupPlaytest } from './playtest'
+import { skipTitleCard } from './ui/intro-screen'
+import { DEBUG_SKIP_INTRO } from './shared/debug-flags'
 
 // One bundle, two runtimes. The server runs this same file headlessly, so everything that
 // draws, plays or listens has to sit behind the isServer() branch — on the server there is
@@ -50,6 +52,7 @@ export async function main() {
     setupDeployStamp()
     setupEconomyLink()
     setupMusic()
+    if (DEBUG_SKIP_INTRO) skipTitleCard()
     setupIsometricCamera()
     setupTouchControls()
     setupRocks()

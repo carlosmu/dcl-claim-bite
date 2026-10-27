@@ -142,6 +142,15 @@ function startGame(withWelcome: boolean) {
     })
 }
 
+/** Leaves the title card at once, as Skip intro does but with no fade: for DEBUG_SKIP_INTRO. */
+export function skipTitleCard() {
+    if (phase !== 'title') return
+    phase = 'done'
+    setIntroChoice('skip')
+    stopIntroMusic()
+    startTownMusic()
+}
+
 export function introScreen() {
     if (phase === 'done') return null
     const alpha = phase === 'title' ? 1 : Math.max(0, 1 - fadeElapsed / FADE_SECONDS)
