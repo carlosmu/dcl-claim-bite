@@ -30,10 +30,6 @@ const ROCK_MODEL = 'assets/models/mining-rocks.glb'
 /** How far the rock model, and the ring under it, sit above the spot. Distances still use the spot. */
 const ROCK_LIFT_METERS = 0.1
 
-// The ring on the ground around the practice rock, turning a full circle every few seconds.
-const INDICATOR_MODEL = 'assets/models/circle-indicator.glb'
-const INDICATOR_TURN_SECONDS = 6
-
 const ROCK_DONE_SOUND = 'assets/sounds/match.mp3'
 const ROCK_BREAK_SOUND = 'assets/sounds/destroy_rock.mp3'
 
@@ -128,7 +124,6 @@ let rocks: Rock[] = []
 
 /** The mayor's practice rock and its ring, while it stands. Mined like the others. */
 let tutorial: Rock | null = null
-let tutorialIndicator: Entity | null = null
 /** Called once the practice rock standing now has been mined. */
 let tutorialDone: (() => void) | null = null
 
@@ -494,7 +489,7 @@ function update(dt: number): void {
 }
 
 /**
- * Sets a practice rock down at `position`, with its turning ring. `seq` is one of
+ * Sets a practice rock down at `position`; the reach ring finds it like any other rock. `seq` is one of
  * TUTORIAL_ROCK_SEQS; `onDone` runs once it has been mined. Does nothing if one is already
  * standing.
  */
@@ -516,23 +511,12 @@ export function placeTutorialRock(position: Vector3, seq: number, onDone?: () =>
     reshow: -1,
     bump: 0
   }
-
-  tutorialIndicator = engine.addEntity()
-  Transform.create(tutorialIndicator, { position })
-  GltfContainer.create(tutorialIndicator, {
-    src: INDICATOR_MODEL,
-    visibleMeshesCollisionMask: 0,
-    invisibleMeshesCollisionMask: 0
-  })
-  Tween.setRotateContinuous(tutorialIndicator, Quaternion.fromEulerDegrees(0, -1, 0), 360 / INDICATOR_TURN_SECONDS)
 }
 
-/** Takes the practice rock and its ring away, once mined. */
+/** Takes the practice rock away, once mined. */
 function removeTutorialRock(): void {
   if (tutorial !== null) engine.removeEntity(tutorial.entity)
-  if (tutorialIndicator !== null) engine.removeEntity(tutorialIndicator)
   tutorial = null
-  tutorialIndicator = null
   mining = -1
 
   const done = tutorialDone
@@ -554,7 +538,7 @@ function removeTutorialRock(): void {
 // The ring is spinner.png, gold rays on a flat plane, as wide as the reach.
 //
 // It reads the same state the swings do (rockAtPlayer, status), so it can never disagree with
-// them. The practice rocks are left out: they wear their own ring already.
+// them. The practice rocks get it too.
 
 /** How close the player has to be for the ring to show under a rock. */
 const RING_SHOW_METERS = 5
@@ -588,13 +572,13 @@ export function showMoveCloserHint(): boolean {
   return hintCloser
 }
 
-/** The nearest unfinished shared rock within RING_SHOW_METERS, flat; null if none. */
+/** The nearest unfinished rock, practice rock included, within RING_SHOW_METERS, flat; null if none. */
 function nearestRock(): Rock | null {
   const player = Transform.getOrNull(engine.PlayerEntity)
   if (player === null) return null
   let best: Rock | null = null
   let bestDistance = RING_SHOW_METERS
-  for (const rock of rocks) {
+  for (const rock of allRocks()) {
     if (rock.finished) continue
     const distance = Math.hypot(rock.spot.x - player.position.x, rock.spot.z - player.position.z)
     if (distance <= bestDistance) {
@@ -610,7 +594,7 @@ function updateRing(dt: number): void {
   ringClock += dt
 
   const at = mining >= 0 ? allRocks()[mining] : undefined
-  const active = at !== undefined && at !== tutorial && status !== null && status.blocked === ''
+  const active = at !== undefined && status !== null && status.blocked === ''
   const target = active ? at : nearestRock()
   // Not while the mining panel is up instead: in reach but held back (not standing still, no
   // pick, storage full), it says why, in the same spot.

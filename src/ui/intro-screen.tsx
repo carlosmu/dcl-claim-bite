@@ -28,10 +28,10 @@ const BUTTON_WIDTH = 360
 const BUTTON_HEIGHT = 90
 const FADE_SECONDS = 2
 const BUTTON_FONT_SIZE = 40
-// Start Game breathes between 1x and 1.2x; one full grow-and-shrink takes PULSE_SECONDS.
+// Start Game's box breathes between 1x and 1.2x (its text stays put); one full grow-and-shrink takes PULSE_SECONDS.
 const PULSE_MIN = 1
-const PULSE_MAX = 1.2
-const PULSE_SECONDS = 2.4
+const PULSE_MAX = 1.1
+const PULSE_SECONDS = 2
 // "Skip intro" under the button: plain white text that starts the game without the welcome shot.
 const SKIP_FONT_SIZE = 24
 const SKIP_MARGIN_TOP = 48
@@ -47,12 +47,16 @@ const LOADING_TIMEOUT_SECONDS = 10
 // The Loading bar: its size, and how fast it creeps towards LOADING_CREEP_MAX while it waits
 // (seconds to cover about two thirds of the way). It never fills on its own.
 const LOADING_BAR_WIDTH = 360
-const LOADING_BAR_HEIGHT = 16
+const LOADING_BAR_HEIGHT = 28
+// The bar's black border and rounded corners, like the button's.
+const LOADING_BORDER = 4
+const LOADING_RADIUS = 10
 const LOADING_CREEP_SECONDS = 2
 const LOADING_CREEP_MAX = 0.9
 const LOADING_FONT_SIZE = 28
-// The mining bar's gold.
-const LOADING_FILL = Color4.create(1, 198 / 255, 0, 1)
+// The fill is the button's gradient, cut from inside its border so only the colour shows.
+// Bottom-left, top-left, top-right, bottom-right.
+const LOADING_FILL_UVS = [0.1, 0.12, 0.1, 0.88, 0.9, 0.88, 0.9, 0.12]
 
 /** Logo and Start button scale: smaller on mobile. */
 function introScale(): number {
@@ -173,12 +177,20 @@ export function introScreen() {
                 >
                     <BitmapText value="Loading" fontSize={LOADING_FONT_SIZE * scale} color={Color4.White()} align="center" />
                     <UiEntity
-                        uiTransform={{ width: LOADING_BAR_WIDTH * scale, height: LOADING_BAR_HEIGHT * scale, margin: { top: 12 } }}
+                        uiTransform={{
+                            width: LOADING_BAR_WIDTH * scale,
+                            height: LOADING_BAR_HEIGHT * scale,
+                            margin: { top: 12 },
+                            borderWidth: LOADING_BORDER * scale,
+                            borderColor: Color4.Black(),
+                            borderRadius: LOADING_RADIUS * scale,
+                            overflow: 'hidden'
+                        }}
                         uiBackground={{ color: Color4.create(0, 0, 0, 0.4) }}
                     >
                         <UiEntity
                             uiTransform={{ width: `${loadingProgress() * 100}%`, height: '100%' }}
-                            uiBackground={{ color: LOADING_FILL }}
+                            uiBackground={{ texture: { src: BUTTON_GRADIENT }, textureMode: 'stretch', uvs: LOADING_FILL_UVS }}
                         />
                     </UiEntity>
                 </UiEntity>
@@ -205,7 +217,7 @@ export function introScreen() {
                     uiBackground={{ textureMode: 'stretch', texture: { src: BUTTON_GRADIENT } }}
                     onMouseDown={() => startGame(true)}
                 >
-                    <BitmapText value="Start Game" fontSize={BUTTON_FONT_SIZE * scale * pulseScale()} color={Color4.Black()} align="center" uiTransform={{ width: '100%' }} />
+                    <BitmapText value="Start Game" fontSize={BUTTON_FONT_SIZE * scale} color={Color4.Black()} align="center" uiTransform={{ width: '100%' }} />
                 </UiEntity>
                 </UiEntity>
             ) : null}
