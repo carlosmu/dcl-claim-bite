@@ -35,7 +35,9 @@ const MINING_LINE_SECONDS = 6
 // On his right, this far out.
 const PRACTICE_ROCK_OFFSET = 3
 // Once the first is mined, a second one this much further out on the same side.
-const SECOND_PRACTICE_ROCK_EXTRA = 5
+const SECOND_PRACTICE_ROCK_EXTRA = 2.5
+// The third and fourth, each this far along world X from the one before.
+const LATER_PRACTICE_ROCK_STEP = Vector3.create(-2, 0, 0)
 // Seconds after the pick lands, so the fist pump plays out first.
 const PRACTICE_ROCK_DELAY_SECONDS = 1.5
 // On the line that sends you to the rock, he turns this far to his right to face it.
@@ -80,10 +82,15 @@ function showPracticeRock(dt: number): void {
   // He stands at the scene root, so his transform is already world space.
   if (homeRotation === null) homeRotation = Quaternion.create(at.rotation.x, at.rotation.y, at.rotation.z, at.rotation.w)
   const right = Vector3.rotate(Vector3.Right(), homeRotation)
-  const [firstSeq, secondSeq] = TUTORIAL_ROCK_SEQS
+  const [firstSeq, secondSeq, thirdSeq, fourthSeq] = TUTORIAL_ROCK_SEQS
   const first = Vector3.add(at.position, Vector3.scale(right, PRACTICE_ROCK_OFFSET))
   const second = Vector3.add(first, Vector3.scale(right, SECOND_PRACTICE_ROCK_EXTRA))
-  placeTutorialRock(first, firstSeq, () => placeTutorialRock(second, secondSeq))
+  const third = Vector3.add(second, LATER_PRACTICE_ROCK_STEP)
+  const fourth = Vector3.add(third, LATER_PRACTICE_ROCK_STEP)
+  // Each one is set down once the one before has been mined.
+  placeTutorialRock(first, firstSeq, () =>
+    placeTutorialRock(second, secondSeq, () => placeTutorialRock(third, thirdSeq, () => placeTutorialRock(fourth, fourthSeq)))
+  )
 
   // He only speaks to a player who chose Start Game. Skipping the intro skips his lines too;
   // the practice rock is still there.

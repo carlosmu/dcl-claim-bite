@@ -15,7 +15,7 @@ export const ROCK_ENTITY_ENUM_ID = 3
  * pick, one after the other. They are not shared rocks: each player gets their own, and each
  * pays once per visit.
  */
-export const TUTORIAL_ROCK_SEQS = [-999999, -999998]
+export const TUTORIAL_ROCK_SEQS = [-999999, -999998, -999997, -999996]
 
 /** How many rocks stand in the area at once. */
 export const ROCKS_AT_ONCE = 5

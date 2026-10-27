@@ -38,6 +38,7 @@ export enum EntityNames {
   Mining_Area = "Mining_Area",
   Mule_Area = "Mule_Area",
   Rustic_Wheelbarrow = "Rustic Wheelbarrow",
+  Scene_Y_Offset = "Scene Y Offset",
   Text_2 = "Text_2",
   Text_3 = "Text_3",
   Town_Mayor = "Town Mayor",

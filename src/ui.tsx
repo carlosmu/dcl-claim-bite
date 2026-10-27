@@ -71,7 +71,7 @@ import { BitmapText } from './ui/bitmap-text'
 import { introScreen } from './ui/intro-screen'
 import { welcomeOverlay } from './ui/welcome-overlay'
 import { getMusicStep, getSfxStep, setMusicStep, setSfxStep, VOLUME_STEPS } from './world/volume'
-import { clearObjectiveHistory, getObjective, getObjectiveClock, getObjectiveHistory, Objective, PastObjective, setupObjective } from './ui/objective'
+import { clearObjectiveHistory, getObjective, getObjectiveClock, getObjectiveHistory, Objective, PastObjective, setupObjective, SOCIAL_BONUS_TITLE } from './ui/objective'
 
 export function setupUi() {
     setupRollingCounters()
@@ -2948,6 +2948,10 @@ const OBJECTIVE_WIDTH = 348
 const OBJECTIVE_ICON_SIZE = 28
 const OBJECTIVE_BAR_HEIGHT = 8
 
+/** The Social Bonus wears its own green; other alerts the warning colour, objectives gold. */
+const objectiveTitleColor = (objective: Objective) =>
+    objective.title === SOCIAL_BONUS_TITLE ? SOCIAL_BONUS_COLOR : objective.alert ? STORAGE_FULL_COLOR : BANK_GOLD_LIGHT
+
 const objectiveTracker = () => {
     const objective: Objective | null = getObjective()
     if (objective === null) return null
@@ -2971,7 +2975,7 @@ const objectiveTracker = () => {
                     uiTransform={{ width: OBJECTIVE_ICON_SIZE, height: OBJECTIVE_ICON_SIZE, margin: { right: 8 }, flexShrink: 0 }}
                     uiBackground={iconBackground(ICON_NOTIFICATION)}
                 />
-                <BitmapText value={objective.title} fontSize={20} color={objective.alert ? STORAGE_FULL_COLOR : BANK_GOLD_LIGHT} />
+                <BitmapText value={objective.title} fontSize={20} color={objectiveTitleColor(objective)} />
             </UiEntity>
             <Label
                 value={objective.message}
@@ -3304,7 +3308,7 @@ const notificationRow = (entry: PastObjective, index: number) => (
         uiBackground={{ color: BANK_WOOD }}
     >
         <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <BitmapText value={entry.title} fontSize={20} color={entry.alert ? STORAGE_FULL_COLOR : BANK_GOLD_LIGHT} />
+            <BitmapText value={entry.title} fontSize={20} color={objectiveTitleColor(entry)} />
             <Label value={timeAgo(entry.at)} fontSize={13} color={BANK_CAPTION} textAlign="middle-right" textWrap="nowrap" uiTransform={{ height: 20 }} />
         </UiEntity>
         <Label value={entry.message} fontSize={16} color={BANK_CREAM} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 22 }} />

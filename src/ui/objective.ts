@@ -27,6 +27,10 @@ import { getCoins, getOre } from '../shared/state/wallet'
 import { getActiveMiners } from '../shared/net/social-sync'
 import { socialBonus } from '../shared/economy/constants'
 import { getNoteNews } from '../land-office/owner-card'
+import { getMiningStatus } from '../mining/rocks'
+
+/** The Social Bonus note's title, which the tracker paints in the bonus's own green. */
+export const SOCIAL_BONUS_TITLE = 'SOCIAL BONUS'
 
 export type Objective = {
   /** Shown beside the bell: OBJECTIVE for a goal, the alert's own name for an alert. */
@@ -71,6 +75,8 @@ let lastMiners = 0
 let lastBrokenCount = 0
 let pickBrokenUntil = 0
 let socialAlertUntil = 0
+/** Whether the Social Bonus has been explained yet, on the player's first real rock. */
+let socialIntroShown = false
 let lastNoteNews = 0
 let noteAlertUntil = 0
 let current: Objective | null = null
@@ -157,10 +163,12 @@ function pick(): Objective | null {
     return alert('FUEL LOW', 'Refuel at the Store', `${Math.ceil(getMuleFuelHours())}h left`)
   }
 
-  // Two or more mining: how the bonus works, while it is news.
+  // How the bonus works, while it is news: the crowd's bonus when two or more are mining, or
+  // what it is on the first rock of someone mining alone.
   const miners = getActiveMiners()
-  if (clock < socialAlertUntil && miners >= 2) {
-    return alert('SOCIAL BONUS', `${miners} miners: +${socialBonus(miners)} ore per rock`, 'More miners, more ore · up to +10 at 4')
+  if (clock < socialAlertUntil) {
+    if (miners >= 2) return alert(SOCIAL_BONUS_TITLE, `${miners} miners: +${socialBonus(miners)} ore per rock`, 'More miners, more ore · up to +10 at 4')
+    return alert(SOCIAL_BONUS_TITLE, 'Mine at the same time as others', `+${socialBonus(2)} ore with 2 · +${socialBonus(3)} with 3 · +${socialBonus(4)} with 4`)
   }
 
   // Only news to someone with enough ore to make a sale.
@@ -211,6 +219,12 @@ function update(dt: number): void {
   const miners = getActiveMiners()
   if (miners >= 2 && miners !== lastMiners) socialAlertUntil = clock + SOCIAL_ALERT_SECONDS
   lastMiners = miners
+
+  const mining = getMiningStatus()
+  if (!socialIntroShown && mining !== null && !mining.practice && mining.blocked === '') {
+    socialIntroShown = true
+    socialAlertUntil = clock + SOCIAL_ALERT_SECONDS
+  }
 
   current = pick()
   record(current)
