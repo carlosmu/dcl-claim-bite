@@ -38,7 +38,6 @@ export enum EntityNames {
   Mining_Area = "Mining_Area",
   Mule_Area = "Mule_Area",
   Rustic_Wheelbarrow = "Rustic Wheelbarrow",
-  Text = "Text",
   Text_2 = "Text_2",
   Text_3 = "Text_3",
   Town_Mayor = "Town Mayor",
@@ -49,6 +48,7 @@ export enum EntityNames {
   Weed_Emiter_01_4 = "Weed-Emiter-01_4",
   Weed_Emiter_01_5 = "Weed-Emiter-01_5",
   Weed_Emiter_01_6 = "Weed-Emiter-01_6",
+  bank_officer_glb = "bank_officer.glb",
   mining_pool_glb = "mining-pool.glb",
   monument_glb = "monument.glb",
 } 

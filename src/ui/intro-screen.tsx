@@ -40,8 +40,6 @@ const SKIP_HIT_PADDING = 14
 // On mobile the screen is only 720 high: the logo and the Start button shrink by this much so
 // the column fits with room to spare, and "Skip intro" stops hugging the bottom edge.
 const MOBILE_SCALE = 0.7
-// "Skip intro" is kept but not shown, so no one skips the welcome by accident.
-const SHOW_SKIP = false
 // Seconds to wait for the server before showing Start Game anyway, as a first visit.
 const LOADING_TIMEOUT_SECONDS = 10
 // The Loading bar: its size, and how fast it creeps towards LOADING_CREEP_MAX while it waits
@@ -97,6 +95,14 @@ engine.addSystem(function introLoadingSystem(dt: number) {
 /** Whether the server has said if the player owns a pick, or we gave up waiting. */
 function isLoaded(): boolean {
     return hasWallet() || loadingElapsed >= LOADING_TIMEOUT_SECONDS
+}
+
+/**
+ * "Skip intro" shows only to a player who already has a pick to mine with, so a new player
+ * cannot skip the welcome, and the pick, by accident.
+ */
+function canSkip(): boolean {
+    return isLoaded() && getHitsPerRock() > 0
 }
 
 function loadingProgress(): number {
@@ -221,7 +227,7 @@ export function introScreen() {
                 </UiEntity>
                 </UiEntity>
             ) : null}
-            {phase === 'title' && SHOW_SKIP ? (
+            {phase === 'title' && canSkip() ? (
                 <UiEntity
                     uiTransform={{ margin: { top: SKIP_MARGIN_TOP - SKIP_HIT_PADDING }, padding: SKIP_HIT_PADDING }}
                     onMouseDown={() => startGame(false)}

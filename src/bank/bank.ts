@@ -1,11 +1,12 @@
-import { createClickCube } from '../world/click-cube'
+import { ColliderLayer, engine, GltfContainer } from '@dcl/sdk/ecs'
 import { focusPanel, registerPanel } from '../world/panel-focus'
 import { createProximityZone, ProximityZone } from '../world/proximity-zone'
 import { getOre } from '../shared/state/wallet'
 import { getSyncedRate, quoteSaleForDisplay, sendSell } from '../net/economy-link'
 import { oreForCoins } from '../shared/state/market'
 
-export const BANK_ENTITY_NAME = 'Bank'
+/** The officer at the counter: clicking him opens the bank, and walking up to him does too. */
+const BANK_OFFICER_ENTITY_NAME = 'bank_officer.glb'
 export const BANK_RADIUS_METERS = 4
 
 let zone: ProximityZone | null = null
@@ -81,15 +82,15 @@ export function sellSelectedOre(): void {
 }
 
 export function setupBank(): void {
-  // The sign above the door is a TextShape the Creator Hub names 'Text'.
-  const cube = createClickCube(BANK_ENTITY_NAME, 'Text')
+  const officer = engine.getEntityOrNullByName(BANK_OFFICER_ENTITY_NAME)
+  // His visible meshes take the pointer too: the model may have no invisible collider to click.
+  const model = officer === null ? null : GltfContainer.getMutableOrNull(officer)
+  if (model !== null) model.visibleMeshesCollisionMask = (model.visibleMeshesCollisionMask ?? 0) | ColliderLayer.CL_POINTER
   zone = createProximityZone({
-    entityName: BANK_ENTITY_NAME,
+    entityName: BANK_OFFICER_ENTITY_NAME,
     radiusMeters: BANK_RADIUS_METERS,
-    // Measured from the cube by the door, not the building.
-    entity: cube ?? undefined,
     // Walking in with a full bag, the common move is to sell it — so it starts selected.
-    click: cube !== null ? { entity: cube, hoverText: 'Open Bank' } : undefined,
+    click: officer !== null ? { entity: officer, hoverText: 'Open Bank' } : undefined,
     onEnter: () => {
       panelClosed = false
       setSellCoins(maxSellCoins())
