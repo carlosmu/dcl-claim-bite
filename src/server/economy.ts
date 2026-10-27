@@ -32,12 +32,15 @@ import { room } from '../shared/net/protocol'
 import { applySale, getRate, getSettledRate, oreForCoins, quoteSale, restoreRate, tickMarket } from '../shared/state/market'
 import {
   loadMarketPrice,
+  loadMuleYard,
   loadPropertyLots,
   loadPurse,
+  saveMuleYard,
   savePropertyLots,
   savePurse,
   saveMarketPrice,
-  StoredLot
+  StoredLot,
+  StoredMule
 } from './persistence'
 import {
   ORE_PER_ROCK,
@@ -728,6 +731,9 @@ function flushSaves(dt: number) {
 
   if (!lotsLoaded) loadLots()
   else saveLots()
+
+  if (!yardLoaded) loadYard()
+  else saveYard()
 }
 
 // Only for players actually in the scene: an absent player's rig needs no attention, because
@@ -755,14 +761,49 @@ function settlePresentMules(dt: number) {
 
 // --- Mule yard ---------------------------------------------------------------------------
 //
-// Every rig owner who is here gets a spot in the yard grid. A spot is kept for the address
-// while the server runs, so someone who steps out and back finds their rig where they left it
-// (unless the yard filled up meanwhile).
+// Every rig owner gets a spot in the yard grid, and keeps it while they are away: the yard is
+// stored for the whole town, like the property lots. A present owner's spot follows their purse
+// — a reset takes the rig away — and an absent owner's is left as it was.
+//
+// Nothing is handed out until the stored yard has been read (or confirmed absent), so a failed
+// read on start can never give someone's spot away or save an empty yard over the real one.
 
 let yardEntity = engine.RootEntity
-const yardSlots = new Map<string, number>()
+/** One parked rig per owner, keyed by address. */
+const parkedMules = new Map<string, StoredMule>()
+let yardLoaded = false
+let yardLoading = false
+let yardRetryAt = 0
+let yardDirty = false
 let lastPublishedYard = ''
 let sinceLastYardPublish = 0
+
+function loadYard(): void {
+  if (yardLoaded || yardLoading || serverClock < yardRetryAt) return
+  yardLoading = true
+  loadMuleYard()
+    .then((stored) => {
+      yardLoading = false
+      yardLoaded = true
+      for (const mule of stored ?? []) parkedMules.set(mule.address, mule)
+      console.log(`[Server] ${parkedMules.size} parked mules restored`)
+    })
+    .catch((error) => {
+      yardLoading = false
+      yardRetryAt = serverClock + LOAD_RETRY_SECONDS
+      console.log(`[Server] mule yard restore failed, retrying in ${LOAD_RETRY_SECONDS}s: ${error}`)
+    })
+}
+
+function saveYard(): void {
+  if (!yardDirty) return
+  yardDirty = false
+  saveMuleYard([...parkedMules.values()])
+    .then((ok) => {
+      if (!ok) yardDirty = true
+    })
+    .catch(() => (yardDirty = true))
+}
 
 /** The display name the player's avatar carries, or '' while it has none. */
 function avatarNameOf(address: string): string {
@@ -780,40 +821,63 @@ function displayNameOf(address: string): string {
   return name !== '' ? name : `${address.slice(0, 6)}…${address.slice(-4)}`
 }
 
-function slotFor(address: string): number {
-  const kept = yardSlots.get(address)
-  if (kept !== undefined) return kept
-  const taken = new Set(yardSlots.values())
-  for (let slot = 0; slot < MULE_YARD_MAX_SLOTS; slot++) {
-    if (taken.has(slot)) continue
-    yardSlots.set(address, slot)
-    return slot
-  }
+function freeSlot(): number {
+  const taken = new Set<number>()
+  for (const parked of parkedMules.values()) taken.add(parked.slot)
+  for (let slot = 0; slot < MULE_YARD_MAX_SLOTS; slot++) if (!taken.has(slot)) return slot
   return -1
+}
+
+/** Brings a present owner's parked rig in line with their purse. */
+function settleParkedMule(address: string): void {
+  const purse = purses.get(address)
+  if (purse === undefined) return
+  const parked = parkedMules.get(address)
+  const level = muleCount((id) => purse.owned[id] ?? 0)
+
+  if (level <= 0) {
+    if (parked === undefined) return
+    parkedMules.delete(address)
+    yardDirty = true
+    return
+  }
+
+  // The avatar's name may not have arrived yet; a stored one is better than a short address.
+  const name = avatarNameOf(address)
+  if (parked !== undefined) {
+    if (parked.level !== level) {
+      parked.level = level
+      yardDirty = true
+    }
+    if (name !== '' && name !== parked.name) {
+      parked.name = name
+      yardDirty = true
+    }
+    return
+  }
+
+  const slot = freeSlot()
+  if (slot < 0) return
+  parkedMules.set(address, { slot, address, name: name !== '' ? name : displayNameOf(address), level })
+  yardDirty = true
 }
 
 function publishYard(dt: number) {
   sinceLastYardPublish += dt
   if (sinceLastYardPublish < PRESENCE_CHECK_PERIOD_SECONDS) return
   sinceLastYardPublish = 0
+  if (!yardLoaded) return
 
-  const mules: { slot: number; address: string; name: string; level: number }[] = []
-  for (const address of present) {
-    const purse = purses.get(address)
-    if (purse === undefined) continue
-    const level = muleCount((id) => purse.owned[id] ?? 0)
-    if (level <= 0) continue
-    const slot = slotFor(address)
-    if (slot < 0) continue
-    mules.push({ slot, address, name: displayNameOf(address), level })
-  }
+  for (const address of present) settleParkedMule(address)
+
+  const mules = [...parkedMules.values()]
   mules.sort((a, b) => a.slot - b.slot)
 
   // Only on a real change: this runs every second and the yard rarely moves.
   const encoded = JSON.stringify(mules)
   if (encoded === lastPublishedYard) return
   lastPublishedYard = encoded
-  MuleYard.getMutable(yardEntity).mules = mules
+  MuleYard.getMutable(yardEntity).mules = mules.map((mule) => ({ ...mule }))
 }
 
 // --- Property lots -----------------------------------------------------------------------

@@ -26,7 +26,12 @@ const MARKET_PRICE_KEY = 'market-price'
 /** Scene-wide key: every property standing in town, so it stays up while its owner is away. */
 const PROPERTY_LOTS_KEY = 'property-lots'
 
+/** Scene-wide key: every rig parked in the yard, so it stays parked while its owner is away. */
+const MULE_YARD_KEY = 'mule-yard'
+
 export type StoredLot = { kind: string; lot: number; address: string; name: string }
+
+export type StoredMule = { slot: number; address: string; name: string; level: number }
 
 export type StoredPurse = {
   ore: number
@@ -136,6 +141,23 @@ export async function saveNotes(address: string, notes: Note[]): Promise<boolean
     return ok
   } catch (error) {
     console.log(`[Server] could not save notes for ${address}: ${error}`)
+    return false
+  }
+}
+
+/** The town's parked rigs, or null if none were ever saved. Throws if the read failed. */
+export function loadMuleYard(): Promise<StoredMule[] | null> {
+  return readValue<StoredMule[]>(`/values/${encodeURIComponent(MULE_YARD_KEY)}`)
+}
+
+/** Resolves true once the write is confirmed, like savePurse. */
+export async function saveMuleYard(mules: StoredMule[]): Promise<boolean> {
+  try {
+    const ok = await Storage.set(MULE_YARD_KEY, mules)
+    if (!ok) console.log('[Server] could not save mule yard')
+    return ok
+  } catch (error) {
+    console.log(`[Server] could not save mule yard: ${error}`)
     return false
   }
 }

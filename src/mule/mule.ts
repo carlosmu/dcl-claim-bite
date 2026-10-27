@@ -57,9 +57,10 @@ export function closeMulePanel(): void {
 
 // --- The yard ------------------------------------------------------------------------------
 //
-// Every owner's rig stands in its own spot of a grid laid over `Mule_Area`. Which spot is whose comes from the server (MuleYard). The `MULE` placed in
-// the Creator Hub is only the template: its model is copied onto each parked rig and the
-// original is emptied, so it can stay where it is for tuning without standing around twice.
+// Every owner's rig stands in its own spot of a grid laid over `Mule_Area`. Which spot is whose comes from the server (MuleYard). Rigs use
+// `mule-1.glb` unless a `MULE` is placed in the Creator Hub as a template: then its model is
+// copied onto each parked rig and the original is emptied, so it can stay where it is for tuning
+// without standing around twice.
 
 export const MULE_AREA_ENTITY_NAME = 'Mule_Area'
 
@@ -75,7 +76,8 @@ type ParkedMule = { root: Entity; level: Entity; name: Entity; face: Entity; fac
 const parked = new Map<string, ParkedMule>()
 let spots: Vector3[] = []
 let yardRoot: Entity | null = null
-let muleModel = ''
+/** The rig's model; a `MULE` placed in the Creator Hub overrides it (see adoptTemplate). */
+let muleModel = 'assets/animations/mule-1.glb'
 let myAddress = ''
 /** The player's own rig, which is what the proximity check measures against. */
 let ownMule: Entity | null = null
@@ -133,8 +135,9 @@ function park(address: string): ParkedMule {
       invisibleMeshesCollisionMask: ColliderLayer.CL_POINTER | ColliderLayer.CL_PHYSICS
     })
   }
-  // The owner's face. It starts on the fallback picture and switches to the avatar texture once
-  // the player's profile shows they have one (see resolveFace).
+  // The owner's face. The avatar texture is fetched by address, so it works for an owner who is
+  // away too; it only drops to the fallback picture if the owner shows up as a guest (see
+  // resolveFace).
   const face = engine.addEntity()
   Transform.create(face, {
     parent: root,
@@ -143,7 +146,7 @@ function park(address: string): ParkedMule {
   })
   Billboard.create(face, { billboardMode: BillboardMode.BM_Y })
   MeshRenderer.setPlane(face)
-  setFace(face, Material.Texture.Common({ src: FALLBACK_FACE_IMAGE }))
+  setFace(face, Material.Texture.Avatar({ userId: address }))
 
   const mule: ParkedMule = {
     root,
@@ -163,15 +166,16 @@ function setFace(face: Entity, texture: ReturnType<typeof Material.Texture.Commo
   Material.setBasicMaterial(face, { texture })
 }
 
-// A guest has no profile, so the avatar texture would come out blank; they keep the fallback.
-// The profile may not have arrived when the rig is parked, so this is retried until it has.
+// A guest has no profile, so the avatar texture comes out blank; they get the fallback instead.
+// Only a player in the scene can be told apart as a guest, so an absent owner keeps the avatar
+// texture, and this is retried until the owner's profile arrives.
 function resolveFace(address: string, mule: ParkedMule): void {
   if (mule.faceResolved) return
   const player = getPlayer({ userId: address })
   if (player === null) return
   mule.faceResolved = true
-  if (player.isGuest) return
-  setFace(mule.face, Material.Texture.Avatar({ userId: address }))
+  if (!player.isGuest) return
+  setFace(mule.face, Material.Texture.Common({ src: FALLBACK_FACE_IMAGE }))
 }
 
 function unpark(address: string, mule: ParkedMule): void {
@@ -253,19 +257,29 @@ function showIndicator(mule: Entity | null): void {
   Tween.setRotateContinuous(indicator, Quaternion.fromEulerDegrees(0, -1, 0), 360 / INDICATOR_TURN_SECONDS)
 }
 
+/** An entity's position in world space, through however many parents it has. */
+function worldPosition(entity: Entity): Vector3 | null {
+  const t = Transform.getOrNull(entity)
+  if (t === null) return null
+  let position = Vector3.clone(t.position)
+  let parent = t.parent
+  while (parent !== undefined && parent !== engine.RootEntity) {
+    const p = Transform.getOrNull(parent)
+    if (p === null) break
+    position = Vector3.add(p.position, Vector3.rotate(Vector3.multiply(position, p.scale), p.rotation ?? Quaternion.Identity()))
+    parent = p.parent
+  }
+  return position
+}
+
 // Distance to the player's own rig, measured every frame like the other proximity zones.
 function checkOwnMule(): void {
   let distance = Infinity
   if (ownMule !== null) {
     const player = Transform.getOrNull(engine.PlayerEntity)
-    if (player !== null) {
-      const mulePosition = Transform.getOrNull(ownMule)?.position
-      const root = yardRoot !== null ? Transform.getOrNull(yardRoot)?.position : undefined
-      if (mulePosition !== undefined && root !== undefined) {
-        // The yard root hangs off the scene root, so root + local is world space.
-        distance = Vector3.distance(player.position, Vector3.add(root, mulePosition))
-      }
-    }
+    // The yard hangs off whatever `Mule_Area` is parented to, so the rig is walked up to world space.
+    const mulePosition = worldPosition(ownMule)
+    if (player !== null && mulePosition !== null) distance = Vector3.distance(player.position, mulePosition)
   }
   const inside = distance <= MULE_RADIUS_METERS
   if (openedByClick && distance > CLICK_KEEP_METERS) openedByClick = false
