@@ -1,4 +1,16 @@
-import { Entity, engine, GltfContainer, Material, MaterialTransparencyMode, MeshCollider, MeshRenderer, Transform, Tween } from '@dcl/sdk/ecs'
+import {
+  Entity,
+  engine,
+  GltfContainer,
+  InputAction,
+  Material,
+  MaterialTransparencyMode,
+  MeshCollider,
+  MeshRenderer,
+  pointerEventsSystem,
+  Transform,
+  Tween
+} from '@dcl/sdk/ecs'
 import { Color3, Quaternion, Vector3 } from '@dcl/sdk/math'
 import { movePlayerTo } from '~system/RestrictedActions'
 
@@ -196,6 +208,7 @@ function findArea(): void {
     const rock: Rock = { entity, spot: Vector3.Zero(), u: 0, v: 0, seq: 0, hits: 0, finished: false, reshow: -1 }
     const spot = pickRockSpot(rocks)
     rocks.push(rock)
+    makeRockClickable(rock)
     showRock(rock, spot.u, spot.v, Math.random() * 360, nextOfflineSeq--)
   }
 }
@@ -306,9 +319,10 @@ function faceRock(rock: Rock): void {
 /**
  * Moves the player in to SWING_DISTANCE_METERS from the rock, facing it, if they stand further
  * out. Returns whether it did; the swings then wait for the move to land and the player to
- * settle, as after any other step.
+ * settle, as after any other step. `run` glides them there at RUN_METERS_PER_SECOND instead
+ * of in one jump, for a click from across the area.
  */
-function moveIntoSwingDistance(rock: Rock): boolean {
+function moveIntoSwingDistance(rock: Rock, run: boolean = false): boolean {
   const player = Transform.getOrNull(engine.PlayerEntity)
   if (player === null) return false
   const dx = player.position.x - rock.spot.x
@@ -319,10 +333,11 @@ function moveIntoSwingDistance(rock: Rock): boolean {
   const k = SWING_DISTANCE_METERS / distance
   const destination = Vector3.create(rock.spot.x + dx * k, player.position.y, rock.spot.z + dz * k)
   const target = Vector3.create(rock.spot.x, player.position.y, rock.spot.z)
+  const duration = run ? Math.max(RUN_MIN_SECONDS, (distance - SWING_DISTANCE_METERS) / RUN_METERS_PER_SECOND) : undefined
   movingIn = true
   settlingAfterMoveIn = true
   stillSeconds = 0
-  movePlayerTo({ newRelativePosition: destination, avatarTarget: target })
+  movePlayerTo({ newRelativePosition: destination, avatarTarget: target, duration })
     .catch((error) => {
       console.error(`[mine] could not move in to the rock: ${error}`)
     })
@@ -332,6 +347,29 @@ function moveIntoSwingDistance(rock: Rock): boolean {
       stillSeconds = 0
     })
   return true
+}
+
+// --- Click to mine -------------------------------------------------------------------------
+//
+// Not everyone works out that walking up to a rock is what mines it, so a click on one runs the
+// player to it: in to swing distance, facing it, and from there the swings start on their own.
+
+/** How far away a rock can be clicked, in metres. */
+const CLICK_REACH_METERS = 20
+/** How fast the click's run covers the ground, about the avatar's own running speed. */
+const RUN_METERS_PER_SECOND = 6
+/** The shortest run, so a click from close by still reads as a move and not a jump. */
+const RUN_MIN_SECONDS = 0.3
+
+function makeRockClickable(rock: Rock): void {
+  pointerEventsSystem.onPointerDown(
+    { entity: rock.entity, opts: { button: InputAction.IA_POINTER, hoverText: 'Mine', maxDistance: CLICK_REACH_METERS } },
+    () => {
+      if (rock.finished || movingIn) return
+      stopSwinging()
+      moveIntoSwingDistance(rock, true)
+    }
+  )
 }
 
 /** Ends the swing loop and forgets the swing in flight. The hits already on the rock stay. */
@@ -482,6 +520,7 @@ export function placeTutorialRock(position: Vector3, seq: number, onDone?: () =>
     finished: false,
     reshow: -1
   }
+  makeRockClickable(tutorial)
 }
 
 /** Takes the practice rock away, once mined. */
