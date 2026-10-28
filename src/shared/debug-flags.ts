@@ -3,35 +3,39 @@
 // Shared by both runtimes on purpose: a flag that guards something the server grants (like
 // free coins) is checked by the server too, so hiding the button is never the only guard.
 //
-// Before a real deploy, everything here should be false.
+// Each flag is ANDed with DEBUG_ENABLED: set that to false to turn every tool off at once (before a
+// real deploy), or leave it true and flip the flags one by one.
+
+/** Master switch for every debug tool, here and in scene-feedback. */
+export const DEBUG_ENABLED: boolean = false
 
 /** A "+ Coins" button that asks for an amount and grants it for free. Skips the bank, so the
  * market never moves. The server refuses the grant while this is false. */
-export const DEBUG_ADD_COINS = true
+export const DEBUG_ADD_COINS = DEBUG_ENABLED && true
 
 /** A "Free ore" button, the same as free coins but into the bag, up to its capacity. Skips the
  * rocks. The server refuses the grant while this is false. */
-export const DEBUG_ADD_ORE = true
+export const DEBUG_ADD_ORE = DEBUG_ENABLED && true
 
 /** A "Reset progress" button that wipes the player's purse back to a first visit: no ore, no
  * coins, nothing owned, an empty M.U.L.E. The server refuses the wipe while this is false. */
-export const DEBUG_RESET_PROGRESS = true
+export const DEBUG_RESET_PROGRESS = DEBUG_ENABLED && true
 
 /** Shows every M.U.L.E. panel alert at once — storage full, out of fuel, fuel low — whatever the
  * rigs are actually doing, so their wording and layout can be checked without draining a tank. */
-export const DEBUG_SHOW_MULE_ALERTS = false
+export const DEBUG_SHOW_MULE_ALERTS = DEBUG_ENABLED && false
 
 /** Fills every lot of every property area with a stand-in owner, on this client only, so the
  * whole neighbourhood can be seen at once. Real owners still take their own lots. */
-export const DEBUG_FILL_PROPERTY_LOTS = false
+export const DEBUG_FILL_PROPERTY_LOTS = DEBUG_ENABLED && false
 
 /** Starts straight in the game: no title card, no welcome shot, and the player is not moved back
  * to the spawn by the mayor. The practice rocks still come with the mayor's pick. */
-export const DEBUG_SKIP_INTRO = false
+export const DEBUG_SKIP_INTRO = DEBUG_ENABLED && false
 
 /** The most a single debug grant can add, so a typo cannot overflow a purse. */
 export const DEBUG_MAX_COINS = 1_000_000
 
 /** The server tick readout in the debug panel, under its buttons: green and counting means the
  * authoritative server is answering. */
-export const DEBUG_SERVER_STATUS = true
+export const DEBUG_SERVER_STATUS = DEBUG_ENABLED && true
