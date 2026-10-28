@@ -3,17 +3,20 @@
   "runtimeVersion": "7",
   "display": {
     "title": "Claim Bite",
-    "description": "Empty Scene Template",
+    "description": "Gold rush is on! Grab your pickaxe, mine for gold, and build your fortune in the Wild West! Upgrade your gear, outsmart the market, and become the richest miner in town!",
     "favicon": "favicon_asset",
     "navmapThumbnail": "assets/images/thumbnail.png"
   },
   "owner": "",
   "contact": {
-    "name": "SDK",
-    "email": ""
+    "name": "carlosmu",
+    "email": "carlos.damian.munoz@gmail.com"
   },
   "main": "bin/index.js",
-  "tags": [],
+  "tags": [
+    "game",
+    "social"
+  ],
   "scene": {
     "base": "0,0",
     "parcels": [
@@ -309,9 +312,9 @@
     "portableExperiences": "enabled",
     "nearbyVoiceChat": "enabled"
   },
-  "creator": "",
+  "creator": "0x4B538E1E044922aec2F428EC7E17A99f44205fF9",
   "skyboxConfig": {
-    "fixedTime": 62100
+    "transitionMode": 0
   },
   "landscapeTerrain": false,
   "source": {

@@ -1493,16 +1493,16 @@
               "y": 5.75,
               "z": -55.25
             },
+            "scale": {
+              "x": 0.800000011920929,
+              "y": 0.800000011920929,
+              "z": 0.800000011920929
+            },
             "rotation": {
               "x": 0,
               "y": 0.6925689578056335,
               "z": 0,
               "w": -0.7213516235351562
-            },
-            "scale": {
-              "x": 0.800000011920929,
-              "y": 0.800000011920929,
-              "z": 0.800000011920929
             },
             "parent": 0
           }
@@ -1514,16 +1514,16 @@
               "y": 5.75,
               "z": -49.905128479003906
             },
+            "scale": {
+              "x": 0.800000011920929,
+              "y": 0.800000011920929,
+              "z": 0.800000011920929
+            },
             "rotation": {
               "x": 0,
               "y": 0.7071067690849304,
               "z": 0,
               "w": 0.7071067690849304
-            },
-            "scale": {
-              "x": 0.800000011920929,
-              "y": 0.800000011920929,
-              "z": 0.800000011920929
             },
             "parent": 0
           }
@@ -3599,14 +3599,23 @@
         "0": {
           "json": {
             "name": "Claim Bite",
-            "description": "Empty Scene Template",
+            "description": "Gold rush is on! Grab your pickaxe, mine for gold, and build your fortune in the Wild West! Upgrade your gear, outsmart the market, and become the richest miner in town!",
             "thumbnail": "assets/images/thumbnail.png",
             "ageRating": "A",
-            "categories": [],
-            "author": "SDK",
-            "email": "",
-            "tags": [],
+            "categories": [
+              "game",
+              "social"
+            ],
+            "author": "carlosmu",
+            "email": "carlos.damian.munoz@gmail.com",
+            "tags": [
+              ""
+            ],
             "layout": {
+              "base": {
+                "x": 0,
+                "y": 0
+              },
               "parcels": [
                 {
                   "x": -8,
@@ -4632,11 +4641,7 @@
                   "x": 7,
                   "y": -8
                 }
-              ],
-              "base": {
-                "x": 0,
-                "y": 0
-              }
+              ]
             },
             "silenceVoiceChat": false,
             "disablePortableExperiences": false,
@@ -4653,11 +4658,8 @@
                     ]
                   },
                   "y": {
-                    "$case": "range",
-                    "value": [
-                      0,
-                      0
-                    ]
+                    "$case": "single",
+                    "value": 0
                   },
                   "z": {
                     "$case": "range",
@@ -4675,9 +4677,9 @@
               }
             ],
             "skyboxConfig": {
-              "fixedTime": 62100
+              "transitionMode": 0
             },
-            "creator": "",
+            "creator": "0x4B538E1E044922aec2F428EC7E17A99f44205fF9",
             "disableNearbyVoiceChat": false,
             "hideLandscapeTerrain": true
           }
