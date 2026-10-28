@@ -14,20 +14,32 @@ import { signedFetch } from '~system/SignedFetch'
 
 import { Note } from '../shared/notes'
 
+/**
+ * Appended to every key that holds player progress. Bump it to start everyone from scratch: the
+ * old records stay in storage under the previous suffix, so going back is a matter of setting it
+ * back. Keys with no suffix at all are the testing stage, before seasons existed.
+ */
+const SAVE_SEASON = 's1'
+
+function seasonKey(key: string): string {
+  return `${key}-${SAVE_SEASON}`
+}
+
 /** Per-player key. One record holds the whole purse: a partial save is worse than none. */
-const PURSE_KEY = 'purse'
+const PURSE_KEY = seasonKey('purse')
 
 /** Per-player key: the notes left at their door. Apart from the purse, so a note never rewrites it. */
-const NOTES_KEY = 'notes'
+const NOTES_KEY = seasonKey('notes')
 
-/** Scene-wide key: the town's ore price, which belongs to the world and not to anyone. */
+/** Scene-wide key: the town's ore price, which belongs to the world and not to anyone, so it
+ * carries over from season to season. */
 const MARKET_PRICE_KEY = 'market-price'
 
 /** Scene-wide key: every property standing in town, so it stays up while its owner is away. */
-const PROPERTY_LOTS_KEY = 'property-lots'
+const PROPERTY_LOTS_KEY = seasonKey('property-lots')
 
 /** Scene-wide key: every rig parked in the yard, so it stays parked while its owner is away. */
-const MULE_YARD_KEY = 'mule-yard'
+const MULE_YARD_KEY = seasonKey('mule-yard')
 
 export type StoredLot = { kind: string; lot: number; address: string; name: string }
 
