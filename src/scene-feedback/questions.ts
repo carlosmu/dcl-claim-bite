@@ -25,7 +25,7 @@ export const ASK_PARTICIPANTS_ONLY = true
 // - null: none
 export const INTRO: IntroSpec | null = {
   title: "Howdy from the Claim Bite team!",
-  text: "We're testing how new prospectors find their feet in town. Would you answer three quick questions after your first purchase? Your answers help us make the start of the game better."
+  text: "We're testing how new prospectors find their feet in town. Now that you've made your first purchase, would you answer three quick questions? Your answers help us make the start of the game better."
 }
 
 // Playtest goal: onboarding. Asked together after the first purchase (see src/playtest.ts), once

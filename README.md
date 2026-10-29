@@ -6,22 +6,26 @@
 
 A Decentraland SDK7 scene set in a half-abandoned gold-rush mining town.
 
-You arrive as a stranger with a pick. Tap in time with the swing bar to break ore out of the rock,
-carry it to the bank in town, and sell it for coins — the only legal tender. Every sale pushes the
-town's ore price down for everyone, and it recovers slowly, so *when* you sell is the decision the
-game is built on. Coins buy better tools and rent a claim out at the quarry, where an idle rig keeps
-producing while you are away.
+You arrive as a stranger, and the mayor hands you a free pick. Walk up to a rock in the quarry and
+you swing on your own, filling a progress bar until the ore breaks loose — share a rock with
+another player and you both earn more. Carry your ore to the bank in town and sell it for coins,
+the only legal tender. Every sale pushes the town's ore price down for everyone, and it recovers
+slowly, so *when* you sell is the decision the game is built on.
+
+Coins buy better picks, more storage and a M.U.L.E. at the Market — a rig that keeps mining while
+you are away, as long as you keep it fueled. At the Land & Claim Office you trade your starting
+wagon up to a cabin, a house and finally a ranch, standing on a lot in town with your name on it.
 
 The game runs on an authoritative server: mining, selling and buying are requests, and balances and
 the shared market price come back from the server, so the town is the same town for everyone in it.
 
-**Deployment target:** World `carlosmu.dcl.eth`
+**Deployment target:** World `claimbite.dcl.eth`
 
 ## Design documents
 
 The design lives in [`design/`](design) — the [GDD](design/gdd.md), an append-only
 [decision log](design/decisions.md), the [hypothesis log](design/hypothesis-log.md) and
-[ideas](design/ideas.md).
+[ideas](design/ideas.md). Economy numbers live in [`balance.md`](design/balance.md).
 
 ## Run it
 
@@ -44,14 +48,15 @@ npm install
 npm run start
 ```
 
-`npm run build` type-checks and bundles the scene, `npm run deploy` publishes it.
+`npm run build` type-checks and bundles the scene, `npm run deploy` publishes it to the World, and
+`npm run server-logs` streams the authoritative server's logs.
 
 **With an AI coding assistant**
 
 If you build with an AI coding assistant (Claude Code, Cursor, GitHub Copilot, and others), install the official Decentraland SDK Skills first. They teach your agent verified SDK7 patterns for every topic: scene creation, 3D models, interactivity, UI, multiplayer, deployment, and more.
 
 ```
-npx skills add decentraland/sdk-skills
+npx skills add decentraland/sdk-skills --all
 ```
 
 See [Vibe Coding with AI](https://docs.decentraland.org/creator/scenes-sdk7/getting-started/vibe-coding) for the full guide.

@@ -7,37 +7,26 @@ import { isLandOfficePanelOpen } from './land-office/land-office'
 
 // When the onboarding playtest asks (Scene Feedback, src/scene-feedback/questions.ts).
 //
-// The invitation comes once the first sale is done and the Bank's panel has closed, so it never
-// covers the counter; the questions come once the first purchase is done and the Store or the
-// Land Office has closed, and only to a player who said yes. Both are once a visit.
+// Invitation and questions come together, once the first purchase is done and the Store or the
+// Land Office has closed, so they never cover a counter. Both are queued at once: Give feedback
+// leads straight into the first question, Skip drops them. Once a visit.
 //
 // Which actions happened is the server's word (`actionResult`), not the button's: a refused
-// sale or purchase does not count.
+// purchase does not count.
 
-let sold = false
 let bought = false
-let introAsked = false
-let questionsAsked = false
+let asked = false
 
 /** Fed every action result, refused or not, from the economy link. */
 export function notePlaytestAction(action: string, ok: boolean): void {
-  if (!ok) return
-  if (action === 'sell') sold = true
-  if (action === 'buy') bought = true
+  if (ok && action === 'buy') bought = true
 }
 
 function update(): void {
-  if (sold && !introAsked && !isBankPanelOpen()) {
-    introAsked = true
-    void feedback.intro('first-sale')
-  }
-
-  if (!bought || questionsAsked || isStorePanelOpen() || isLandOfficePanelOpen()) return
-  const participation = feedback.participation()
-  // Still waiting on the invitation (or it has not come yet): the purchase is kept until it is answered.
-  if (participation === 'unknown') return
-  questionsAsked = true
-  if (participation === 'out') return
+  if (!bought || asked || isBankPanelOpen() || isStorePanelOpen() || isLandOfficePanelOpen()) return
+  asked = true
+  // not-shown when participation is already known (feedback.enroll()): the ask still follows
+  void feedback.intro('first-purchase')
   void feedback.ask(['startMining', 'sellingOre', 'playMore'], 'first-purchase')
 }
 

@@ -9,7 +9,7 @@
 | |  |
 |---|---|
 | Public experience title | Claim Bite — IP & Content Policy self-check: clear |
-| Deployment target | World: carlosmu.dcl.eth |
+| Deployment target | World: claimbite.dcl.eth |
 | Studio / team name | carlosmu studio |
 | Date | 2026-09-01 |
 | Contact (Discord + email) | Discord: carlosmu_noz · Email: carlos.damian.munoz@gmail.com |
