@@ -244,6 +244,7 @@ const ICON_RANCH = atlasCell(4, 1, ATLAS_2) // D1
 const ICON_INVENTORY = atlasCell(1, 2, ATLAS_2) // A2
 const ICON_HORSE = atlasCell(2, 2, ATLAS_2) // B2
 const ICON_REVOLVER = atlasCell(3, 2, ATLAS_2) // C2
+const ICON_DYNAMITE = atlasCell(4, 2, ATLAS_2) // D2
 const ICON_RATE = atlasCell(1, 3, ATLAS_2) // A3
 
 // Property icon by catalogue id.
@@ -960,7 +961,7 @@ const PICK_COPY: Record<string, { description: string; benefits: string[] }> = {
 
 // --- Products ---
 
-type ProductKey = ShopItemId | 'fuel' | 'storage' | 'horse' | 'revolver'
+type ProductKey = ShopItemId | 'fuel' | 'storage' | 'horse' | 'revolver' | 'dynamite'
 
 type Status = { text: string; color: Color4 }
 
@@ -1013,7 +1014,8 @@ function storeProducts(): Product[] {
         { key: 'fuel', title: 'Fuel', icon: ICON_FUEL, hint: `${FUEL_PRICE_PER_GALLON} Coins / Gallon`, status: mules > 0 ? null : STATUS_LOCKED, muted: false },
         { key: 'storage', title: 'Storage', icon: ICON_WAREHOUSE, hint: `${withCommas(getCarryCapacity())} Ore`, status: null, muted: false },
         { key: 'horse', title: 'Horse', icon: ICON_HORSE, hint: '', status: STATUS_SOON, muted: true },
-        { key: 'revolver', title: 'Revolver', icon: ICON_REVOLVER, hint: '', status: STATUS_SOON, muted: true }
+        { key: 'revolver', title: 'Revolver', icon: ICON_REVOLVER, hint: '', status: STATUS_SOON, muted: true },
+        { key: 'dynamite', title: 'Dynamite', icon: ICON_DYNAMITE, hint: '', status: STATUS_SOON, muted: true }
     ]
 }
 
@@ -1289,6 +1291,7 @@ function detailFor(key: ProductKey): Detail {
     if (key === 'storage') return storageDetail()
     if (key === 'horse') return comingSoonDetail('Horse', ICON_HORSE)
     if (key === 'revolver') return comingSoonDetail('Revolver', ICON_REVOLVER)
+    if (key === 'dynamite') return comingSoonDetail('Dynamite', ICON_DYNAMITE)
     const pick = findItem(key as ShopItemId)
     return pick !== null && pick.line === 'pick' ? pickDetail(pick) : pickDetail(PICKS[0])
 }
