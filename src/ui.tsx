@@ -1001,6 +1001,7 @@ function storeProducts(): Product[] {
         muted: false
     }))
     const mule = itemsOf('mule')[0]
+    const nextStorage = nextTier('storage', (id) => getOwned(id))
     return [
         ...picks,
         {
@@ -1012,7 +1013,7 @@ function storeProducts(): Product[] {
             muted: false
         },
         { key: 'fuel', title: 'Fuel', icon: ICON_FUEL, hint: `${FUEL_PRICE_PER_GALLON} Coins / Gallon`, status: mules > 0 ? null : STATUS_LOCKED, muted: false },
-        { key: 'storage', title: 'Storage', icon: ICON_WAREHOUSE, hint: `${withCommas(getCarryCapacity())} Ore`, status: null, muted: false },
+        { key: 'storage', title: 'Storage', icon: ICON_WAREHOUSE, hint: nextStorage !== null ? `${nextStorage.price} Coins` : 'Max level', status: null, muted: false },
         { key: 'horse', title: 'Horse', icon: ICON_HORSE, hint: '', status: STATUS_SOON, muted: true },
         { key: 'revolver', title: 'Revolver', icon: ICON_REVOLVER, hint: '', status: STATUS_SOON, muted: true },
         { key: 'dynamite', title: 'Dynamite', icon: ICON_DYNAMITE, hint: '', status: STATUS_SOON, muted: true }
