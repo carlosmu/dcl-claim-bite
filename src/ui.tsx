@@ -911,6 +911,7 @@ const TILE_HEIGHT = 88
 const STORE_LIST_WIDTH = 270
 const STORE_CARD_HEIGHT = 60
 const STORE_CARD_GAP = 6
+const STORE_CARDS_PER_PAGE = 5
 const STORE_CARD_ICON = 42
 const STORE_DETAIL_ICON = 130
 const STORE_ACTION_HEIGHT = 64
@@ -958,7 +959,7 @@ function durabilityColor(pick: ShopItem, normal: Color4): Color4 {
 const PICK_COPY: Record<string, { description: string; benefits: string[] }> = {
     pick: { description: 'A borrowed pick. It gets the job done.', benefits: ['Free starting tool', 'Mines every rock'] },
     'steel-pick': { description: 'Better hits. Faster mining.', benefits: ['Faster mining', 'Better hits'] },
-    'miners-pick': { description: 'The finest pick in the territory.', benefits: ['Fastest mining', 'Strongest hits', 'Brightest sparks'] }
+    'miners-pick': { description: 'The finest pick in the territory.', benefits: ['Fastest mining', 'Strongest hits'] }
 }
 
 // --- Products ---
@@ -1006,6 +1007,7 @@ function storeProducts(): Product[] {
     const nextStorage = nextTier('storage', (id) => getOwned(id))
     return [
         ...picks,
+        { key: 'storage', title: 'Storage', icon: ICON_WAREHOUSE, hint: nextStorage !== null ? `${nextStorage.price} Coins` : 'Max level', status: null, muted: false },
         {
             key: 'mule',
             title: mule.label,
@@ -1015,7 +1017,6 @@ function storeProducts(): Product[] {
             muted: false
         },
         { key: 'fuel', title: 'Fuel', icon: ICON_FUEL, hint: `${FUEL_PRICE_PER_GALLON} Coins / Gallon`, status: mules > 0 ? null : STATUS_LOCKED, muted: false },
-        { key: 'storage', title: 'Storage', icon: ICON_WAREHOUSE, hint: nextStorage !== null ? `${nextStorage.price} Coins` : 'Max level', status: null, muted: false },
         { key: 'horse', title: 'Horse', icon: ICON_HORSE, hint: '', status: STATUS_SOON, muted: true },
         { key: 'revolver', title: 'Revolver', icon: ICON_REVOLVER, hint: '', status: STATUS_SOON, muted: true },
         { key: 'dynamite', title: 'Dynamite', icon: ICON_DYNAMITE, hint: '', status: STATUS_SOON, muted: true }
@@ -1336,6 +1337,12 @@ const storePanel = () => {
 
 /** The frame the store and the Land Office share: title, purse, close, cards on the left, detail on the right. */
 const counterPanel = (title: string, onClose: () => void, products: Product[], key: string, onSelect: (key: string) => void, detail: Detail) => {
+    // The page is wherever the selected card is, so a page turn selects that page's first card and
+    // the panel always opens on the page of what it shows.
+    const pages = Math.ceil(products.length / STORE_CARDS_PER_PAGE)
+    const page = Math.floor(Math.max(0, products.findIndex((product) => product.key === key)) / STORE_CARDS_PER_PAGE)
+    const firstCard = page * STORE_CARDS_PER_PAGE
+    const turnTo = (target: number) => onSelect(products[target * STORE_CARDS_PER_PAGE].key)
     return (
         <UiEntity
             uiTransform={{
@@ -1375,7 +1382,17 @@ const counterPanel = (title: string, onClose: () => void, products: Product[], k
             {/* On mobile, fills what the header leaves, so the detail's action sits at the bottom of the screen. */}
             <UiEntity uiTransform={{ width: '100%', flexGrow: 1, flexDirection: 'row' }}>
                 <UiEntity uiTransform={{ width: STORE_LIST_WIDTH, flexShrink: 0, flexDirection: 'column' }}>
-                    {products.map((product) => storeCard(product, product.key === key, onSelect))}
+                    {/* As tall as a full page, so the arrows stay put on a shorter one. */}
+                    <UiEntity uiTransform={{ width: '100%', height: STORE_CARDS_PER_PAGE * (STORE_CARD_HEIGHT + STORE_CARD_GAP), flexShrink: 0, flexDirection: 'column' }}>
+                        {products.slice(firstCard, firstCard + STORE_CARDS_PER_PAGE).map((product) => storeCard(product, product.key === key, onSelect))}
+                    </UiEntity>
+                    {pages > 1 ? (
+                        <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            {pageButton('<', page > 0, () => turnTo(page - 1))}
+                            <Label value={`${page + 1}/${pages}`} fontSize={16} color={BANK_CAPTION} textAlign="middle-center" uiTransform={{ width: 60, height: 44 }} />
+                            {pageButton('>', page < pages - 1, () => turnTo(page + 1))}
+                        </UiEntity>
+                    ) : null}
                 </UiEntity>
                 {storeDetail(detail)}
             </UiEntity>
