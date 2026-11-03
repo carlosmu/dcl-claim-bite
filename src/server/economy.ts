@@ -29,7 +29,7 @@ import {
 import { SOCIAL_MINING_ENTITY_ENUM_ID, SocialMining } from '../shared/net/social-sync'
 import { housingTier, PLAYER_TIERS_ENTITY_ENUM_ID, PlayerTiers } from '../shared/net/tiers-sync'
 import { room } from '../shared/net/protocol'
-import { applySale, getRate, getSettledRate, oreForCoins, quoteSale, restoreRate, tickMarket } from '../shared/state/market'
+import { applySale, getRate, getSettledRate, oreForCoins, quotedRate, quoteSale, restoreRate, tickMarket } from '../shared/state/market'
 import {
   loadMarketPrice,
   loadMuleYard,
@@ -68,6 +68,7 @@ import {
 } from '../shared/economy/catalogue'
 import { addFuelGallons, fuelGallons, fuelHoursLeft, settleMule } from './mule'
 import { clearNotes, leaveNote, sendNotes, setupNotes } from './notes'
+import { noteMined, noteNewOwner, noteSale, setupTitles } from './titles'
 import { TUTORIAL_ROCK_SEQS } from '../shared/net/rock-sync'
 import { advanceRock, getRockSeqs, hasFinishedRock, isRock, isRockStarted, markFinished } from './rock'
 
@@ -84,6 +85,8 @@ type Purse = {
   equipped: string
   /** Rocks each owned pick has left; a pick missing here is full (see durabilityLeft). */
   pickDurability: Record<string, number>
+  /** Ore the rigs put in storage since it was last reported to the titles. Not saved. */
+  rigOreTally: number
 }
 
 const purses = new Map<string, Purse>()
@@ -215,7 +218,8 @@ function beginLoad(address: string): void {
         muleAt: stored?.muleAt ?? 0,
         muleFuel: stored?.muleFuel ?? 0,
         equipped: stored?.equipped ?? '',
-        pickDurability: stored?.pickDurability ?? {}
+        pickDurability: stored?.pickDurability ?? {},
+        rigOreTally: 0
       }
       grantStartingItems(purse)
       const owned = (id: ShopItemId) => purse.owned[id] ?? 0
@@ -377,6 +381,7 @@ function handleRockDone(address: string, seq: number): void {
   const space = Math.max(0, carryCapacity(owned) - purse.ore)
   const paid = Math.min(ORE_PER_ROCK + bonus, space)
   purse.ore += paid
+  if (!tutorial) noteMined(address, displayNameOf(address), paid, 0)
 
   // Durability counts destroyed rocks and nothing else: one rock, one point, whatever it paid.
   const broke = wearPick(purse, pick)
@@ -417,6 +422,7 @@ function handleSell(address: string, requested: number): void {
   // Only the ore that actually bought those coins is taken; the remainder stays in the bag
   // rather than being burned by the rounding.
   const spent = Math.min(amount, oreForCoins(getRate(), payout))
+  noteSale(address, displayNameOf(address), spent, quotedRate(getRate()))
   // The rigs are settled on both sides of the sale: before, so the time they sat paused on a
   // full storage is not paid at the new room; after, so ore waiting on them fills the room now.
   const owned = (id: ShopItemId) => purse.owned[id] ?? 0
@@ -473,6 +479,7 @@ function handleBuy(address: string, itemId: string): void {
   if (item.id === 'mule' && mules === 0) addFuelGallons(purse, 1, 1)
   // A pick just bought goes straight into the hand; the inventory can swap it back.
   if (item.hitsPerRock !== undefined) purse.equipped = item.id
+  if (item.line === 'housing') noteNewOwner(address, displayNameOf(address), item.id)
   dirty.add(address)
 
   sendWallet(address)
@@ -634,6 +641,7 @@ function handleDebugReset(address: string): void {
   purse.muleFuel = 0
   purse.equipped = ''
   purse.pickDurability = {}
+  purse.rigOreTally = 0
   lastRockAt.delete(address)
   lastSwing.delete(address)
   lastMinedAt.delete(address)
@@ -734,6 +742,23 @@ function flushSaves(dt: number) {
 
   if (!yardLoaded) loadYard()
   else saveYard()
+}
+
+let sinceLastRigReport = 0
+
+// Rigs pay in from several places, so their ore is reported on a beat rather than at each one.
+// Only present players: an absent player's rigs are settled when they come back.
+function reportRigOre(dt: number) {
+  sinceLastRigReport += dt
+  if (sinceLastRigReport < PRESENCE_CHECK_PERIOD_SECONDS) return
+  sinceLastRigReport = 0
+
+  for (const address of present) {
+    const purse = purses.get(address)
+    if (purse === undefined) continue
+    noteMined(address, displayNameOf(address), 0, purse.rigOreTally)
+    purse.rigOreTally = 0
+  }
 }
 
 // Only for players actually in the scene: an absent player's rig needs no attention, because
@@ -1274,6 +1299,8 @@ export function setupEconomy(): void {
   engine.addSystem(publishTiers, undefined, 'server:player-tiers')
   engine.addSystem(publishHeldPicks, undefined, 'server:held-picks')
   engine.addSystem(publishSocial, undefined, 'server:social-mining')
+  engine.addSystem(reportRigOre, undefined, 'server:rig-ore-report')
   engine.addSystem(moveSpentRocks, undefined, 'server:rock-move')
   setupNotes()
+  setupTitles()
 }

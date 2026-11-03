@@ -59,6 +59,8 @@ import {
     socialBonus
 } from './shared/economy/constants'
 import { getActiveMiners } from './shared/net/social-sync'
+import { getTownTitles } from './shared/net/town-titles-sync'
+import { TitleId } from './shared/titles'
 import { getDurability, getEquipped, getOwned } from './shared/state/inventory'
 import { getServerTick, isServerOnline } from './net/server-link'
 import { getDeployStamp } from './net/deploy-stamp'
@@ -2443,6 +2445,7 @@ const inventoryButton = () => (
             if (inventoryOpen) {
                 notificationsOpen = false
                 soundOpen = false
+                townBoardOpen = false
                 mapOpen = false
                 pickSelectorOpen = false
                 muleDropdownOpen = false
@@ -2510,6 +2513,7 @@ const mapButton = () => (
             if (mapOpen) {
                 notificationsOpen = false
                 soundOpen = false
+                townBoardOpen = false
                 inventoryOpen = false
                 pickSelectorOpen = false
                 muleDropdownOpen = false
@@ -3273,11 +3277,11 @@ const ownerCardPanel = () => {
 // the inventory, and like it, one screen at a time: opening it closes the map and the inventory.
 
 const NOTIFY_PANEL_WIDTH = 560
-/** How far in from the screen's right edge Notifications sits: far enough that Sound's left
+/** How far in from the screen's right edge Notifications sits: far enough that the Town Board's left
  *  edge lines up with the objective tracker's below. */
-const CORNER_BUTTON_RIGHT = HUD_MARGIN + OBJECTIVE_WIDTH - (2 * BOTTOM_BUTTON_WIDTH + BOTTOM_BUTTON_GAP)
+const CORNER_BUTTON_RIGHT = HUD_MARGIN + OBJECTIVE_WIDTH - (3 * BOTTOM_BUTTON_WIDTH + 2 * BOTTOM_BUTTON_GAP)
 
-/** Sound and Notifications: square icon buttons like Map and Inventory, side by side on the
+/** Town Board, Sound and Notifications: square icon buttons like Map and Inventory, side by side on the
  *  screen's top-right corner, Notifications at the edge. `slot` counts from the right. Centred
  *  on the HUD's height: the plank hangs from the top of the screen. */
 const cornerButton = (slot: number, open: boolean, icon: Icon, onPress: () => void) => (
@@ -3316,6 +3320,7 @@ const notificationsButton = () =>
         notificationsOpen = !notificationsOpen
         if (notificationsOpen) {
             soundOpen = false
+            townBoardOpen = false
             mapOpen = false
             inventoryOpen = false
             pickSelectorOpen = false
@@ -3419,6 +3424,7 @@ const soundButton = () =>
         soundOpen = !soundOpen
         if (soundOpen) {
             notificationsOpen = false
+            townBoardOpen = false
             mapOpen = false
             inventoryOpen = false
             pickSelectorOpen = false
@@ -3516,6 +3522,165 @@ const soundPanel = () => (
     </UiEntity>
 )
 
+// --- Town board ---------------------------------------------------------------------------
+//
+// One card at a time, stepped through with the arrows: a card per title that has a holder, and one
+// for the newest property owners if there are any. The server decides all of it (server/titles.ts);
+// this only draws what it last said. The button sits left of Sound.
+
+const TOWN_BOARD_WIDTH = 680
+const TOWN_CARD_HEIGHT = 330
+const TOWN_ARROW_SIZE = 64
+const TOWN_TITLE_PHOTO_SIZE = 170
+const TOWN_OWNER_PHOTO_SIZE = 110
+const TOWN_OWNER_WIDTH = 150
+
+let townBoardOpen = false
+let townBoardPage = 0
+
+const townBoardButton = () =>
+    cornerButton(2, townBoardOpen, ICON_SHERIFF, () => {
+        townBoardOpen = !townBoardOpen
+        if (townBoardOpen) {
+            townBoardPage = 0
+            soundOpen = false
+            notificationsOpen = false
+            mapOpen = false
+            inventoryOpen = false
+            pickSelectorOpen = false
+            muleDropdownOpen = false
+        }
+    })
+
+const TOWN_TITLES: { id: TitleId; title: string; feat: string; value: (value: number) => string }[] = [
+    { id: 'whale', title: 'THE WHALE', feat: 'Biggest single sale', value: (value) => `${withCommas(value)} ore` },
+    { id: 'panic', title: 'PANIC SELLER', feat: 'Sold at the worst rate', value: (value) => `${formatRate(value)} ore/coin` },
+    { id: 'active', title: 'HARDEST WORKER', feat: 'Most ore mined by hand', value: (value) => `${withCommas(value)} ore` },
+    { id: 'baron', title: 'M.U.L.E. BARON', feat: 'Most ore dug by rigs', value: (value) => `${withCommas(value)} ore` }
+]
+
+const townPhoto = (address: string, size: number) => (
+    <UiEntity
+        uiTransform={{ width: size, height: size, flexShrink: 0, borderRadius: 10, borderWidth: 3, borderColor: BANK_TRIM }}
+        uiBackground={
+            ownerHasFace(address)
+                ? { textureMode: 'stretch', avatarTexture: { userId: address } }
+                : { textureMode: 'stretch', texture: { src: OWNER_PICTURE_FALLBACK } }
+        }
+    />
+)
+
+const townCardLine = (value: string, fontSize: number, color: Color4) => (
+    <Label value={value} fontSize={fontSize} color={color} textAlign="middle-center" textWrap="nowrap" uiTransform={{ width: '100%', height: fontSize + 8 }} />
+)
+
+const townTitleCard = (title: string, address: string, name: string, description: string) => (
+    <UiEntity key={title} uiTransform={{ width: '100%', flexDirection: 'column', alignItems: 'center' }}>
+        <BitmapText value={title} fontSize={34} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%', margin: { bottom: 10 } }} />
+        {townPhoto(address, TOWN_TITLE_PHOTO_SIZE)}
+        <UiEntity uiTransform={{ width: '100%', height: 8 }} />
+        {townCardLine(name, 22, BANK_CREAM)}
+        {townCardLine(description, 16, BANK_CAPTION)}
+    </UiEntity>
+)
+
+const townOwnersCard = (owners: readonly { kind: string; address: string; name: string }[]) => (
+    <UiEntity key="owners" uiTransform={{ width: '100%', flexDirection: 'column', alignItems: 'center' }}>
+        <BitmapText value="NEW OWNERS" fontSize={34} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%', margin: { bottom: 16 } }} />
+        <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', justifyContent: 'center' }}>
+            {owners.map((owner, index) => (
+                <UiEntity key={`${index}`} uiTransform={{ width: TOWN_OWNER_WIDTH, flexDirection: 'column', alignItems: 'center' }}>
+                    {townPhoto(owner.address, TOWN_OWNER_PHOTO_SIZE)}
+                    <UiEntity uiTransform={{ width: '100%', height: 8 }} />
+                    {townCardLine(owner.name, 16, BANK_CREAM)}
+                    {townCardLine(findItem(owner.kind as ShopItemId)?.label ?? owner.kind, 16, BANK_GOLD_LIGHT)}
+                </UiEntity>
+            ))}
+        </UiEntity>
+    </UiEntity>
+)
+
+const townArrow = (label: string, onPress: () => void) => (
+    <Button
+        value={label}
+        fontSize={34}
+        color={BANK_INK}
+        uiTransform={{ width: TOWN_ARROW_SIZE, height: TOWN_ARROW_SIZE, flexShrink: 0, borderRadius: 8 }}
+        uiBackground={{ color: BANK_GOLD }}
+        onMouseDown={onPress}
+    />
+)
+
+/** Only what has someone to show: a title nobody holds gets no card at all. */
+function townBoardCards(): ReactEcs.JSX.Element[] {
+    const board = getTownTitles()
+    const cards: ReactEcs.JSX.Element[] = []
+    for (const entry of TOWN_TITLES) {
+        const holder = board?.titles.find((title) => title.id === entry.id)
+        if (holder !== undefined) cards.push(townTitleCard(entry.title, holder.address, holder.name, `${entry.feat}: ${entry.value(holder.value)}`))
+    }
+    if (board !== null && board.owners.length > 0) cards.push(townOwnersCard(board.owners))
+    return cards
+}
+
+const townBoardPanel = () => {
+    const cards = townBoardCards()
+    // A card can go away while the board is open, so the page is kept in range here.
+    const page = cards.length > 0 ? Math.min(townBoardPage, cards.length - 1) : 0
+    const step = (by: number) => {
+        townBoardPage = (page + by + cards.length) % cards.length
+    }
+    return (
+        <UiEntity
+            uiTransform={{
+                width: TOWN_BOARD_WIDTH,
+                flexDirection: 'column',
+                alignItems: 'center',
+                padding: BANK_PANEL_PADDING,
+                borderRadius: PANEL_RADIUS,
+                borderWidth: 3,
+                borderColor: BANK_TRIM
+            }}
+            uiBackground={{ color: BANK_WOOD_DARK }}
+        >
+            <BitmapText value="TOWN BOARD" fontSize={40} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%' }} />
+            {townCardLine('Last 7 days', 16, BANK_CAPTION)}
+            <Button
+                value="X"
+                fontSize={30}
+                color={Color4.White()}
+                uiTransform={{ positionType: 'absolute', position: { top: BANK_PANEL_PADDING, right: BANK_PANEL_PADDING }, width: 48, height: 48, borderRadius: PANEL_RADIUS }}
+                uiBackground={{ color: MAP_CLOSE_COLOR }}
+                onMouseDown={() => {
+                    townBoardOpen = false
+                }}
+            />
+            <UiEntity uiTransform={{ width: '100%', height: TOWN_CARD_HEIGHT, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', margin: { top: 10 } }}>
+                {cards.length > 1 ? townArrow('<', () => step(-1)) : <UiEntity uiTransform={{ width: TOWN_ARROW_SIZE, flexShrink: 0 }} />}
+                <UiEntity
+                    uiTransform={{
+                        flexGrow: 1,
+                        height: '100%',
+                        margin: { left: 10, right: 10 },
+                        padding: 12,
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: 10,
+                        borderWidth: 2,
+                        borderColor: BANK_TRIM
+                    }}
+                    uiBackground={{ color: BANK_WOOD }}
+                >
+                    {cards.length > 0 ? cards[page] : townCardLine('Nothing on the board yet', 16, BANK_CAPTION)}
+                </UiEntity>
+                {cards.length > 1 ? townArrow('>', () => step(1)) : <UiEntity uiTransform={{ width: TOWN_ARROW_SIZE, flexShrink: 0 }} />}
+            </UiEntity>
+            {cards.length > 1 ? townCardLine(`${page + 1} / ${cards.length}`, 16, BANK_CAPTION) : null}
+        </UiEntity>
+    )
+}
+
 export const uiMenu = () => (
     <UiEntity
         uiTransform={{
@@ -3531,6 +3696,7 @@ export const uiMenu = () => (
         {objectiveTracker()}
         {notificationsButton()}
         {soundButton()}
+        {townBoardButton()}
         {DEBUG_RESET_PROGRESS || DEBUG_ADD_COINS || DEBUG_ADD_ORE || DEBUG_SERVER_STATUS ? debugBox() : null}
         {/* main-container: every piece of UI goes in here */}
         <UiEntity
@@ -3557,11 +3723,12 @@ export const uiMenu = () => (
             {inventoryOpen ? inventoryPanel() : null}
             {notificationsOpen ? notificationsPanel() : null}
             {soundOpen ? soundPanel() : null}
-            {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && isBankPanelOpen() ? bankPanel() : null}
-            {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && isStorePanelOpen() ? storePanel() : null}
-            {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && isLandOfficePanelOpen() ? landOfficePanel() : null}
-            {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && isMulePanelOpen() && getMuleCount() > 0 ? mulePanel() : null}
-            {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && isOwnerCardOpen() ? ownerCardPanel() : null}
+            {townBoardOpen ? townBoardPanel() : null}
+            {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isBankPanelOpen() ? bankPanel() : null}
+            {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isStorePanelOpen() ? storePanel() : null}
+            {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isLandOfficePanelOpen() ? landOfficePanel() : null}
+            {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isMulePanelOpen() && getMuleCount() > 0 ? mulePanel() : null}
+            {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isOwnerCardOpen() ? ownerCardPanel() : null}
             {pickSelector()}
             {muleDropdown()}
         </UiEntity>

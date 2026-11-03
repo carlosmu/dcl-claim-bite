@@ -264,6 +264,7 @@ function setOwnerPicture(picture: Entity, address: string | undefined): void {
 
 /** Whether the owner's profile is known to have a face; the fallback picture stands in otherwise. */
 export function ownerHasFace(address: string): boolean {
+  if (!hasFace.has(address)) lookUpFace(address)
   return hasFace.get(address) === true
 }
 

@@ -88,6 +88,9 @@ export const MARKET_IMPACT_VOLUME = 100
 /** How far the rate walks back toward the base per window: 12 → 10 takes twenty minutes. */
 export const RATE_RECOVERY_PER_WINDOW = 0.1
 
+/** The smallest sale that counts towards the Panic Seller title, so a handful of ore cannot take it. */
+export const PANIC_SELLER_MIN_ORE = 100
+
 // --- Carrying -------------------------------------------------------------------------
 
 // One storage for all ore: manual mining and the M.U.L.E.s fill it, selling draws from it. When

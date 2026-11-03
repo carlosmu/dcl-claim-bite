@@ -13,6 +13,7 @@ import { getStorageServerUrl } from '@dcl/sdk/server/storage-url'
 import { signedFetch } from '~system/SignedFetch'
 
 import { Note } from '../shared/notes'
+import { NewOwner, TownDay } from '../shared/titles'
 
 /**
  * Appended to every key that holds player progress. Bump it to start everyone from scratch: the
@@ -40,6 +41,11 @@ const PROPERTY_LOTS_KEY = seasonKey('property-lots')
 
 /** Scene-wide key: every rig parked in the yard, so it stays parked while its owner is away. */
 const MULE_YARD_KEY = seasonKey('mule-yard')
+
+/** Scene-wide key: the town's titles and its newest property owners. */
+const TITLES_KEY = seasonKey('town-titles')
+
+export type StoredTitles = { days: TownDay[]; owners: NewOwner[] }
 
 export type StoredLot = { kind: string; lot: number; address: string; name: string }
 
@@ -153,6 +159,23 @@ export async function saveNotes(address: string, notes: Note[]): Promise<boolean
     return ok
   } catch (error) {
     console.log(`[Server] could not save notes for ${address}: ${error}`)
+    return false
+  }
+}
+
+/** The town's board, or null if none was ever saved. Throws if the read failed. */
+export function loadTitles(): Promise<StoredTitles | null> {
+  return readValue<StoredTitles>(`/values/${encodeURIComponent(TITLES_KEY)}`)
+}
+
+/** Resolves true once the write is confirmed, like savePurse. */
+export async function saveTitles(titles: StoredTitles): Promise<boolean> {
+  try {
+    const ok = await Storage.set(TITLES_KEY, titles)
+    if (!ok) console.log('[Server] could not save titles')
+    return ok
+  } catch (error) {
+    console.log(`[Server] could not save titles: ${error}`)
     return false
   }
 }

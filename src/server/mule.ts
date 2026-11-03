@@ -32,6 +32,8 @@ export type MuleState = {
    * this over 24 (fuelGallons). Kept in rig-hours because saves already store it that way.
    */
   muleFuel: number
+  /** Ore the rigs put in storage and the M.U.L.E. Baron title has not heard about yet. */
+  rigOreTally: number
 }
 
 /** Moves whole ore from the rigs into storage, as much as fits. */
@@ -39,6 +41,7 @@ function unload(state: MuleState, capacity: number): void {
   const moved = Math.max(0, Math.min(Math.floor(state.muleOre), capacity - state.ore))
   state.ore += moved
   state.muleOre -= moved
+  state.rigOreTally += moved
 }
 
 /**
