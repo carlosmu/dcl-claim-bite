@@ -48,7 +48,16 @@ const TITLES_KEY = seasonKey('town-titles')
 /** Scene-wide key: the coins in the casino's jackpot, which are progress like any others. */
 const JACKPOT_KEY = seasonKey('casino-pot')
 
+/** Scene-wide key: the slot machines' figures per day, for the owner to read in the Storage export. */
+const CASINO_STATS_KEY = seasonKey('casino-stats')
+
 export type StoredTitles = { days: TownDay[]; owners: NewOwner[] }
+
+/** One day of the slot machines. `won` is what left the game: bets, less wins, less the pot's growth. */
+export type CasinoDay = { spins: number; wagered: number; paid: number; jackpots: number; won: number }
+
+/** `won` is what the casino has won in all, the headline figure. `days` are by UTC day, as YYYY-MM-DD. */
+export type StoredCasinoStats = { won: number; days: Record<string, CasinoDay> }
 
 export type StoredLot = { kind: string; lot: number; address: string; name: string }
 
@@ -179,6 +188,23 @@ export async function saveJackpot(pot: number): Promise<boolean> {
     return ok
   } catch (error) {
     console.log(`[Server] could not save the jackpot: ${error}`)
+    return false
+  }
+}
+
+/** The casino's figures, or null if none were ever saved. Throws if the read failed. */
+export function loadCasinoStats(): Promise<StoredCasinoStats | null> {
+  return readValue<StoredCasinoStats>(`/values/${encodeURIComponent(CASINO_STATS_KEY)}`)
+}
+
+/** Resolves true once the write is confirmed, like savePurse. */
+export async function saveCasinoStats(stats: StoredCasinoStats): Promise<boolean> {
+  try {
+    const ok = await Storage.set(CASINO_STATS_KEY, stats)
+    if (!ok) console.log('[Server] could not save the casino stats')
+    return ok
+  } catch (error) {
+    console.log(`[Server] could not save the casino stats: ${error}`)
     return false
   }
 }

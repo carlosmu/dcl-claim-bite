@@ -9,6 +9,7 @@ import { syncEntity } from '@dcl/sdk/network'
 
 import { isJackpot, JACKPOT_MIN, JACKPOT_RATE, jackpotShare, payMultiplier, spinReel } from '../shared/economy/slots'
 import { CASINO_ENTITY_ENUM_ID, CasinoJackpot } from '../shared/net/casino-sync'
+import { noteSpin, setupCasinoStats } from './casino-stats'
 import { loadJackpot, saveJackpot } from './persistence'
 
 /** How often a changed pot is written out. */
@@ -36,6 +37,7 @@ export function isCasinoReady(): boolean {
 /** Spins for this bet: feeds the pot, then works out the win, the pot's share included. */
 export function spin(bet: number): Spin {
   const reels = [spinReel(Math.random), spinReel(Math.random), spinReel(Math.random)]
+  const potBefore = pot
   pot += bet * JACKPOT_RATE
   let win = bet * payMultiplier(reels)
   const jackpot = isJackpot(reels)
@@ -46,6 +48,7 @@ export function spin(bet: number): Spin {
   }
   potDirty = true
   publish()
+  noteSpin(bet, win, jackpot, pot - potBefore)
   return { reels, win, jackpot }
 }
 
@@ -100,4 +103,5 @@ export function setupCasino(): void {
 
   engine.addSystem(tick, undefined, 'server:casino')
   load()
+  setupCasinoStats()
 }

@@ -13,6 +13,7 @@
 import { engine } from '@dcl/sdk/ecs'
 import { isMobile } from '@dcl/sdk/platform'
 
+import { isCasinoPanelOpen } from '../casino/casino'
 import { canBuy, currentPrice } from '../shop/shop'
 import {
   getCarryCapacity,
@@ -73,7 +74,17 @@ const NOTE_ALERT_SECONDS = 8
  */
 const SOCIAL_ALERT_SECONDS = 24
 
+/** Reaching each new multiple of this many coins suggests the casino. */
+const CASINO_HINT_COINS = 100
+
+/** How long the suggestion stays up. */
+const CASINO_HINT_SECONDS = 10
+
 let clock = 0
+/** The highest multiple of CASINO_HINT_COINS reached this session, so that winning a hundred back
+ *  after losing it says nothing new. Below zero until the purse arrives. */
+let casinoHintReached = -1
+let casinoHintUntil = 0
 let lastRate = -1
 let priceAlertUntil = 0
 let lastMiners = 0
@@ -216,6 +227,11 @@ function candidates(): Objective[] {
   }
   if (beginner && !full && ore >= rate) list.push(goal('first-sell', 'Sell your ore at the Bank', `${ore} ore ready`))
 
+  // Not to someone already at the machine.
+  if (clock < casinoHintUntil && !isCasinoPanelOpen()) {
+    list.push(goal('casino', 'Try your luck at the Casino', `${getCoins()} coins`))
+  }
+
   return list
 }
 
@@ -277,6 +293,11 @@ function update(dt: number): void {
     socialIntroShown = true
     socialAlertUntil = clock + SOCIAL_ALERT_SECONDS
   }
+
+  // The coins the player arrived with are not news: only a multiple reached from here on is.
+  const hundreds = Math.floor(getCoins() / CASINO_HINT_COINS)
+  if (casinoHintReached >= 0 && hundreds > casinoHintReached) casinoHintUntil = clock + CASINO_HINT_SECONDS
+  casinoHintReached = Math.max(casinoHintReached, hundreds)
 
   restack()
 }
