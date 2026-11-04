@@ -982,6 +982,7 @@ type Product = {
 const STATUS_EQUIPPED: Status = { text: 'Equipped', color: PRICE_GOOD_COLOR }
 const STATUS_LOCKED: Status = { text: 'Locked', color: MUTED_COLOR }
 const STATUS_BUY: Status = { text: 'Buy', color: BANK_GOLD_LIGHT }
+const STATUS_UPGRADE: Status = { text: 'Upgrade', color: BANK_GOLD_LIGHT }
 const STATUS_SOON: Status = { text: 'Coming Soon', color: MUTED_COLOR }
 
 function ownedStatus(count: number): Status {
@@ -1138,10 +1139,10 @@ function priceStat(price: number | null, label: string = 'Price'): ReactEcs.JSX.
 }
 
 /** The buy action for an item: live when it can be bought, off (price still shown above) when not. */
-function buyAction(item: ShopItem): Action {
+function buyAction(item: ShopItem, label: string = 'BUY'): Action {
     const why = whyUnavailable(item)
     if (why !== null) return { label: 'LOCKED', kind: 'off' }
-    return { label: 'BUY', kind: buyBlocker(item) === null ? 'buy' : 'off', onClick: () => buyItem(item.id) }
+    return { label, kind: buyBlocker(item) === null ? 'buy' : 'off', onClick: () => buyItem(item.id) }
 }
 
 /** The pieces of one product's detail: what it is, its numbers, and what you can do. */
@@ -1424,7 +1425,7 @@ function activeHome(): ShopItem | null {
 function propertyStatus(item: ShopItem): Status {
     if (item.id === activeHome()?.id) return STATUS_ACTIVE
     if (getOwned(item.id) > 0) return STATUS_PREVIOUS
-    return whyUnavailable(item) === null ? STATUS_BUY : STATUS_LOCKED
+    return whyUnavailable(item) === null ? STATUS_UPGRADE : STATUS_LOCKED
 }
 
 function landOfficeProducts(): Product[] {
@@ -1452,7 +1453,8 @@ function propertyDetail(item: ShopItem): Detail {
     let action: Action
     if (active) action = { label: 'ACTIVE', kind: 'equipped' }
     else if (owned) action = { label: 'PREVIOUS', kind: 'off' }
-    else action = buyAction(item)
+    // A new home replaces the old one: the player moves up, they do not end up with two.
+    else action = buyAction(item, 'UPGRADE')
 
     const notes: ReactEcs.JSX.Element[] = []
     if (active) notes.push(detailNote('Your current home', PRICE_GOOD_COLOR))
