@@ -6,12 +6,12 @@
 // The days are UTC calendar days, kept one record each: that is all the detail a seven-day window
 // needs, and it keeps the stored record small.
 
-export type TitleId = 'whale' | 'panic' | 'active' | 'baron'
+export type TitleId = 'whale' | 'panic' | 'active' | 'baron' | 'roller'
 
 /** How many days a title looks back, today included. */
 export const TITLE_WINDOW_DAYS = 7
 
-/** A feat worth a title. `value` is ore, except for the Panic Seller's, which is a rate. */
+/** A feat worth a title. `value` is ore, except for the Panic Seller's, a rate, and the High Roller's, coins. */
 export type TitleFeat = { address: string; name: string; value: number }
 
 export type TitleHolder = TitleFeat & { id: TitleId }
@@ -19,8 +19,8 @@ export type TitleHolder = TitleFeat & { id: TitleId }
 /** What one player dug in one day, by hand and by rig. */
 export type MinerTally = { name: string; hand: number; rig: number }
 
-/** One day of the town: its biggest sale, its worst-priced one, and what each player dug. */
-export type TownDay = { day: number; whale?: TitleFeat; panic?: TitleFeat; miners: Record<string, MinerTally> }
+/** One day of the town: its biggest sale, its worst-priced one, its biggest slot win, and what each player dug. */
+export type TownDay = { day: number; whale?: TitleFeat; panic?: TitleFeat; roller?: TitleFeat; miners: Record<string, MinerTally> }
 
 /** A property bought: who bought it, which kind, and when (wall-clock ms). */
 export type NewOwner = { kind: string; address: string; name: string; at: number }
@@ -48,11 +48,13 @@ export function titleHolders(days: TownDay[]): TitleHolder[] {
   const oldestFirst = [...days].sort((a, b) => a.day - b.day)
   let whale: TitleFeat | undefined
   let panic: TitleFeat | undefined
+  let roller: TitleFeat | undefined
   const totals = new Map<string, MinerTally>()
 
   for (const entry of oldestFirst) {
     if (entry.whale !== undefined && (whale === undefined || entry.whale.value >= whale.value)) whale = entry.whale
     if (entry.panic !== undefined && (panic === undefined || entry.panic.value >= panic.value)) panic = entry.panic
+    if (entry.roller !== undefined && (roller === undefined || entry.roller.value >= roller.value)) roller = entry.roller
     for (const address of Object.keys(entry.miners)) {
       const miner = entry.miners[address]
       const total = totals.get(address)
@@ -73,6 +75,7 @@ export function titleHolders(days: TownDay[]): TitleHolder[] {
   if (panic !== undefined) holders.push({ ...panic, id: 'panic' })
   if (active !== undefined) holders.push({ ...active, id: 'active' })
   if (baron !== undefined) holders.push({ ...baron, id: 'baron' })
+  if (roller !== undefined) holders.push({ ...roller, id: 'roller' })
   return holders
 }
 

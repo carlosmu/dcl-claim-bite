@@ -82,6 +82,15 @@ export function noteSale(address: string, name: string, ore: number, rate: numbe
   })
 }
 
+/** A slot machine paid `coins` on one spin. Within a day a draw goes to the latest. */
+export function noteSlotWin(address: string, name: string, coins: number): void {
+  whenLoaded(() => {
+    const entry = today()
+    if (coins >= (entry.roller?.value ?? 0)) entry.roller = { address, name, value: coins }
+    boardDirty = true
+  })
+}
+
 /** Ore a player just dug, by hand or by rig. */
 export function noteMined(address: string, name: string, hand: number, rig: number): void {
   if (hand <= 0 && rig <= 0) return

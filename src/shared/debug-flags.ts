@@ -3,11 +3,14 @@
 // Shared by both runtimes on purpose: a flag that guards something the server grants (like
 // free coins) is checked by the server too, so hiding the button is never the only guard.
 //
-// Each flag is ANDed with DEBUG_ENABLED: set that to false to turn every tool off at once (before a
-// real deploy), or leave it true and flip the flags one by one.
+// Each flag is ANDed with DEBUG_ENABLED: set that to false to turn every tool off at once, or leave
+// it true and flip the flags one by one.
+//
+// The debug panel and the grants behind it also need a local preview (shared/local-preview.ts), so
+// they never reach a deployed scene. The other flags have no such check: leave them off to deploy.
 
 /** Master switch for every debug tool, here and in scene-feedback. */
-export const DEBUG_ENABLED: boolean = false
+export const DEBUG_ENABLED: boolean = true
 
 /** A "+ Coins" button that asks for an amount and grants it for free. Skips the bank, so the
  * market never moves. The server refuses the grant while this is false. */

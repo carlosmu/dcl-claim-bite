@@ -2,7 +2,7 @@
 // M.U.L.E. and a property's owner card each open on their own (walking up or clicking), so
 // whichever opens last closes the rest, as if their X had been pressed.
 
-export type PanelId = 'bank' | 'store' | 'land-office' | 'mule' | 'owner-card'
+export type PanelId = 'bank' | 'store' | 'land-office' | 'mule' | 'owner-card' | 'casino'
 
 const closers = new Map<PanelId, () => void>()
 

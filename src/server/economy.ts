@@ -51,6 +51,7 @@ import {
   SWING_SECONDS
 } from '../shared/economy/constants'
 import { DEBUG_ADD_COINS, DEBUG_ADD_ORE, DEBUG_MAX_COINS, DEBUG_RESET_PROGRESS } from '../shared/debug-flags'
+import { isLocalPreview } from '../shared/local-preview'
 import {
   activePick,
   bestHitsPerRock,
@@ -68,7 +69,9 @@ import {
 } from '../shared/economy/catalogue'
 import { addFuelGallons, fuelGallons, fuelHoursLeft, settleMule } from './mule'
 import { clearNotes, leaveNote, sendNotes, setupNotes } from './notes'
-import { noteMined, noteNewOwner, noteSale, setupTitles } from './titles'
+import { noteMined, noteNewOwner, noteSale, noteSlotWin, setupTitles } from './titles'
+import { isCasinoReady, setupCasino, spin } from './casino'
+import { SLOT_BETS, SLOT_MIN_SECONDS_BETWEEN_SPINS } from '../shared/economy/slots'
 import { TUTORIAL_ROCK_SEQS } from '../shared/net/rock-sync'
 import { advanceRock, getRockSeqs, hasFinishedRock, isRock, isRockStarted, markFinished } from './rock'
 
@@ -516,6 +519,42 @@ function buyFuel(address: string, purse: Purse, item: ShopItem): void {
   console.log(`[Server] ${address} bought ${order.gallons.toFixed(1)} gallons for ${order.price} · balance ${purse.coins}`)
 }
 
+/** When each player last spun, on the server clock. */
+const lastSpinAt = new Map<string, number>()
+
+// The bet and the win land on the purse together, so a restart can never keep one without the
+// other. TBD: like a sale, the player's distance to the machine is not validated.
+function handleSlotSpin(address: string, bet: number): void {
+  const purse = purseOf(address)
+  if (purse === null || !isCasinoReady()) {
+    sendResult(address, 'slotSpin', false, 'The machine is warming up')
+    return
+  }
+  if (!SLOT_BETS.includes(bet)) {
+    sendResult(address, 'slotSpin', false, 'The machine does not take that bet')
+    return
+  }
+  if (purse.coins < bet) {
+    sendResult(address, 'slotSpin', false, `Needs ${bet - purse.coins} more coins`)
+    return
+  }
+  const last = lastSpinAt.get(address)
+  if (last !== undefined && serverClock - last < SLOT_MIN_SECONDS_BETWEEN_SPINS) {
+    sendResult(address, 'slotSpin', false, 'The reels are still turning')
+    return
+  }
+  lastSpinAt.set(address, serverClock)
+
+  const { reels, win, jackpot } = spin(bet)
+  purse.coins += win - bet
+  dirty.add(address)
+  if (win > 0) noteSlotWin(address, displayNameOf(address), win)
+
+  room.send('slotResult', { reels, bet, win, jackpot }, { to: [address] })
+  sendWallet(address)
+  console.log(`[Server] ${address} bet ${bet} on the slots and won ${win}${jackpot ? ' (JACKPOT)' : ''} · balance ${purse.coins}`)
+}
+
 function handleEquip(address: string, itemId: string): void {
   const purse = purseOf(address)
   if (purse === null) {
@@ -565,7 +604,7 @@ function handleClaimPick(address: string): void {
 // DEBUG: coins out of nothing, for testing purchases without playing up to them. They skip the
 // bank, so the market never hears about them — but nothing else in the economy is protected.
 function handleDebugCoins(address: string, requested: number): void {
-  if (!DEBUG_ADD_COINS) {
+  if (!DEBUG_ADD_COINS || !isLocalPreview()) {
     sendResult(address, 'debugCoins', false, 'debug tools are off')
     return
   }
@@ -592,7 +631,7 @@ function handleDebugCoins(address: string, requested: number): void {
 // DEBUG: ore out of nothing, for testing the bank without mining. It lands in the bag like
 // mined ore would, so the bag's capacity still holds; whatever does not fit is not granted.
 function handleDebugOre(address: string, requested: number): void {
-  if (!DEBUG_ADD_ORE) {
+  if (!DEBUG_ADD_ORE || !isLocalPreview()) {
     sendResult(address, 'debugOre', false, 'debug tools are off')
     return
   }
@@ -621,7 +660,7 @@ function handleDebugOre(address: string, requested: number): void {
 // DEBUG: back to a first visit. The purse is emptied in place rather than replaced, so nothing
 // holding it sees a stale copy, and it is saved like any other change.
 function handleDebugReset(address: string): void {
-  if (!DEBUG_RESET_PROGRESS) {
+  if (!DEBUG_RESET_PROGRESS || !isLocalPreview()) {
     sendResult(address, 'debugReset', false, 'debug tools are off')
     return
   }
@@ -1282,6 +1321,11 @@ export function setupEconomy(): void {
     handleBuy(context.from, data.itemId)
   })
 
+  room.onMessage('slotSpin', (data, context) => {
+    if (!context) return
+    handleSlotSpin(context.from, data.bet)
+  })
+
   room.onMessage('equip', (data, context) => {
     if (!context) return
     handleEquip(context.from, data.itemId)
@@ -1303,4 +1347,5 @@ export function setupEconomy(): void {
   engine.addSystem(moveSpentRocks, undefined, 'server:rock-move')
   setupNotes()
   setupTitles()
+  setupCasino()
 }

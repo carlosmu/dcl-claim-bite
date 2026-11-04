@@ -67,6 +67,8 @@ const OWNER_NAME_SIZE = 0.14
 /** A long name shrinks to fit the board. */
 const OWNER_NAME_MAX_WIDTH_METERS = 1.2
 const OWNER_TEXT_COLOR = Color4.fromHexString('#2B1A0EFF')
+/** Whether a lot with no owner has a sign at all, saying FOR SALE; without it the lot stands bare. */
+const SHOW_VACANT_SIGN: boolean = false
 /** What the sign says while the lot has no owner. */
 const forSaleText = (kind: PropertyKind) => `${kind.toUpperCase()}\nFOR SALE`
 const FOR_SALE_SIZE = 0.16
@@ -171,7 +173,6 @@ function build(kind: PropertyKind, area: Area, lot: Lot): StandingProperty {
     position: OWNER_SIGN_OFFSET,
     rotation: Quaternion.fromEulerDegrees(0, OWNER_SIGN_YAW_DEGREES, 0)
   })
-  GltfContainer.create(ownerSign, { src: OWNER_SIGN_MODEL })
 
   const text = engine.addEntity()
   Transform.create(text, {
@@ -210,13 +211,19 @@ function syncLots(): void {
     if (property.shownName === shown) continue
     property.shownName = shown
     Transform.getMutable(property.text).position.y = OWNER_NAME_HEIGHT_METERS - (owner === undefined ? FOR_SALE_DROP_METERS : 0)
+    // The model is taken away, not just hidden, so a bare lot has no sign to bump into either.
+    const hasSign = owner !== undefined || SHOW_VACANT_SIGN
+    if (!hasSign) GltfContainer.deleteFrom(property.sign)
+    else if (!GltfContainer.has(property.sign)) GltfContainer.create(property.sign, { src: OWNER_SIGN_MODEL })
     setBitmapText3d(
       property.text,
       owner === undefined
-        ? [
-            { value: property.kind.toUpperCase(), size: FOR_SALE_SIZE },
-            { value: 'FOR SALE', size: FOR_SALE_SIZE }
-          ]
+        ? !hasSign
+          ? []
+          : [
+              { value: property.kind.toUpperCase(), size: FOR_SALE_SIZE },
+              { value: 'FOR SALE', size: FOR_SALE_SIZE }
+            ]
         : [
             { value: OWNER_CAPTION, size: OWNER_CAPTION_SIZE },
             { value: owner.name.toUpperCase(), size: OWNER_NAME_SIZE, maxWidth: OWNER_NAME_MAX_WIDTH_METERS }

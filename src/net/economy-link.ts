@@ -20,6 +20,7 @@ import { playSfx } from '../world/sfx'
 import { equipPick, unequipPick } from '../player/held-pick'
 import { onMayorPickGiven } from '../mayor/mayor'
 import { onNoteResult } from '../land-office/owner-card'
+import { onSlotRefused, onSlotResult } from '../casino/casino'
 import { notePlaytestAction } from '../playtest'
 
 const BANK_SOUND_CLIP = 'assets/sounds/bank.mp3'
@@ -49,6 +50,24 @@ let walletReceived = false
 let brokenPick = ''
 let brokenPickCount = 0
 let sinceLastHello = HELLO_RETRY_SECONDS
+/** The purse as the server last sent it, and the coins of it the HUD is not to show yet. */
+let serverOre = 0
+let serverCoins = 0
+let heldBackCoins = 0
+
+/**
+ * Keeps a slot win off the HUD while the reels are still turning, so the balance does not give
+ * away how the spin ends. Only the display waits: the server has already paid it.
+ */
+export function holdBackCoins(coins: number): void {
+  heldBackCoins = coins
+}
+
+/** The reels stopped: the HUD can show the whole purse. */
+export function releaseHeldCoins(): void {
+  heldBackCoins = 0
+  applyServerWallet(serverOre, serverCoins)
+}
 
 /** The town's rate as the server last published it, in ore per coin. */
 /** The last pick that broke this visit, with a count that goes up each time one does. */
@@ -113,6 +132,12 @@ export function sendSell(amount: number): void {
 export function sendBuy(itemId: string): void {
   if (!isStateSyncronized()) return
   room.send('buy', { itemId })
+}
+
+/** Asks to spin the slot machine for this bet. */
+export function sendSlotSpin(bet: number): void {
+  if (!isStateSyncronized()) return
+  room.send('slotSpin', { bet })
 }
 
 /** Asks to use a pick the player already owns. */
@@ -185,7 +210,9 @@ export function setupEconomyLink(): void {
     hitsPerRock = data.hitsPerRock
     muleCount = data.mules
     muleFuelHours = data.muleFuelHours
-    applyServerWallet(data.ore, data.coins)
+    serverOre = data.ore
+    serverCoins = data.coins
+    applyServerWallet(data.ore, data.coins - heldBackCoins)
     applyServerOwned(data.owned)
     applyServerDurability(data.pickDurability)
     applyServerEquipped(data.equipped)
@@ -202,6 +229,10 @@ export function setupEconomyLink(): void {
       `[economy] wallet from server: ${data.ore}/${data.capacity} ore, ${data.coins} coins, ` +
         `${data.hitsPerRock} hits per rock, owned "${data.owned}"`
     )
+  })
+
+  room.onMessage('slotResult', (data) => {
+    onSlotResult({ reels: [...data.reels], bet: data.bet, win: data.win, jackpot: data.jackpot })
   })
 
   // The payout's Social Bonus part, added under the "+10 Ore" that went up when the bar filled.
@@ -225,6 +256,7 @@ export function setupEconomyLink(): void {
   room.onMessage('actionResult', (data) => {
     // Refused or not, the card says what became of the note.
     if (data.action === 'leaveNote') onNoteResult(data.ok, data.detail)
+    if (data.action === 'slotSpin' && !data.ok) onSlotRefused(data.detail)
     notePlaytestAction(data.action, data.ok)
     if (!data.ok) {
       console.log(`[economy] ${data.action} refused: ${data.detail}`)

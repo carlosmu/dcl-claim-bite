@@ -27,6 +27,9 @@ export const Messages = {
   /** "Use this pick." Only a pick the player already owns can be equipped. */
   equip: Schemas.Map({ itemId: Schemas.String }),
 
+  /** "Spin the slot machine for this bet." The server decides the reels and what they pay. */
+  slotSpin: Schemas.Map({ bet: Schemas.Number }),
+
   /** "Mayor, I have no pick." Granted only to a player who owns none. */
   claimPick: Schemas.Map({ ready: Schemas.Boolean }),
 
@@ -75,6 +78,15 @@ export const Messages = {
   // Server -> one client: what a finished rock paid. `bonus` is the Social Bonus part of `ore`,
   // already capped by the bag like the rest.
   rockPaid: Schemas.Map({ ore: Schemas.Number, bonus: Schemas.Number }),
+
+  // Server -> one client: how a spin came out, sent before the wallet that charges and pays it.
+  // `reels` are indexes into SLOT_SYMBOLS; `win` is the whole payout, the jackpot's share included.
+  slotResult: Schemas.Map({
+    reels: Schemas.Array(Schemas.Number),
+    bet: Schemas.Number,
+    win: Schemas.Number,
+    jackpot: Schemas.Boolean
+  }),
 
   // Server -> one client: what can be said about a property's owner. No coins and no ore: those
   // are the owner's business. `found` false means the server knows of no property of theirs.

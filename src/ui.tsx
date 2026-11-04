@@ -15,6 +15,9 @@ import {
     sendDebugReset,
     sendEquip
 } from './net/economy-link'
+import { canSpinSlot, closeCasinoPanel, getSlotBet, getSlotMessage, getSlotReels, isCasinoPanelOpen, isSlotInfoOpen, isSlotSpinning, setSlotBet, spinSlot, toggleSlotInfo } from './casino/casino'
+import { SLOT_BETS, SLOT_MAX_BET, SLOT_SYMBOLS, threeBellsPay, TWO_HORSESHOES_PAY } from './shared/economy/slots'
+import { getJackpot } from './shared/net/casino-sync'
 import { buyItem, closeStorePanel, currentPrice, getSelectedProduct, isStorePanelOpen, selectProduct, whyUnavailable } from './shop/shop'
 import { closeMulePanel, isMulePanelOpen } from './mule/mule'
 import { closeLandOfficePanel, getSelectedProperty, isLandOfficePanelOpen, selectProperty } from './land-office/land-office'
@@ -69,6 +72,7 @@ import { getMiningStatus, getRingPulse, showMoveCloserHint } from './mining/rock
 import { setupRollingCounters, shownCoins, shownOre } from './ui/rolling-counter'
 import { getOrePopup, setupOrePopup } from './ui/ore-popup'
 import { DEBUG_ADD_COINS, DEBUG_ADD_ORE, DEBUG_RESET_PROGRESS, DEBUG_SERVER_STATUS, DEBUG_SHOW_MULE_ALERTS } from './shared/debug-flags'
+import { isLocalPreview } from './shared/local-preview'
 import { quotedRate } from './shared/state/market'
 import { BitmapText } from './ui/bitmap-text'
 import { introScreen } from './ui/intro-screen'
@@ -688,11 +692,12 @@ function sectionEdges(joined?: 'left' | 'right') {
 const bankSection = (
     caption: string,
     children: ReactEcs.JSX.Element | (ReactEcs.JSX.Element | null)[],
-    layout: { width?: number | `${number}%`; grow?: number; marginRight?: number; joined?: 'left' | 'right' } = {}
+    layout: { width?: number | `${number}%`; height?: number; grow?: number; marginRight?: number; joined?: 'left' | 'right' } = {}
 ) => (
     <UiEntity
         uiTransform={{
             width: layout.width ?? '100%',
+            ...(layout.height !== undefined ? { height: layout.height } : {}),
             flexGrow: layout.grow ?? 0,
             flexShrink: layout.grow ?? 0,
             flexDirection: 'column',
@@ -3579,7 +3584,8 @@ const TOWN_TITLES: { id: TitleId; title: string; feat: string; value: (value: nu
     { id: 'whale', title: 'THE WHALE', feat: 'Biggest single sale', value: (value) => `${withCommas(value)} ore` },
     { id: 'panic', title: 'PANIC SELLER', feat: 'Sold at the worst rate', value: (value) => `${formatRate(value)} ore/coin` },
     { id: 'active', title: 'HARDEST WORKER', feat: 'Most ore mined by hand', value: (value) => `${withCommas(value)} ore` },
-    { id: 'baron', title: 'M.U.L.E. BARON', feat: 'Most ore dug by rigs', value: (value) => `${withCommas(value)} ore` }
+    { id: 'baron', title: 'M.U.L.E. BARON', feat: 'Most ore dug by rigs', value: (value) => `${withCommas(value)} ore` },
+    { id: 'roller', title: 'HIGH ROLLER', feat: 'Biggest slot win', value: (value) => `${withCommas(value)} coins` }
 ]
 
 const townPhoto = (address: string, size: number) => (
@@ -3704,6 +3710,246 @@ const townBoardPanel = () => {
     )
 }
 
+// --- Casino ------------------------------------------------------------------------------
+//
+// The slot machine, in the bank's dress.
+
+const SLOT_REEL_WIDTH = 140
+const SLOT_REEL_HEIGHT = 120
+const SLOT_REEL_ICON_SIZE = 100
+const SLOT_PAY_ICON_SIZE = 26
+/** The jackpot and pay boxes, side by side: as tall as the six pay rows need, so both end level. */
+const SLOT_TABLES_HEIGHT = 206
+const SLOT_INFO_BAR_HEIGHT = 96
+/** Unfolded, the bar holds no pot and gives its room back, so the panel still fits a phone's 720. */
+const SLOT_INFO_BAR_OPEN_HEIGHT = 48
+const SLOT_JACKPOT_ROW_COLOR = Color4.create(0.88, 0.7, 0.32, 0.18)
+/** Each reel's box changes colour with its symbol, picked to set the icon off. */
+const SLOT_SYMBOL_BACKGROUNDS: Record<string, Color4> = {
+    horseshoe: Color4.fromHexString('#2F5D3AFF'),
+    spade: Color4.fromHexString('#C9A86AFF'),
+    bell: Color4.fromHexString('#6E1F1FFF'),
+    diamond: Color4.fromHexString('#1F3350FF'),
+    heart: Color4.fromHexString('#F0DFC0FF')
+}
+const SLOT_SYMBOL_ICONS: Record<string, Icon> = {
+    horseshoe: atlasCell(2, 3, ATLAS_2), // B3
+    spade: atlasCell(3, 3, ATLAS_2), // C3
+    bell: atlasCell(4, 3, ATLAS_2), // D3
+    diamond: atlasCell(1, 4, ATLAS_2), // A4
+    heart: atlasCell(2, 4, ATLAS_2) // B4
+}
+
+const slotReel = (reel: number, index: number) => (
+    <UiEntity
+        key={`${index}`}
+        uiTransform={{
+            width: SLOT_REEL_WIDTH,
+            height: SLOT_REEL_HEIGHT,
+            flexShrink: 0,
+            justifyContent: 'center',
+            alignItems: 'center',
+            margin: { left: 6, right: 6 },
+            borderRadius: 10,
+            borderWidth: 2,
+            borderColor: BANK_GOLD
+        }}
+        uiBackground={{ color: SLOT_SYMBOL_BACKGROUNDS[SLOT_SYMBOLS[reel].id] }}
+    >
+        <UiEntity
+            uiTransform={{ width: SLOT_REEL_ICON_SIZE, height: SLOT_REEL_ICON_SIZE }}
+            uiBackground={iconBackground(SLOT_SYMBOL_ICONS[SLOT_SYMBOLS[reel].id])}
+        />
+    </UiEntity>
+)
+
+/** One row of the pay table: the symbol, the combination, and what it pays. */
+const slotPayLine = (key: string, symbolId: string, combination: string, pays: string, highlighted: boolean = false) => (
+    <UiEntity
+        key={key}
+        uiTransform={{
+            width: '100%',
+            height: SLOT_PAY_ICON_SIZE,
+            flexShrink: 0,
+            flexDirection: 'row',
+            alignItems: 'center',
+            padding: { left: 6, right: 6 },
+            borderRadius: 6
+        }}
+        uiBackground={highlighted ? { color: SLOT_JACKPOT_ROW_COLOR } : undefined}
+    >
+        <UiEntity
+            uiTransform={{ width: SLOT_PAY_ICON_SIZE, height: SLOT_PAY_ICON_SIZE, flexShrink: 0, margin: { right: 8 } }}
+            uiBackground={iconBackground(SLOT_SYMBOL_ICONS[symbolId])}
+        />
+        <Label value={combination} fontSize={16} color={BANK_CREAM} textAlign="middle-left" textWrap="nowrap" uiTransform={{ width: '46%', height: SLOT_PAY_ICON_SIZE, flexShrink: 0 }} />
+        <Label value={pays} fontSize={16} color={BANK_GOLD_LIGHT} textAlign="middle-right" textWrap="nowrap" uiTransform={{ flexGrow: 1, height: SLOT_PAY_ICON_SIZE }} />
+    </UiEntity>
+)
+
+/** Folds and unfolds the jackpot and pay boxes. The pot shows here only while they are folded away. */
+const slotInfoBar = (jackpot: number) => (
+    <UiEntity
+        uiTransform={{
+            width: '100%',
+            height: isSlotInfoOpen() ? SLOT_INFO_BAR_OPEN_HEIGHT : SLOT_INFO_BAR_HEIGHT,
+            flexShrink: 0,
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: { left: 18, right: 18 },
+            margin: { top: 12 },
+            borderRadius: 10,
+            borderWidth: 2,
+            borderColor: BANK_TRIM
+        }}
+        uiBackground={{ color: BANK_WOOD }}
+        onMouseDown={toggleSlotInfo}
+    >
+        <UiEntity uiTransform={{ width: '55%', height: '100%', flexDirection: 'row', alignItems: 'center' }}>
+            {isSlotInfoOpen() ? null : (
+                <Label value="JACKPOT" fontSize={16} color={BANK_CAPTION} textAlign="middle-left" textWrap="nowrap" uiTransform={{ width: 90, height: '100%', flexShrink: 0 }} />
+            )}
+            {isSlotInfoOpen() ? null : (
+                <BitmapText value={`${withCommas(jackpot)} ${jackpot === 1 ? 'COIN' : 'COINS'}`} fontSize={30} color={COIN_COLOR} />
+            )}
+        </UiEntity>
+        <Label
+            value={`HOW IT PAYS  ${isSlotInfoOpen() ? '-' : '+'}`}
+            fontSize={16}
+            color={BANK_CREAM}
+            textAlign="middle-right"
+            textWrap="nowrap"
+            uiTransform={{ width: '40%', height: '100%' }}
+        />
+    </UiEntity>
+)
+
+const casinoPanel = () => {
+    const bet = getSlotBet()
+    const canSpin = canSpinSlot()
+    const jackpot = getJackpot()
+    const bellsPay = withCommas(threeBellsPay(jackpot, bet))
+    const jackpotHint =
+        bet >= SLOT_MAX_BET
+            ? `3 bells pay ${bellsPay} coins, the whole jackpot included.`
+            : `3 bells pay ${bellsPay} coins at this bet. Bet ${SLOT_MAX_BET} for the whole jackpot.`
+    return (
+        <UiEntity
+            uiTransform={{
+                width: '100%',
+                minWidth: PANEL_MIN_WIDTH,
+                flexDirection: 'column',
+                alignItems: 'center',
+                padding: BANK_PANEL_PADDING,
+                borderRadius: PANEL_RADIUS,
+                borderWidth: 3,
+                borderColor: BANK_TRIM
+            }}
+            uiBackground={{ color: BANK_WOOD_DARK }}
+        >
+            <BitmapText value="SLOT MACHINE" fontSize={52} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%' }} />
+
+            {/* The machine: the reels, and what they just did. The message is not a button. */}
+            <UiEntity uiTransform={{ width: '100%', height: SLOT_REEL_HEIGHT, flexShrink: 0, flexDirection: 'row', justifyContent: 'center', margin: { top: 10 } }}>
+                {getSlotReels().map((reel, index) => slotReel(reel, index))}
+            </UiEntity>
+            <BitmapText value={getSlotMessage().toUpperCase()} fontSize={40} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%', margin: { top: 10 } }} />
+
+            <UiEntity uiTransform={{ width: '100%', height: 60, flexDirection: 'row', justifyContent: 'space-between', margin: { top: 24 } }}>
+                {SLOT_BETS.map((option) => (
+                    <UiEntity key={`${option}`} uiTransform={{ width: '32%', height: 60 }}>
+                        {bankButton(
+                            `${option} ${option === 1 ? 'COIN' : 'COINS'}`,
+                            () => setSlotBet(option),
+                            { width: '100%', height: 60 },
+                            30,
+                            option === bet ? BANK_GOLD : BANK_STEP_COLOR,
+                            option === bet ? BANK_INK : BANK_CREAM
+                        )}
+                    </UiEntity>
+                ))}
+            </UiEntity>
+
+            <UiEntity uiTransform={{ width: '100%', height: 12 }} />
+            {bankButton(
+                isSlotSpinning() ? 'SPINNING' : getCoins() < bet ? 'NOT ENOUGH COINS' : `SPIN FOR ${bet}`,
+                canSpin ? spinSlot : () => {},
+                { width: '100%', height: 68 },
+                40,
+                canSpin ? BANK_GOLD : DISABLED_COLOR,
+                canSpin ? BANK_INK : MUTED_COLOR
+            )}
+
+            {/* What is at stake, and what pays: folded away until asked for. */}
+            {slotInfoBar(jackpot)}
+            {isSlotInfoOpen() ? (
+                <UiEntity uiTransform={{ width: '100%', flexShrink: 0, flexDirection: 'row', justifyContent: 'space-between' }}>
+                    {bankSection(
+                        'JACKPOT',
+                        <UiEntity uiTransform={{ width: '100%', flexGrow: 1, flexDirection: 'column', justifyContent: 'center' }}>
+                            <BitmapText
+                                value={`${withCommas(jackpot)} ${jackpot === 1 ? 'COIN' : 'COINS'}`}
+                                fontSize={42}
+                                color={COIN_COLOR}
+                                align="left"
+                                uiTransform={{ width: '100%', height: 44 }}
+                            />
+                            <Label
+                                value="Grows with every bet!"
+                                fontSize={16}
+                                color={BANK_CREAM}
+                                textAlign="middle-left"
+                                uiTransform={{ width: '100%', height: 22 }}
+                            />
+                            <Label
+                                value={jackpotHint}
+                                fontSize={16}
+                                color={BANK_CAPTION}
+                                textAlign="middle-left"
+                                textWrap="wrap"
+                                uiTransform={{ width: '100%', height: 44 }}
+                            />
+                        </UiEntity>,
+                        { width: '49%', height: SLOT_TABLES_HEIGHT }
+                    )}
+                    {bankSection(
+                        'PAYS (x BET)',
+                        [
+                            slotPayLine('two', 'horseshoe', 'x2', `x${TWO_HORSESHOES_PAY}`),
+                            ...SLOT_SYMBOLS.map((symbol) =>
+                                slotPayLine(
+                                    symbol.id,
+                                    symbol.id,
+                                    'x3',
+                                    symbol.id === 'bell' ? `x${symbol.pays} + JACKPOT` : `x${symbol.pays}`,
+                                    symbol.id === 'bell'
+                                )
+                            )
+                        ],
+                        { width: '49%', height: SLOT_TABLES_HEIGHT }
+                    )}
+                </UiEntity>
+            ) : null}
+
+            <Button
+                value="X"
+                fontSize={30}
+                color={Color4.White()}
+                uiTransform={{
+                    positionType: 'absolute',
+                    position: { top: BANK_PANEL_PADDING, right: BANK_PANEL_PADDING },
+                    width: 48,
+                    height: 48,
+                    borderRadius: PANEL_RADIUS
+                }}
+                uiBackground={{ color: MAP_CLOSE_COLOR }}
+                onMouseDown={closeCasinoPanel}
+            />
+        </UiEntity>
+    )
+}
+
 export const uiMenu = () => (
     <UiEntity
         uiTransform={{
@@ -3720,7 +3966,7 @@ export const uiMenu = () => (
         {notificationsButton()}
         {soundButton()}
         {townBoardButton()}
-        {DEBUG_RESET_PROGRESS || DEBUG_ADD_COINS || DEBUG_ADD_ORE || DEBUG_SERVER_STATUS ? debugBox() : null}
+        {isLocalPreview() && (DEBUG_RESET_PROGRESS || DEBUG_ADD_COINS || DEBUG_ADD_ORE || DEBUG_SERVER_STATUS) ? debugBox() : null}
         {/* main-container: every piece of UI goes in here */}
         <UiEntity
             uiTransform={{
@@ -3752,6 +3998,7 @@ export const uiMenu = () => (
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isLandOfficePanelOpen() ? landOfficePanel() : null}
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isMulePanelOpen() && getMuleCount() > 0 ? mulePanel() : null}
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isOwnerCardOpen() ? ownerCardPanel() : null}
+            {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isCasinoPanelOpen() ? casinoPanel() : null}
             {pickSelector()}
             {muleDropdown()}
         </UiEntity>

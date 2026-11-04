@@ -20,11 +20,14 @@ const CLICK_KEEP_METERS = 16
 export type ProximityZoneOptions = {
   /** Name of the entity in the Creator Hub scene. */
   entityName: string
-  /** Measure from this entity instead of the named one (which then only names the zone in logs). */
-  entity?: Entity
+  /**
+   * Measure from this entity instead of the named one (which then only names the zone in logs).
+   * Given several, the nearest counts.
+   */
+  entity?: Entity | Entity[]
   radiusMeters: number
-  /** Something to click to count as there, with its hover text. */
-  click?: { entity: Entity; hoverText: string }
+  /** Something to click to count as there, with its hover text. Given several, any of them will do. */
+  click?: { entity: Entity | Entity[]; hoverText: string }
   onEnter?: () => void
   onLeave?: () => void
   /** A click while the player already counts as there, walking or clicked. */
@@ -39,14 +42,15 @@ export type ProximityZone = {
 }
 
 export function createProximityZone(options: ProximityZoneOptions): ProximityZone {
-  const entity = options.entity ?? engine.getEntityOrNullByName(options.entityName)
+  const found = options.entity ?? engine.getEntityOrNullByName(options.entityName)
   let inside = false
   let clicked = false
 
-  if (entity === null) {
+  if (found === null) {
     console.error(`[zone] no entity named "${options.entityName}" in the scene — this zone will never trigger`)
     return { isPlayerInside: () => false, release: () => {} }
   }
+  const entities = Array.isArray(found) ? found : [found]
 
   function setInside(nowInside: boolean, why: string) {
     if (nowInside === inside) return
@@ -58,10 +62,11 @@ export function createProximityZone(options: ProximityZoneOptions): ProximityZon
 
   function update() {
     const player = Transform.getOrNull(engine.PlayerEntity)
-    if (player === null || !Transform.has(entity!)) return
+    const placed = entities.filter((entity) => Transform.has(entity))
+    if (player === null || placed.length === 0) return
 
     // World space: the officers are children of their buildings, so their local position is not.
-    const distance = Vector3.distance(player.position, getWorldPosition(engine, entity!))
+    const distance = Math.min(...placed.map((entity) => Vector3.distance(player.position, getWorldPosition(engine, entity))))
     if (clicked && distance > CLICK_KEEP_METERS) clicked = false
     setInside(distance <= options.radiusMeters || clicked, `${distance.toFixed(1)}m`)
   }
@@ -69,14 +74,17 @@ export function createProximityZone(options: ProximityZoneOptions): ProximityZon
   engine.addSystem(update, undefined, `proximity-zone:${options.entityName}`)
 
   if (options.click !== undefined) {
-    pointerEventsSystem.onPointerDown(
-      { entity: options.click.entity, opts: { button: InputAction.IA_POINTER, hoverText: options.click.hoverText, maxDistance: CLICK_REACH_METERS } },
-      () => {
-        clicked = true
-        if (inside) options.onClick?.()
-        else setInside(true, 'clicked')
-      }
-    )
+    const { entity: clickEntity, hoverText } = options.click
+    for (const entity of Array.isArray(clickEntity) ? clickEntity : [clickEntity]) {
+      pointerEventsSystem.onPointerDown(
+        { entity, opts: { button: InputAction.IA_POINTER, hoverText, maxDistance: CLICK_REACH_METERS } },
+        () => {
+          clicked = true
+          if (inside) options.onClick?.()
+          else setInside(true, 'clicked')
+        }
+      )
+    }
   }
 
   return {

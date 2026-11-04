@@ -45,6 +45,9 @@ const MULE_YARD_KEY = seasonKey('mule-yard')
 /** Scene-wide key: the town's titles and its newest property owners. */
 const TITLES_KEY = seasonKey('town-titles')
 
+/** Scene-wide key: the coins in the casino's jackpot, which are progress like any others. */
+const JACKPOT_KEY = seasonKey('casino-pot')
+
 export type StoredTitles = { days: TownDay[]; owners: NewOwner[] }
 
 export type StoredLot = { kind: string; lot: number; address: string; name: string }
@@ -159,6 +162,23 @@ export async function saveNotes(address: string, notes: Note[]): Promise<boolean
     return ok
   } catch (error) {
     console.log(`[Server] could not save notes for ${address}: ${error}`)
+    return false
+  }
+}
+
+/** The jackpot, or null if none was ever saved. Throws if the read failed. */
+export function loadJackpot(): Promise<number | null> {
+  return readValue<number>(`/values/${encodeURIComponent(JACKPOT_KEY)}`)
+}
+
+/** Resolves true once the write is confirmed, like savePurse. */
+export async function saveJackpot(pot: number): Promise<boolean> {
+  try {
+    const ok = await Storage.set(JACKPOT_KEY, pot)
+    if (!ok) console.log('[Server] could not save the jackpot')
+    return ok
+  } catch (error) {
+    console.log(`[Server] could not save the jackpot: ${error}`)
     return false
   }
 }

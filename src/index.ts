@@ -11,6 +11,7 @@ import './shared/net/held-picks-sync'
 import './shared/net/property-lots-sync'
 import './shared/net/tiers-sync'
 import './shared/net/town-titles-sync'
+import './shared/net/casino-sync'
 import './shared/net/protocol'
 // Scene Feedback starts on import, on both halves: the client asks, the server stores the CSV.
 import './scene-feedback'
@@ -19,6 +20,7 @@ import { setupUi } from './ui'
 import { setupRocks } from './mining/rocks'
 import { setupBank } from './bank/bank'
 import { setupShop } from './shop/shop'
+import { setupCasino } from './casino/casino'
 import { setupLandOffice } from './land-office/land-office'
 import { setupProperties } from './land-office/properties'
 import { setupOwnerCard } from './land-office/owner-card'
@@ -36,6 +38,7 @@ import { setupEconomyLink } from './net/economy-link'
 import { setupPlaytest } from './playtest'
 import { skipTitleCard } from './ui/intro-screen'
 import { DEBUG_SKIP_INTRO } from './shared/debug-flags'
+import { setupLocalPreview } from './shared/local-preview'
 
 // One bundle, two runtimes. The server runs this same file headlessly, so everything that
 // draws, plays or listens has to sit behind the isServer() branch — on the server there is
@@ -43,6 +46,8 @@ import { DEBUG_SKIP_INTRO } from './shared/debug-flags'
 //
 // The server half is imported dynamically so the client never pulls it into its bundle.
 export async function main() {
+    setupLocalPreview()
+
     if (isServer()) {
         const { server } = await import('./server/server')
         server()
@@ -59,6 +64,7 @@ export async function main() {
     setupRocks()
     setupBank()
     setupShop()
+    setupCasino()
     setupLandOffice()
     setupProperties()
     setupOwnerCard()

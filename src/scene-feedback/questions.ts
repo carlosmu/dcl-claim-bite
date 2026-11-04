@@ -6,7 +6,7 @@ import { DEBUG_ENABLED } from '../shared/debug-flags'
 
 // "Ask <id>" button per Question, top-left. Visible only in preview and to the World's
 // owner/deployers, never to players. Still, turn off before release.
-export const DEBUG = DEBUG_ENABLED && true
+export const DEBUG = DEBUG_ENABLED && false
 
 // Local preview only: the mobile layout on desktop, to check it without a phone. Ignored once
 // deployed. Size the explorer window like a phone, e.g. 1600x720.

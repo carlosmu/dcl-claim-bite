@@ -1528,6 +1528,90 @@
             "parent": 0
           }
         },
+        "584": {
+          "json": {
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "w": 1
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
+            "parent": 515
+          }
+        },
+        "585": {
+          "json": {
+            "position": {
+              "x": 8.45209789276123,
+              "y": 0.8049795031547546,
+              "z": -16.6144962310791
+            },
+            "rotation": {
+              "x": 0,
+              "y": -0.7288837432861328,
+              "z": 0,
+              "w": 0.6846374869346619
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
+            "parent": 0
+          }
+        },
+        "586": {
+          "json": {
+            "position": {
+              "x": 8.45209789276123,
+              "y": 0.8049795031547546,
+              "z": -18.027313232421875
+            },
+            "rotation": {
+              "x": 0,
+              "y": -0.7288837432861328,
+              "z": 0,
+              "w": 0.6846374869346619
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
+            "parent": 0
+          }
+        },
+        "587": {
+          "json": {
+            "position": {
+              "x": 8.45209789276123,
+              "y": 0.8049795031547546,
+              "z": -19.467876434326172
+            },
+            "rotation": {
+              "x": 0,
+              "y": -0.6861573457717896,
+              "z": 0,
+              "w": 0.7274531722068787
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
+            "parent": 0
+          }
+        },
         "1558": {
           "json": {
             "position": {
@@ -2012,6 +2096,32 @@
             "invisibleMeshesCollisionMask": 3
           }
         },
+        "584": {
+          "json": {
+            "src": "assets/models/billboard_casino.glb"
+          }
+        },
+        "585": {
+          "json": {
+            "src": "assets/models/slot_machine.glb",
+            "visibleMeshesCollisionMask": 0,
+            "invisibleMeshesCollisionMask": 3
+          }
+        },
+        "586": {
+          "json": {
+            "src": "assets/models/slot_machine.glb",
+            "visibleMeshesCollisionMask": 0,
+            "invisibleMeshesCollisionMask": 3
+          }
+        },
+        "587": {
+          "json": {
+            "src": "assets/models/slot_machine.glb",
+            "visibleMeshesCollisionMask": 0,
+            "invisibleMeshesCollisionMask": 3
+          }
+        },
         "1558": {
           "json": {
             "src": "assets/animations/town-mayor.glb",
@@ -2124,7 +2234,7 @@
         },
         "515": {
           "json": {
-            "value": "Land-Office_2"
+            "value": "Casino"
           }
         },
         "516": {
@@ -2467,6 +2577,26 @@
             "value": "billboard_MULE_mining.glb_2"
           }
         },
+        "584": {
+          "json": {
+            "value": "billboard_casino"
+          }
+        },
+        "585": {
+          "json": {
+            "value": "slot_machine.glb"
+          }
+        },
+        "586": {
+          "json": {
+            "value": "slot_machine.glb_2"
+          }
+        },
+        "587": {
+          "json": {
+            "value": "slot_machine.glb_3"
+          }
+        },
         "1558": {
           "json": {
             "value": "Town Mayor"
@@ -2622,7 +2752,10 @@
                   571,
                   581,
                   582,
-                  583
+                  583,
+                  585,
+                  586,
+                  587
                 ]
               },
               {
@@ -2857,10 +2990,14 @@
               },
               {
                 "entity": 515,
-                "children": []
+                "open": true,
+                "children": [
+                  584
+                ]
               },
               {
                 "entity": 522,
+                "open": true,
                 "children": []
               },
               {
@@ -3008,6 +3145,22 @@
               },
               {
                 "entity": 583,
+                "children": []
+              },
+              {
+                "entity": 584,
+                "children": []
+              },
+              {
+                "entity": 585,
+                "children": []
+              },
+              {
+                "entity": 586,
+                "children": []
+              },
+              {
+                "entity": 587,
                 "children": []
               }
             ]
@@ -3243,6 +3396,18 @@
           "json": {}
         },
         "583": {
+          "json": {}
+        },
+        "584": {
+          "json": {}
+        },
+        "585": {
+          "json": {}
+        },
+        "586": {
+          "json": {}
+        },
+        "587": {
           "json": {}
         },
         "1558": {
@@ -3608,14 +3773,8 @@
             ],
             "author": "carlosmu",
             "email": "carlos.damian.munoz@gmail.com",
-            "tags": [
-              ""
-            ],
+            "tags": [],
             "layout": {
-              "base": {
-                "x": 0,
-                "y": 0
-              },
               "parcels": [
                 {
                   "x": -8,
@@ -4641,7 +4800,11 @@
                   "x": 7,
                   "y": -8
                 }
-              ]
+              ],
+              "base": {
+                "x": 0,
+                "y": 0
+              }
             },
             "silenceVoiceChat": false,
             "disablePortableExperiences": false,
@@ -4658,8 +4821,11 @@
                     ]
                   },
                   "y": {
-                    "$case": "single",
-                    "value": 0
+                    "$case": "range",
+                    "value": [
+                      0,
+                      0
+                    ]
                   },
                   "z": {
                     "$case": "range",
