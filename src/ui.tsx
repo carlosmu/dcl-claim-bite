@@ -52,6 +52,7 @@ import {
     FUEL_GALLONS_PER_RIG_DAY,
     FUEL_MAX_DAYS,
     FUEL_PRICE_PER_GALLON,
+    MULE_MAX_COUNT,
     MULE_ORE_PER_HOUR,
     MARKET_WINDOW_SECONDS,
     RATE_BASE,
@@ -1188,7 +1189,10 @@ function muleDetail(): Detail {
         notes: [
             detailNote('• Digs straight into your storage'),
             detailNote('• Requires fuel'),
-            detailNote(mules > 0 ? `You own ${mules}` : 'You own none yet', BANK_CAPTION)
+            detailNote(
+                mules >= MULE_MAX_COUNT ? `You own ${mules} (MAXIMUM SUPPORTED)` : mules > 0 ? `You own ${mules}` : 'You own none yet',
+                BANK_CAPTION
+            )
         ],
         actions: [storeActionButton(buyAction(mule))]
     }
