@@ -1,21 +1,23 @@
 import {
-  Billboard,
-  BillboardMode,
   ColliderLayer,
   engine,
   Entity,
+  Font,
   GltfContainer,
   InputAction,
   Material,
+  MaterialTransparencyMode,
   MeshRenderer,
   pointerEventsSystem,
+  TextAlignMode,
   TextShape,
   Transform,
   Tween
 } from '@dcl/sdk/ecs'
-import { Color4, Quaternion, Vector3 } from '@dcl/sdk/math'
+import { Color3, Color4, Quaternion, Vector3 } from '@dcl/sdk/math'
 import { getPlayer } from '@dcl/sdk/players'
 
+import { WESTERN_FONT_SRC } from '../ui/bitmap-text'
 import { focusPanel, registerPanel } from '../world/panel-focus'
 import { MULE_YARD_COLUMNS, MULE_YARD_ROWS, MuleYard } from '../shared/net/mule-yard-sync'
 
@@ -25,8 +27,8 @@ import { MULE_YARD_COLUMNS, MULE_YARD_ROWS, MuleYard } from '../shared/net/mule-
 export const MULE_ENTITY_NAME = 'MULE'
 export const MULE_RADIUS_METERS = 5
 
-/** How high above the rig's origin the level sign floats. */
-const LEVEL_SIGN_HEIGHT_METERS = 2.5
+/** How high above the rig's origin the centre of the owner's panel floats. */
+const PANEL_HEIGHT_METERS = 2.5
 
 export function isPlayerAtMule(): boolean {
   return atOwnMule
@@ -64,12 +66,45 @@ export function closeMulePanel(): void {
 
 export const MULE_AREA_ENTITY_NAME = 'Mule_Area'
 
-/** How far above the level sign the owner's name floats. */
-const NAME_SIGN_GAP_METERS = 0.7
+// The owner's panel, in metres: face on top, the name under it and the rig count at the bottom.
+const PANEL_WIDTH = 1.35
+const PANEL_PADDING = 0.05
+const PANEL_BORDER = 0.012
+/** Primitives cannot round a corner, so each one is notched by this much instead. */
+const PANEL_CORNER = 0.03
 
-/** Size of the owner's face plane, and how far above the name its centre sits. */
-const FACE_SIZE_METERS = 0.6
-const FACE_GAP_METERS = 0.5
+const FACE_SIZE_METERS = 0.44
+const FACE_FRAME = 0.018
+const FACE_FRAME_CORNER = 0.012
+const FACE_FRAME_SIZE = FACE_SIZE_METERS + FACE_FRAME * 2
+
+/** Metres per em, as bitmap-text-3d counts them; TextShape's fontSize is 10 to the metre. */
+const NAME_SIZE = 0.13
+/** What fits the panel in the western font, which averages 0.72 em per character. */
+const NAME_MAX_CHARACTERS = 13
+const COUNT_SIZE = 0.11
+const FACE_TO_NAME_GAP = 0.04
+const NAME_TO_COUNT_GAP = 0.03
+
+const PANEL_HEIGHT = PANEL_PADDING * 2 + FACE_FRAME_SIZE + FACE_TO_NAME_GAP + NAME_SIZE + NAME_TO_COUNT_GAP + COUNT_SIZE
+
+// Stacked down from the panel's top edge: face, name, count.
+const FACE_Y = PANEL_HEIGHT / 2 - PANEL_PADDING - FACE_FRAME_SIZE / 2
+const NAME_Y = FACE_Y - FACE_FRAME_SIZE / 2 - FACE_TO_NAME_GAP - NAME_SIZE / 2
+const COUNT_Y = NAME_Y - NAME_SIZE / 2 - NAME_TO_COUNT_GAP - COUNT_SIZE / 2
+
+// Layers towards the panel's readable side, its -Z. The text stands well clear of the
+// see-through background: both are transparent, so the renderer sorts them by distance from their
+// centres, and with a small gap the background can end up painted over text seen from below.
+const LAYER_TRIM_Z = -0.015
+const LAYER_FACE_Z = -0.03
+const LAYER_TEXT_Z = -0.08
+
+// The same as the pick selector's button in ui.tsx: BOTTOM_BUTTON_COLOR and BANK_TRIM.
+const PANEL_BACKGROUND = Color4.create(0.07, 0.08, 0.1, 1)
+const PANEL_BORDER_COLOR = Color4.create(0.42, 0.27, 0.12, 1)
+const FACE_FRAME_COLOR = Color4.create(0.88, 0.7, 0.32, 1)
+const PANEL_CREAM = Color4.create(0.96, 0.9, 0.78, 1)
 
 type ParkedMule = { root: Entity; level: Entity; name: Entity; face: Entity; faceResolved: boolean }
 
@@ -115,12 +150,81 @@ function adoptTemplate(): void {
   GltfContainer.deleteFrom(template)
 }
 
-function sign(parent: Entity, height: number, fontSize: number): Entity {
+function plate(parent: Entity, x: number, y: number, z: number, width: number, height: number): Entity {
   const entity = engine.addEntity()
-  Transform.create(entity, { parent, position: Vector3.create(0, height, 0) })
-  Billboard.create(entity, { billboardMode: BillboardMode.BM_Y })
-  TextShape.create(entity, { text: '', fontSize, textColor: Color4.White(), outlineWidth: 0.2, outlineColor: Color4.Black() })
+  Transform.create(entity, { parent, position: Vector3.create(x, y, z), scale: Vector3.create(width, height, 1) })
+  MeshRenderer.setPlane(entity)
   return entity
+}
+
+function solidPlate(parent: Entity, x: number, y: number, z: number, width: number, height: number, diffuseColor: Color4): void {
+  Material.setBasicMaterial(plate(parent, x, y, z, width, height), { diffuseColor, castShadows: false })
+}
+
+// Lit by its own glow, so it reads the same in the shade as in the sun, like the face.
+function backgroundPlate(parent: Entity, y: number, width: number, height: number): void {
+  Material.setPbrMaterial(plate(parent, 0, y, 0, width, height), {
+    albedoColor: Color4.create(0, 0, 0, PANEL_BACKGROUND.a),
+    emissiveColor: Color3.create(PANEL_BACKGROUND.r, PANEL_BACKGROUND.g, PANEL_BACKGROUND.b),
+    emissiveIntensity: 1,
+    transparencyMode: MaterialTransparencyMode.MTM_ALPHA_BLEND,
+    metallic: 0,
+    roughness: 1,
+    specularIntensity: 0,
+    castShadows: false
+  })
+}
+
+function panelText(parent: Entity, y: number, size: number): Entity {
+  const entity = engine.addEntity()
+  Transform.create(entity, { parent, position: Vector3.create(0, y, LAYER_TEXT_Z) })
+  TextShape.create(entity, {
+    text: '',
+    fontSize: size * 10,
+    fontSrc: WESTERN_FONT_SRC,
+    font: Font.F_SERIF,
+    textColor: PANEL_CREAM,
+    textAlign: TextAlignMode.TAM_MIDDLE_CENTER,
+    textWrapping: false,
+    outlineWidth: 0.12,
+    outlineColor: Color3.Black(),
+    shadowColor: Color3.Black(),
+    shadowOffsetX: 0.4,
+    shadowOffsetY: -0.4,
+    shadowBlur: 0.3
+  })
+  return entity
+}
+
+// The panel's see-through background is three rows that do not overlap, since an overlap would
+// show darker, with its border in four strips so nothing shows through behind it. The opaque
+// trims can be plain crosses of two plates.
+function panelBackground(panel: Entity): void {
+  const innerWidth = PANEL_WIDTH - PANEL_CORNER * 2
+  const innerHeight = PANEL_HEIGHT - PANEL_CORNER * 2
+  const edgeY = PANEL_HEIGHT / 2 - PANEL_CORNER / 2
+  backgroundPlate(panel, 0, PANEL_WIDTH, innerHeight)
+  backgroundPlate(panel, edgeY, innerWidth, PANEL_CORNER)
+  backgroundPlate(panel, -edgeY, innerWidth, PANEL_CORNER)
+
+  const borderX = PANEL_WIDTH / 2 - PANEL_BORDER / 2
+  const borderY = PANEL_HEIGHT / 2 - PANEL_BORDER / 2
+  solidPlate(panel, 0, borderY, LAYER_TRIM_Z, innerWidth, PANEL_BORDER, PANEL_BORDER_COLOR)
+  solidPlate(panel, 0, -borderY, LAYER_TRIM_Z, innerWidth, PANEL_BORDER, PANEL_BORDER_COLOR)
+  solidPlate(panel, borderX, 0, LAYER_TRIM_Z, PANEL_BORDER, innerHeight, PANEL_BORDER_COLOR)
+  solidPlate(panel, -borderX, 0, LAYER_TRIM_Z, PANEL_BORDER, innerHeight, PANEL_BORDER_COLOR)
+}
+
+function notchedPlate(parent: Entity, x: number, y: number, width: number, height: number, corner: number, color: Color4): void {
+  solidPlate(parent, x, y, LAYER_TRIM_Z, width, height - corner * 2, color)
+  solidPlate(parent, x, y, LAYER_TRIM_Z, width - corner * 2, height, color)
+}
+
+/** Keeps a long name from pushing past the panel's edge. */
+function fitName(name: string): string {
+  const characters = Array.from(name)
+  if (characters.length <= NAME_MAX_CHARACTERS) return name
+  return characters.slice(0, NAME_MAX_CHARACTERS - 1).join('').trimEnd() + '…'
 }
 
 function park(address: string): ParkedMule {
@@ -135,23 +239,25 @@ function park(address: string): ParkedMule {
       invisibleMeshesCollisionMask: ColliderLayer.CL_POINTER | ColliderLayer.CL_PHYSICS
     })
   }
+  const panel = engine.addEntity()
+  Transform.create(panel, {
+    parent: root,
+    position: Vector3.create(0, PANEL_HEIGHT_METERS, 0),
+    rotation: Quaternion.fromEulerDegrees(0, 180, 0)
+  })
+  panelBackground(panel)
+
   // The owner's face. The avatar texture is fetched by address, so it works for an owner who is
   // away too; it only drops to the fallback picture if the owner shows up as a guest (see
   // resolveFace).
-  const face = engine.addEntity()
-  Transform.create(face, {
-    parent: root,
-    position: Vector3.create(0, LEVEL_SIGN_HEIGHT_METERS + NAME_SIGN_GAP_METERS + FACE_GAP_METERS, 0),
-    scale: Vector3.create(FACE_SIZE_METERS, FACE_SIZE_METERS, 1)
-  })
-  Billboard.create(face, { billboardMode: BillboardMode.BM_Y })
-  MeshRenderer.setPlane(face)
+  notchedPlate(panel, 0, FACE_Y, FACE_FRAME_SIZE, FACE_FRAME_SIZE, FACE_FRAME_CORNER, FACE_FRAME_COLOR)
+  const face = plate(panel, 0, FACE_Y, LAYER_FACE_Z, FACE_SIZE_METERS, FACE_SIZE_METERS)
   setFace(face, Material.Texture.Avatar({ userId: address }))
 
   const mule: ParkedMule = {
     root,
-    level: sign(root, LEVEL_SIGN_HEIGHT_METERS, 4),
-    name: sign(root, LEVEL_SIGN_HEIGHT_METERS + NAME_SIGN_GAP_METERS, 1.5),
+    level: panelText(panel, COUNT_Y, COUNT_SIZE),
+    name: panelText(panel, NAME_Y, NAME_SIZE),
     face,
     faceResolved: false
   }
@@ -202,9 +308,10 @@ function syncYard(): void {
     const transform = Transform.getMutable(mule.root)
     if (!Vector3.equals(transform.position, spot)) transform.position = Vector3.clone(spot)
 
-    const levelText = `x${entry.level}`
+    const levelText = `${entry.level} ${entry.level === 1 ? 'machine' : 'machines'}`
     if (TextShape.get(mule.level).text !== levelText) TextShape.getMutable(mule.level).text = levelText
-    if (TextShape.get(mule.name).text !== entry.name) TextShape.getMutable(mule.name).text = entry.name
+    const nameText = fitName(entry.name)
+    if (TextShape.get(mule.name).text !== nameText) TextShape.getMutable(mule.name).text = nameText
 
     if (entry.address.toLowerCase() === myAddress) ownMule = mule.root
   }
