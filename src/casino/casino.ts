@@ -1,29 +1,19 @@
-import { engine, Entity, Name, Transform } from '@dcl/sdk/ecs'
-import { Color4, Quaternion, Vector3 } from '@dcl/sdk/math'
+import { engine, Entity, Name } from '@dcl/sdk/ecs'
 
 import { holdBackCoins, releaseHeldCoins, sendSlotSpin } from '../net/economy-link'
 import { SLOT_BETS, SLOT_REEL_STOP_SECONDS, SLOT_SYMBOLS } from '../shared/economy/slots'
 import { getCoins } from '../shared/state/wallet'
-import { setBitmapText3d } from '../world/bitmap-text-3d'
 import { focusPanel, registerPanel } from '../world/panel-focus'
 import { createProximityZone, ProximityZone } from '../world/proximity-zone'
 import { playSfx } from '../world/sfx'
 
 // The casino: slot machines in the building across from the bank, placed in the Creator Hub, all
-// playing the one machine in this file. A spin is a request like any other. The reels start at once for the feel of the lever, and stop on what the
-// server answered; the panel never decides anything.
-
-/** The empty building across the street from the bank. */
-const CASINO_BUILDING_ENTITY_NAME = 'Casino'
+// playing the one machine in this file. A spin is a request like any other. The reels start at
+// once for the feel of the lever, and stop on what the server answered; the panel never decides
+// anything.
 
 /** Every entity whose Creator Hub name starts like this is a machine, however many get placed. */
 const MACHINE_NAME_PREFIX = 'slot_machine'
-
-// The sign, in the building's own space; the street side of the building is +Z.
-const SIGN_POSITION = Vector3.create(-6.75, 6.5, 0.2)
-const SIGN_TEXT_SIZE = 1.2
-const TEXT_COLOR = Color4.fromHexString('#FFD97AFF')
-const TEXT_ROTATION = Quaternion.fromEulerDegrees(0, 180, 0)
 
 export const CASINO_RADIUS_METERS = 4
 
@@ -168,15 +158,6 @@ function runReels(dt: number): void {
 }
 
 export function setupCasino(): void {
-  const building = engine.getEntityOrNullByName(CASINO_BUILDING_ENTITY_NAME)
-  if (building === null) {
-    console.error(`[casino] no entity named "${CASINO_BUILDING_ENTITY_NAME}" in the scene: the sign stays down`)
-  } else {
-    const sign = engine.addEntity()
-    Transform.create(sign, { parent: building, position: SIGN_POSITION, rotation: TEXT_ROTATION })
-    setBitmapText3d(sign, [{ value: 'CASINO', size: SIGN_TEXT_SIZE }], TEXT_COLOR)
-  }
-
   const machines: Entity[] = []
   for (const [entity, name] of engine.getEntitiesWith(Name)) {
     if (name.value.startsWith(MACHINE_NAME_PREFIX)) machines.push(entity)
