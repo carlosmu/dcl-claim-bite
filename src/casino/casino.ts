@@ -28,6 +28,17 @@ const WIN_SOUND_CLIP = 'assets/sounds/bank.mp3'
 const JACKPOT_SOUND_CLIP = 'assets/sounds/match.mp3'
 const SOUND_VOLUME = 0.8
 
+/** The line under the panel's title, drawn anew each time the panel opens. */
+const SLOT_TAGLINES = [
+  'Fingers crossed!',
+  'May luck be on your side!',
+  'Feeling lucky?',
+  'Go for the jackpot!',
+  'Lady Luck is smiling on you!',
+  'You win some, you lose some.',
+  'May the odds be in your favor!'
+]
+
 type SlotResult = { reels: number[]; bet: number; win: number; jackpot: boolean }
 
 let zone: ProximityZone | null = null
@@ -42,7 +53,18 @@ let sinceReelChange = 0
 let reelsStopped = 0
 let result: SlotResult | null = null
 let message = 'Pull the lever'
+let tagline = SLOT_TAGLINES[0]
 const reels = [0, 1, 2]
+
+/** A new line, never the one already showing, so the change is always visible. */
+function pickTagline(): void {
+  const others = SLOT_TAGLINES.filter((line) => line !== tagline)
+  tagline = others[Math.floor(Math.random() * others.length)]
+}
+
+export function getSlotTagline(): string {
+  return tagline
+}
 
 export function isCasinoPanelOpen(): boolean {
   return zone !== null && zone.isPlayerInside() && !panelClosed
@@ -115,6 +137,7 @@ export function onSlotRefused(detail: string): void {
 function finishSpin(answer: SlotResult): void {
   spinning = false
   releaseHeldCoins()
+  pickTagline()
   if (answer.jackpot) {
     message = `JACKPOT! ${answer.win} COINS`
     playSfx(JACKPOT_SOUND_CLIP, SOUND_VOLUME)
@@ -175,12 +198,14 @@ export function setupCasino(): void {
     onEnter: () => {
       panelClosed = false
       infoOpen = false
+      pickTagline()
       focusPanel('casino')
     },
     onClick: () => {
       if (!panelClosed) return
       panelClosed = false
       infoOpen = false
+      pickTagline()
       focusPanel('casino')
     }
   })

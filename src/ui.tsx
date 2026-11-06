@@ -15,7 +15,7 @@ import {
     sendDebugReset,
     sendEquip
 } from './net/economy-link'
-import { canSpinSlot, closeCasinoPanel, getSlotBet, getSlotMessage, getSlotReels, isCasinoPanelOpen, isSlotInfoOpen, isSlotSpinning, setSlotBet, spinSlot, toggleSlotInfo } from './casino/casino'
+import { canSpinSlot, closeCasinoPanel, getSlotBet, getSlotMessage, getSlotReels, getSlotTagline, isCasinoPanelOpen, isSlotInfoOpen, isSlotSpinning, setSlotBet, spinSlot, toggleSlotInfo } from './casino/casino'
 import { SLOT_BETS, SLOT_MAX_BET, SLOT_SYMBOLS, threeBellsPay, TWO_HORSESHOES_PAY } from './shared/economy/slots'
 import { getJackpot } from './shared/net/casino-sync'
 import { buyItem, closeStorePanel, currentPrice, getSelectedProduct, isStorePanelOpen, selectProduct, whyUnavailable } from './shop/shop'
@@ -3849,6 +3849,7 @@ const casinoPanel = () => {
             uiBackground={{ color: BANK_WOOD_DARK }}
         >
             <BitmapText value="SLOT MACHINE" fontSize={52} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%' }} />
+            <Label value={`<i>${getSlotTagline()}</i>`} fontSize={20} color={BANK_CREAM} textAlign="middle-center" uiTransform={{ width: '100%', height: 28, margin: { top: 4 } }} />
 
             {/* The machine: the reels, and what they just did. The message is not a button. */}
             <UiEntity uiTransform={{ width: '100%', height: SLOT_REEL_HEIGHT, flexShrink: 0, flexDirection: 'row', justifyContent: 'center', margin: { top: 10 } }}>
