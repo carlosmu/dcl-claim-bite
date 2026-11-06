@@ -364,12 +364,9 @@ function showIndicator(mule: Entity | null): void {
   Tween.setRotateContinuous(indicator, Quaternion.fromEulerDegrees(0, -1, 0), 360 / INDICATOR_TURN_SECONDS)
 }
 
-/** An entity's position in world space, through however many parents it has. */
-function worldPosition(entity: Entity): Vector3 | null {
-  const t = Transform.getOrNull(entity)
-  if (t === null) return null
-  let position = Vector3.clone(t.position)
-  let parent = t.parent
+/** A point given in `parent`'s space, in world space, through however many parents it has. */
+function toWorld(parent: Entity | undefined, point: Vector3): Vector3 {
+  let position = Vector3.clone(point)
   while (parent !== undefined && parent !== engine.RootEntity) {
     const p = Transform.getOrNull(parent)
     if (p === null) break
@@ -377,6 +374,40 @@ function worldPosition(entity: Entity): Vector3 | null {
     parent = p.parent
   }
   return position
+}
+
+/** An entity's position in world space, through however many parents it has. */
+function worldPosition(entity: Entity): Vector3 | null {
+  const t = Transform.getOrNull(entity)
+  if (t === null) return null
+  return toWorld(t.parent, t.position)
+}
+
+/** A point in the yard's own space (where the rigs' positions live), in world space. */
+export function yardPointToWorld(point: Vector3): Vector3 | null {
+  if (yardRoot === null) return null
+  return toWorld(yardRoot, point)
+}
+
+export type YardBounds = { minX: number; maxX: number; minZ: number; maxZ: number; y: number }
+
+/** The rectangle the parked rigs' origins span, in the yard's own space; null with the yard empty. */
+export function getParkedMuleBounds(): YardBounds | null {
+  let bounds: YardBounds | null = null
+  for (const [, mule] of parked) {
+    const t = Transform.getOrNull(mule.root)
+    if (t === null) continue
+    const { x, y, z } = t.position
+    if (bounds === null) {
+      bounds = { minX: x, maxX: x, minZ: z, maxZ: z, y }
+    } else {
+      bounds.minX = Math.min(bounds.minX, x)
+      bounds.maxX = Math.max(bounds.maxX, x)
+      bounds.minZ = Math.min(bounds.minZ, z)
+      bounds.maxZ = Math.max(bounds.maxZ, z)
+    }
+  }
+  return bounds
 }
 
 // Distance to the player's own rig, measured every frame like the other proximity zones.

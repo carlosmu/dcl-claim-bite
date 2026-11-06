@@ -25,6 +25,7 @@ import { setupLandOffice } from './land-office/land-office'
 import { setupProperties } from './land-office/properties'
 import { setupOwnerCard } from './land-office/owner-card'
 import { setupMule } from './mule/mule'
+import { setupMuleSmoke } from './mule/mule-smoke'
 import { setupMayor } from './mayor/mayor'
 import { setupHeldPicks } from './player/held-pick'
 import { setupNametags } from './player/nametags'
@@ -69,6 +70,7 @@ export async function main() {
     setupProperties()
     setupOwnerCard()
     setupMule()
+    setupMuleSmoke()
     setupMayor()
     setupTumbleweeds()
     setupHeldPicks()
