@@ -18,7 +18,7 @@ import {
   TweenLoop,
   TweenSequence
 } from '@dcl/sdk/ecs'
-import { Color3, Color4, Quaternion, Vector3 } from '@dcl/sdk/math'
+import { Color4, Quaternion, Vector3 } from '@dcl/sdk/math'
 import { getPlayer } from '@dcl/sdk/players'
 
 import { WESTERN_FONT_SRC } from '../ui/bitmap-text'
@@ -87,12 +87,12 @@ const PANEL_PADDING = 0.05
 
 const FACE_SIZE_METERS = 0.44
 const FACE_FRAME = 0.018
-const FACE_FRAME_CORNER = 0.012
 const FACE_FRAME_SIZE = FACE_SIZE_METERS + FACE_FRAME * 2
 
 /** Metres per em, as bitmap-text-3d counts them; TextShape's fontSize is 10 to the metre. */
 const NAME_SIZE = 0.13
-const COUNT_SIZE = 0.11
+/** The rig count is the second line of the same text as the name, so it shares its size. */
+const COUNT_SIZE = NAME_SIZE
 const FACE_TO_NAME_GAP = 0.04
 const NAME_TO_COUNT_GAP = 0.03
 
@@ -107,19 +107,19 @@ const NAME_MAX_CHARACTERS = Math.floor((PANEL_WIDTH - PANEL_PADDING * 2) / (NAME
 const FACE_Y = PANEL_HEIGHT / 2 - PANEL_PADDING - FACE_FRAME_SIZE / 2
 const NAME_Y = FACE_Y - FACE_FRAME_SIZE / 2 - FACE_TO_NAME_GAP - NAME_SIZE / 2
 const COUNT_Y = NAME_Y - NAME_SIZE / 2 - NAME_TO_COUNT_GAP - COUNT_SIZE / 2
+/** Name and count are one two-line text, centred between where each line sits. */
+const LABEL_Y = (NAME_Y + COUNT_Y) / 2
 
 // Layers towards the panel's readable side, its -Z. The text stands well clear of the background,
 // so it is never painted over when the panel is seen at an angle.
-const LAYER_TRIM_Z = -0.015
 const LAYER_FACE_Z = -0.03
 const LAYER_TEXT_Z = -0.12
 
 /** #5A493B, the lighter tone of the reference swatch */
-const PANEL_BACKGROUND = Color4.create(0.35, 0.29, 0.23, 0.5)
-const FACE_FRAME_COLOR = Color4.create(0.88, 0.7, 0.32, 0.5)
+const PANEL_BACKGROUND = Color4.create(0.35, 0.29, 0.23, 1)
 const PANEL_CREAM = Color4.create(0.96, 0.9, 0.78, 1)
 
-type ParkedMule = { root: Entity; panel: Entity; level: Entity; name: Entity; face: Entity; faceResolved: boolean }
+type ParkedMule = { root: Entity; panel: Entity; label: Entity; face: Entity; faceResolved: boolean }
 
 const parked = new Map<string, ParkedMule>()
 let spots: Vector3[] = []
@@ -187,13 +187,7 @@ function panelText(parent: Entity, y: number, size: number): Entity {
     font: Font.F_SERIF,
     textColor: PANEL_CREAM,
     textAlign: TextAlignMode.TAM_MIDDLE_CENTER,
-    textWrapping: false,
-    outlineWidth: 0.12,
-    outlineColor: Color3.Black(),
-    shadowColor: Color3.Black(),
-    shadowOffsetX: 0.4,
-    shadowOffsetY: -0.4,
-    shadowBlur: 0.3
+    textWrapping: false
   })
   return entity
 }
@@ -201,11 +195,6 @@ function panelText(parent: Entity, y: number, size: number): Entity {
 // A plain, opaque square: no border, no notched corners.
 function panelBackground(panel: Entity): void {
   solidPlate(panel, 0, 0, 0, PANEL_WIDTH, PANEL_HEIGHT, PANEL_BACKGROUND)
-}
-
-function notchedPlate(parent: Entity, x: number, y: number, width: number, height: number, corner: number, color: Color4): void {
-  solidPlate(parent, x, y, LAYER_TRIM_Z, width, height - corner * 2, color)
-  solidPlate(parent, x, y, LAYER_TRIM_Z, width - corner * 2, height, color)
 }
 
 /** Keeps a long name from pushing past the panel's edge. */
@@ -239,7 +228,6 @@ function park(address: string): ParkedMule {
   // The owner's face. The avatar texture is fetched by address, so it works for an owner who is
   // away too; it only drops to the fallback picture if the owner shows up as a guest (see
   // resolveFace).
-  notchedPlate(panel, 0, FACE_Y, FACE_FRAME_SIZE, FACE_FRAME_SIZE, FACE_FRAME_CORNER, FACE_FRAME_COLOR)
   const face = plate(panel, 0, FACE_Y, LAYER_FACE_Z, FACE_SIZE_METERS, FACE_SIZE_METERS)
   // A stand-in has no avatar to fetch, which would leave the plate blank.
   setFace(
@@ -252,8 +240,7 @@ function park(address: string): ParkedMule {
   const mule: ParkedMule = {
     root,
     panel,
-    level: panelText(panel, COUNT_Y, COUNT_SIZE),
-    name: panelText(panel, NAME_Y, NAME_SIZE),
+    label: panelText(panel, LABEL_Y, NAME_SIZE),
     face,
     faceResolved: false
   }
@@ -301,6 +288,23 @@ function withStandIns(entries: readonly YardEntry[]): YardEntry[] {
   return filled
 }
 
+// A rig is only parked in the world while the player is near its spot; further off it is taken
+// down, model, panel and all, and put back on the way in. Taking it down a little further out than
+// it comes back keeps one on the edge from flickering in and out.
+/** A rig is put up once the player comes this close to its spot. */
+const MULE_SHOW_RADIUS_METERS = 40
+/** And taken down once they are this far from it. */
+const MULE_HIDE_RADIUS_METERS = 45
+
+function isNearPlayer(spot: Vector3, player: Vector3 | undefined, shown: boolean): boolean {
+  // Until the player's position arrives, nothing is put up.
+  if (player === undefined) return false
+  const world = yardPointToWorld(spot)
+  if (world === null) return false
+  const radius = shown ? MULE_HIDE_RADIUS_METERS : MULE_SHOW_RADIUS_METERS
+  return Vector3.distanceSquared(world, player) <= radius * radius
+}
+
 function syncYard(): void {
   if (yardRoot === null) return
   if (myAddress === '') myAddress = (getPlayer()?.userId ?? '').toLowerCase()
@@ -309,12 +313,15 @@ function syncYard(): void {
   for (const [, yard] of engine.getEntitiesWith(MuleYard)) entries = yard.mules
   if (DEBUG_FILL_MULE_YARD) entries = withStandIns(entries)
 
+  const player = Transform.getOrNull(engine.PlayerEntity)
+
   const seen = new Set<string>()
   ownMule = null
   let ownParked: ParkedMule | null = null
   for (const entry of entries) {
     const spot = spots[entry.slot]
     if (spot === undefined) continue
+    if (!isNearPlayer(spot, player?.position, parked.has(entry.address))) continue
     seen.add(entry.address)
 
     const mule = parked.get(entry.address) ?? park(entry.address)
@@ -323,9 +330,8 @@ function syncYard(): void {
     if (!Vector3.equals(transform.position, spot)) transform.position = Vector3.clone(spot)
 
     const levelText = `${entry.level} ${entry.level === 1 ? 'M.U.L.E.' : 'M.U.L.E.s'}`
-    if (TextShape.get(mule.level).text !== levelText) TextShape.getMutable(mule.level).text = levelText
-    const nameText = fitName(entry.name)
-    if (TextShape.get(mule.name).text !== nameText) TextShape.getMutable(mule.name).text = nameText
+    const labelText = `${fitName(entry.name)}\n${levelText}`
+    if (TextShape.get(mule.label).text !== labelText) TextShape.getMutable(mule.label).text = labelText
 
     if (entry.address.toLowerCase() === myAddress) {
       ownMule = mule.root
