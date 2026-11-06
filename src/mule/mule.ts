@@ -1,5 +1,6 @@
 import {
   Animator,
+  AudioSource,
   ColliderLayer,
   engine,
   Entity,
@@ -21,6 +22,7 @@ import { WESTERN_FONT_SRC } from '../ui/bitmap-text'
 import { focusPanel, registerPanel } from '../world/panel-focus'
 import { MULE_YARD_COLUMNS, MULE_YARD_ROWS, MuleYard } from '../shared/net/mule-yard-sync'
 import { DEBUG_FILL_MULE_YARD } from '../shared/debug-flags'
+import { sfxVolume } from '../world/volume'
 
 // The idle rigs standing in the world. They dig straight into the player's storage; walking up
 // to your rig is where you check on it. Fuel is bought at the General Store.
@@ -316,6 +318,28 @@ function syncYard(): void {
     if (!seen.has(address)) unpark(address, mule)
   }
   makeClickable(ownMule)
+  syncYardSound(parked.size > 0)
+}
+
+// The rigs' running sound loops from the centre of `Mule_Area` (where the yard's root stands, clear
+// of the plane's scale and hidden flag) while at least one is parked. It is a loop, so
+// unlike the one-shots it is kept following the effects slider while it plays.
+const YARD_SOUND = 'assets/sounds/mule.mp3'
+
+function syncYardSound(running: boolean): void {
+  if (yardRoot === null) return
+  const volume = sfxVolume()
+  const audio = AudioSource.getOrNull(yardRoot)
+  if (audio === null) {
+    if (!running) return
+    AudioSource.create(yardRoot, { audioClipUrl: YARD_SOUND, playing: true, loop: true, volume, global: false })
+    return
+  }
+  if (audio.playing !== running || audio.volume !== volume) {
+    const mutable = AudioSource.getMutable(yardRoot)
+    mutable.playing = running
+    mutable.volume = volume
+  }
 }
 
 // Only your own rig answers a click: the panel shows your fleet, not a neighbour's.
