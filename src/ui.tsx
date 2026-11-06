@@ -1014,7 +1014,6 @@ function storeProducts(): Product[] {
     const nextStorage = nextTier('storage', (id) => getOwned(id))
     return [
         ...picks,
-        { key: 'storage', title: 'Storage', icon: ICON_WAREHOUSE, hint: nextStorage !== null ? `${nextStorage.price} Coins` : 'Max level', status: null, muted: false },
         {
             key: 'mule',
             title: mule.label,
@@ -1024,9 +1023,10 @@ function storeProducts(): Product[] {
             muted: false
         },
         { key: 'fuel', title: 'Fuel', icon: ICON_FUEL, hint: `${FUEL_PRICE_PER_GALLON} Coins / Gallon`, status: mules > 0 ? null : STATUS_LOCKED, muted: false },
+        { key: 'storage', title: 'Storage', icon: ICON_WAREHOUSE, hint: nextStorage !== null ? `${nextStorage.price} Coins` : 'Max level', status: null, muted: false },
+        { key: 'dynamite', title: 'Dynamite', icon: ICON_DYNAMITE, hint: '', status: STATUS_SOON, muted: true },
         { key: 'horse', title: 'Horse', icon: ICON_HORSE, hint: '', status: STATUS_SOON, muted: true },
-        { key: 'revolver', title: 'Revolver', icon: ICON_REVOLVER, hint: '', status: STATUS_SOON, muted: true },
-        { key: 'dynamite', title: 'Dynamite', icon: ICON_DYNAMITE, hint: '', status: STATUS_SOON, muted: true }
+        { key: 'revolver', title: 'Revolver', icon: ICON_REVOLVER, hint: '', status: STATUS_SOON, muted: true }
     ]
 }
 
@@ -1340,19 +1340,53 @@ const storeDetail = (detail: Detail) => (
     </UiEntity>
 )
 
-const storePanel = () => {
-    const key = selectedProductKey()
-    return counterPanel('GENERAL STORE', closeStorePanel, storeProducts(), key, selectProduct, detailFor(key))
+// The store's shelves: tools are what you dig with by hand (picks, dynamite), upgrades grow the
+// operation (rigs, their fuel, storage), gear is the rest of a westerner's kit (horse, revolver).
+type StoreTab = 'tools' | 'upgrades' | 'gear'
+
+const STORE_TABS: { id: StoreTab; label: string }[] = [
+    { id: 'tools', label: 'Tools' },
+    { id: 'upgrades', label: 'Upgrades' },
+    { id: 'gear', label: 'Gear' }
+]
+
+function storeTabOf(key: string): StoreTab {
+    if (key === 'fuel' || key === 'storage' || key === 'mule') return 'upgrades'
+    if (key === 'horse' || key === 'revolver') return 'gear'
+    return 'tools'
 }
 
-/** The frame the store and the Land Office share: title, purse, close, cards on the left, detail on the right. */
-const counterPanel = (title: string, onClose: () => void, products: Product[], key: string, onSelect: (key: string) => void, detail: Detail) => {
-    // The page is wherever the selected card is, so a page turn selects that page's first card and
-    // the panel always opens on the page of what it shows.
-    const pages = Math.ceil(products.length / STORE_CARDS_PER_PAGE)
-    const page = Math.floor(Math.max(0, products.findIndex((product) => product.key === key)) / STORE_CARDS_PER_PAGE)
-    const firstCard = page * STORE_CARDS_PER_PAGE
-    const turnTo = (target: number) => onSelect(products[target * STORE_CARDS_PER_PAGE].key)
+const storePanel = () => {
+    const key = selectedProductKey()
+    // The tab open is the selected card's, so a tab is opened by selecting a card on it: the pick in
+    // use for Tools, the first card for the rest.
+    const tab = storeTabOf(key)
+    const all = storeProducts()
+    const openTab = (target: StoreTab) => {
+        if (target === tab) return
+        const pickInUse = activePick((id) => getOwned(id), getEquipped())?.id
+        const first = all.find((product) => storeTabOf(product.key) === target)
+        if (first !== undefined) selectProduct(target === 'tools' && pickInUse !== undefined ? pickInUse : first.key)
+    }
+    const tabs = STORE_TABS.map((storeTab) => tabButton(storeTab.id, storeTab.label, storeTab.id === tab, () => openTab(storeTab.id)))
+    const products = all.filter((product) => storeTabOf(product.key) === tab)
+    return counterPanel('GENERAL STORE', closeStorePanel, products, key, selectProduct, detailFor(key), tabs)
+}
+
+/**
+ * The frame the store and the Land Office share: title, purse, close, cards on the left, detail on
+ * the right. With tabs, the cards and the detail stand in the box under them.
+ */
+const counterPanel = (
+    title: string,
+    onClose: () => void,
+    products: Product[],
+    key: string,
+    onSelect: (key: string) => void,
+    detail: Detail,
+    tabs?: ReactEcs.JSX.Element[]
+) => {
+    const content = counterContent(products, key, onSelect, detail)
     return (
         <UiEntity
             uiTransform={{
@@ -1389,23 +1423,36 @@ const counterPanel = (title: string, onClose: () => void, products: Product[], k
                 />
             </UiEntity>
 
-            {/* On mobile, fills what the header leaves, so the detail's action sits at the bottom of the screen. */}
-            <UiEntity uiTransform={{ width: '100%', flexGrow: 1, flexDirection: 'row' }}>
-                <UiEntity uiTransform={{ width: STORE_LIST_WIDTH, flexShrink: 0, flexDirection: 'column' }}>
-                    {/* As tall as a full page, so the arrows stay put on a shorter one. */}
-                    <UiEntity uiTransform={{ width: '100%', height: STORE_CARDS_PER_PAGE * (STORE_CARD_HEIGHT + STORE_CARD_GAP), flexShrink: 0, flexDirection: 'column' }}>
-                        {products.slice(firstCard, firstCard + STORE_CARDS_PER_PAGE).map((product) => storeCard(product, product.key === key, onSelect))}
-                    </UiEntity>
-                    {pages > 1 ? (
-                        <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                            {pageButton('<', page > 0, () => turnTo(page - 1))}
-                            <Label value={`${page + 1}/${pages}`} fontSize={16} color={BANK_CAPTION} textAlign="middle-center" uiTransform={{ width: 60, height: 44 }} />
-                            {pageButton('>', page < pages - 1, () => turnTo(page + 1))}
-                        </UiEntity>
-                    ) : null}
+            {tabs !== undefined ? tabbedBox(tabs, content, true) : content}
+        </UiEntity>
+    )
+}
+
+/** Cards on the left, a page at a time, and the selected one's detail on the right. */
+const counterContent = (products: Product[], key: string, onSelect: (key: string) => void, detail: Detail) => {
+    // The page is wherever the selected card is, so a page turn selects that page's first card and
+    // the panel always opens on the page of what it shows.
+    const pages = Math.ceil(products.length / STORE_CARDS_PER_PAGE)
+    const page = Math.floor(Math.max(0, products.findIndex((product) => product.key === key)) / STORE_CARDS_PER_PAGE)
+    const firstCard = page * STORE_CARDS_PER_PAGE
+    const turnTo = (target: number) => onSelect(products[target * STORE_CARDS_PER_PAGE].key)
+    return (
+        // On mobile, fills what the header leaves, so the detail's action sits at the bottom of the screen.
+        <UiEntity uiTransform={{ width: '100%', flexGrow: 1, flexDirection: 'row' }}>
+            <UiEntity uiTransform={{ width: STORE_LIST_WIDTH, flexShrink: 0, flexDirection: 'column' }}>
+                {/* As tall as a full page, so the arrows stay put on a shorter one. */}
+                <UiEntity uiTransform={{ width: '100%', height: STORE_CARDS_PER_PAGE * (STORE_CARD_HEIGHT + STORE_CARD_GAP), flexShrink: 0, flexDirection: 'column' }}>
+                    {products.slice(firstCard, firstCard + STORE_CARDS_PER_PAGE).map((product) => storeCard(product, product.key === key, onSelect))}
                 </UiEntity>
-                {storeDetail(detail)}
+                {pages > 1 ? (
+                    <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {pageButton('<', page > 0, () => turnTo(page - 1))}
+                        <Label value={`${page + 1}/${pages}`} fontSize={16} color={BANK_CAPTION} textAlign="middle-center" uiTransform={{ width: 60, height: 44 }} />
+                        {pageButton('>', page < pages - 1, () => turnTo(page + 1))}
+                    </UiEntity>
+                ) : null}
             </UiEntity>
+            {storeDetail(detail)}
         </UiEntity>
     )
 }
@@ -2286,30 +2333,82 @@ function inventoryEntries(): InventoryEntry[] {
     return entries
 }
 
-const inventoryTabButton = (tab: { id: InventoryTab; label: string }) => {
-    const active = tab.id === inventoryTab
-    return (
-        <UiEntity
-            key={tab.id}
-            uiTransform={{
-                height: INVENTORY_TAB_HEIGHT,
-                flexGrow: 1,
-                justifyContent: 'center',
-                alignItems: 'center',
-                margin: { right: tab.id === INVENTORY_TABS[INVENTORY_TABS.length - 1].id ? 0 : 6 },
-                borderRadius: 8,
-                borderWidth: active ? 3 : 2,
-                borderColor: active ? BANK_GOLD : BANK_TRIM
-            }}
-            uiBackground={{ color: active ? BANK_TRIM : BANK_WOOD }}
-            onMouseDown={() => {
-                inventoryTab = tab.id
-            }}
-        >
-            <BitmapText value={tab.label} fontSize={20} color={active ? BANK_GOLD_LIGHT : BANK_CAPTION} />
+// Folder tabs, as the inventory and the store use: rounded on top, square at the foot, standing on
+// a box that holds what the tab shows. The open tab has the box's fill and no line under it, so it
+// reads as part of the box; the others are darker and closed off by the box's top edge.
+const TAB_RADIUS = 10
+const TAB_BORDER = 2
+const TAB_GAP = 6
+const TAB_BODY_PADDING = 12
+/** Room between the tabs and what the box holds. */
+const TAB_BODY_PADDING_TOP = 30
+/** The box and the open tab: a step lighter than the cards on it. */
+const TAB_BODY_COLOR = BANK_STEP_COLOR
+const TAB_IDLE_COLOR = BANK_WOOD
+
+const tabButton = (key: string, label: string, active: boolean, onPress: () => void) => (
+    <UiEntity
+        key={key}
+        uiTransform={{
+            height: INVENTORY_TAB_HEIGHT,
+            flexGrow: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+            borderRadius: { topLeft: TAB_RADIUS, topRight: TAB_RADIUS, bottomLeft: 0, bottomRight: 0 },
+            borderWidth: { top: TAB_BORDER, left: TAB_BORDER, right: TAB_BORDER, bottom: active ? 0 : TAB_BORDER },
+            borderColor: BANK_TRIM
+        }}
+        uiBackground={{ color: active ? TAB_BODY_COLOR : TAB_IDLE_COLOR }}
+        onMouseDown={onPress}
+    >
+        <BitmapText value={label} fontSize={20} color={active ? BANK_GOLD_LIGHT : BANK_CAPTION} />
+    </UiEntity>
+)
+
+/** The bit of the box's top edge between two tabs. */
+const tabGap = (key: string) => (
+    <UiEntity
+        key={key}
+        uiTransform={{
+            width: TAB_GAP,
+            height: INVENTORY_TAB_HEIGHT,
+            flexShrink: 0,
+            borderWidth: { top: 0, left: 0, right: 0, bottom: TAB_BORDER },
+            borderColor: BANK_TRIM
+        }}
+    />
+)
+
+/**
+ * A row of tabs on top of the box that holds what they show. The tabs span the box's whole width,
+ * so their feet and the gaps between them make up its top edge.
+ */
+const tabbedBox = (tabs: ReactEcs.JSX.Element[], body: ReactEcs.JSX.Element | ReactEcs.JSX.Element[], grow: boolean = false) => (
+    <UiEntity uiTransform={{ width: '100%', flexDirection: 'column', ...(grow ? { flexGrow: 1 } : {}) }}>
+        <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', flexShrink: 0 }}>
+            {tabs.flatMap((tab, index) => (index === 0 ? [tab] : [tabGap(`tab-gap-${index}`), tab]))}
         </UiEntity>
-    )
-}
+        <UiEntity
+            uiTransform={{
+                width: '100%',
+                flexDirection: 'column',
+                ...(grow ? { flexGrow: 1 } : {}),
+                padding: { top: TAB_BODY_PADDING_TOP, left: TAB_BODY_PADDING, right: TAB_BODY_PADDING, bottom: TAB_BODY_PADDING },
+                borderRadius: { topLeft: 0, topRight: 0, bottomLeft: PANEL_RADIUS, bottomRight: PANEL_RADIUS },
+                borderWidth: { top: 0, left: TAB_BORDER, right: TAB_BORDER, bottom: TAB_BORDER },
+                borderColor: BANK_TRIM
+            }}
+            uiBackground={{ color: TAB_BODY_COLOR }}
+        >
+            {body}
+        </UiEntity>
+    </UiEntity>
+)
+
+const inventoryTabButton = (tab: { id: InventoryTab; label: string }) =>
+    tabButton(tab.id, tab.label, tab.id === inventoryTab, () => {
+        inventoryTab = tab.id
+    })
 
 const inventoryCard = (entry: InventoryEntry, index: number) => {
     const selected = entry.key === inventorySelected
@@ -2430,23 +2529,26 @@ const inventoryPanel = () => {
                     inventoryOpen = false
                 }}
             />
-            <UiEntity uiTransform={{ width: INVENTORY_GRID_WIDTH, flexDirection: 'row', margin: { bottom: 12 } }}>
-                {INVENTORY_TABS.map(inventoryTabButton)}
+            {/* The box is the grid's width plus its own padding and sides, so the grid fits it exactly. */}
+            <UiEntity uiTransform={{ width: INVENTORY_GRID_WIDTH + 2 * (TAB_BODY_PADDING + TAB_BORDER), flexDirection: 'column' }}>
+                {tabbedBox(INVENTORY_TABS.map(inventoryTabButton), [
+                    shown.length === 0 ? (
+                        <Label
+                            key="empty"
+                            value={noPick ? 'Nothing yet — the mayor has a pick for you' : 'Nothing here yet'}
+                            fontSize={18}
+                            color={BANK_CAPTION}
+                            textAlign="middle-center"
+                            uiTransform={{ width: '100%', height: INVENTORY_CARD_HEIGHT }}
+                        />
+                    ) : (
+                        <UiEntity key="grid" uiTransform={{ width: INVENTORY_GRID_WIDTH, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start' }}>
+                            {shown.map(inventoryCard)}
+                        </UiEntity>
+                    ),
+                    ...(selected !== null ? [<UiEntity key="detail">{inventoryDetail(selected)}</UiEntity>] : [])
+                ])}
             </UiEntity>
-            {shown.length === 0 ? (
-                <Label
-                    value={noPick ? 'Nothing yet — the mayor has a pick for you' : 'Nothing here yet'}
-                    fontSize={18}
-                    color={BANK_CAPTION}
-                    textAlign="middle-center"
-                    uiTransform={{ width: '100%', height: INVENTORY_CARD_HEIGHT }}
-                />
-            ) : (
-                <UiEntity uiTransform={{ width: INVENTORY_GRID_WIDTH, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start' }}>
-                    {shown.map(inventoryCard)}
-                </UiEntity>
-            )}
-            {selected !== null ? inventoryDetail(selected) : null}
         </UiEntity>
     )
 }
