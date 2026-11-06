@@ -2,6 +2,7 @@
 
 Append-only, newest first. `date · decision · why`. Standing non-goals live here too.
 
+- 2026-11-06 · Slot return raised from about 80% to about 85%: the table now pays 79.7% (horseshoes ×5 → ×6, diamonds ×14 → ×16) and the pot still takes 5% · owner call: a middle ground between the coin sink and a more generous machine, after the first two days paid out 61%
 - 2026-11-04 · The casino's total winnings saved under the `casino-stats` Storage key, with figures per UTC day (spins, wagered, paid, jackpots, won) kept for 30 days, all read from the manual Storage export with no in-game panel. `won` is bets less wins less the pot's change, so coins waiting in the jackpot don't count as gone · owner call: mainly to see how much the casino has won
 - 2026-11-03 · Slot bets lowered to 1 / 5 / 25, with 25 playing for the whole jackpot and the jackpot's minimum down to 250 so the return stays near 80% · owner call: one spin at 100 cost as much as a M.U.L.E., and a spin comes every couple of seconds
 - 2026-11-03 · Jackpot reworked: it never holds less than 1,000 coins, topped back up after a win, and takes 5% of every bet instead of 2%. The table's prizes come down to keep the return near 80%, and the panel states what three bells pay at the chosen bet · owner call: a pot of 8 coins was no reason to bet, and at 2% it barely moved

@@ -2,10 +2,10 @@
 //
 // Shared so the panel can show the same table the server pays by; only the server ever spins.
 //
-// Long-run return to players, about 80%: the table pays out 74.5% of what is bet, JACKPOT_RATE puts
+// Long-run return to players, about 85%: the table pays out 79.7% of what is bet, JACKPOT_RATE puts
 // another 5% into the town's pot, which three bells pay back, and topping the pot up to JACKPOT_MIN
 // adds at most 0.7%. The rest leaves the economy, which is what the casino is for (decisions.md,
-// 2026-11-03). Changing a weight or a multiplier changes that return, so work it out again afterwards.
+// 2026-11-06). Changing a weight or a multiplier changes that return, so work it out again afterwards.
 
 export type SlotSymbol = {
   id: string
@@ -17,9 +17,9 @@ export type SlotSymbol = {
 }
 
 export const SLOT_SYMBOLS: SlotSymbol[] = [
-  { id: 'horseshoe', label: 'Horseshoe', weight: 8, pays: 5 },
+  { id: 'horseshoe', label: 'Horseshoe', weight: 8, pays: 6 },
   { id: 'spade', label: 'Spade', weight: 6, pays: 7 },
-  { id: 'diamond', label: 'Diamond', weight: 4, pays: 14 },
+  { id: 'diamond', label: 'Diamond', weight: 4, pays: 16 },
   { id: 'heart', label: 'Heart', weight: 3, pays: 30 },
   { id: 'bell', label: 'Bell', weight: 2, pays: 50 }
 ]
