@@ -29,7 +29,7 @@ export const MULE_SMOKE: SmokeSpawnConfig = {
   tint: { r: 0.05, g: 0.01, b: 0 },
   emissiveIntensity: 1,
   burstCount: 1,
-  spawnOffsetY: 2,
+  spawnOffsetY: 1,
   positionRandomX: 0,
   positionRandomY: 0.2,
   positionRandomZ: 0,

@@ -1,6 +1,7 @@
 import {
   Animator,
   AudioSource,
+  EasingFunction,
   ColliderLayer,
   engine,
   Entity,
@@ -13,7 +14,9 @@ import {
   TextAlignMode,
   TextShape,
   Transform,
-  Tween
+  Tween,
+  TweenLoop,
+  TweenSequence
 } from '@dcl/sdk/ecs'
 import { Color3, Color4, Quaternion, Vector3 } from '@dcl/sdk/math'
 import { getPlayer } from '@dcl/sdk/players'
@@ -31,7 +34,17 @@ export const MULE_ENTITY_NAME = 'MULE'
 export const MULE_RADIUS_METERS = 5
 
 /** How high above the rig's origin the centre of the owner's panel floats. */
-const PANEL_HEIGHT_METERS = 2.5
+const PANEL_HEIGHT_METERS = 1.8
+
+/** How far along Z the owner's panel stands from the rig's origin. */
+const PANEL_OFFSET_Z_METERS = -0.3
+
+/** Where the owner's panel stands, from the rig's origin. */
+const PANEL_POSITION = Vector3.create(0, PANEL_HEIGHT_METERS, PANEL_OFFSET_Z_METERS)
+
+/** How far the owner's panel is tilted around X. */
+const PANEL_TILT_X_DEGREES = 0
+const PANEL_ROTATION = Quaternion.fromEulerDegrees(PANEL_TILT_X_DEGREES, 180, 0)
 
 export function isPlayerAtMule(): boolean {
   return atOwnMule
@@ -101,11 +114,12 @@ const LAYER_TRIM_Z = -0.015
 const LAYER_FACE_Z = -0.03
 const LAYER_TEXT_Z = -0.12
 
-const PANEL_BACKGROUND = Color4.Black()
-const FACE_FRAME_COLOR = Color4.create(0.88, 0.7, 0.32, 1)
+/** #5A493B, the lighter tone of the reference swatch */
+const PANEL_BACKGROUND = Color4.create(0.35, 0.29, 0.23, 0.5)
+const FACE_FRAME_COLOR = Color4.create(0.88, 0.7, 0.32, 0.5)
 const PANEL_CREAM = Color4.create(0.96, 0.9, 0.78, 1)
 
-type ParkedMule = { root: Entity; level: Entity; name: Entity; face: Entity; faceResolved: boolean }
+type ParkedMule = { root: Entity; panel: Entity; level: Entity; name: Entity; face: Entity; faceResolved: boolean }
 
 const parked = new Map<string, ParkedMule>()
 let spots: Vector3[] = []
@@ -184,7 +198,7 @@ function panelText(parent: Entity, y: number, size: number): Entity {
   return entity
 }
 
-// A plain, opaque black square: no border, no notched corners.
+// A plain, opaque square: no border, no notched corners.
 function panelBackground(panel: Entity): void {
   solidPlate(panel, 0, 0, 0, PANEL_WIDTH, PANEL_HEIGHT, PANEL_BACKGROUND)
 }
@@ -217,8 +231,8 @@ function park(address: string): ParkedMule {
   const panel = engine.addEntity()
   Transform.create(panel, {
     parent: root,
-    position: Vector3.create(0, PANEL_HEIGHT_METERS, 0),
-    rotation: Quaternion.fromEulerDegrees(0, 180, 0)
+    position: Vector3.clone(PANEL_POSITION),
+    rotation: { ...PANEL_ROTATION }
   })
   panelBackground(panel)
 
@@ -237,6 +251,7 @@ function park(address: string): ParkedMule {
 
   const mule: ParkedMule = {
     root,
+    panel,
     level: panelText(panel, COUNT_Y, COUNT_SIZE),
     name: panelText(panel, NAME_Y, NAME_SIZE),
     face,
@@ -296,6 +311,7 @@ function syncYard(): void {
 
   const seen = new Set<string>()
   ownMule = null
+  let ownParked: ParkedMule | null = null
   for (const entry of entries) {
     const spot = spots[entry.slot]
     if (spot === undefined) continue
@@ -311,13 +327,17 @@ function syncYard(): void {
     const nameText = fitName(entry.name)
     if (TextShape.get(mule.name).text !== nameText) TextShape.getMutable(mule.name).text = nameText
 
-    if (entry.address.toLowerCase() === myAddress) ownMule = mule.root
+    if (entry.address.toLowerCase() === myAddress) {
+      ownMule = mule.root
+      ownParked = mule
+    }
   }
 
   for (const [address, mule] of parked) {
     if (!seen.has(address)) unpark(address, mule)
   }
   makeClickable(ownMule)
+  raiseOwnPanel(ownParked?.panel ?? null)
   syncYardSound(parked.size > 0)
 }
 
@@ -340,6 +360,43 @@ function syncYardSound(running: boolean): void {
     mutable.playing = running
     mutable.volume = volume
   }
+}
+
+// The player's own panel floats higher than the neighbours', bigger, standing straight and bobbing
+// up and down, so their rig is easy to find in a full yard.
+/** How much higher than the rest the player's own panel floats, at the bottom of its bob. */
+const OWN_PANEL_RAISE_METERS = 1
+const OWN_PANEL_BOB_METERS = 0.5
+/** One way of the bob, in milliseconds; it then comes back the same way. */
+const OWN_PANEL_BOB_MS = 1000
+const OWN_PANEL_SCALE = 1.5
+/** Stands straight: the others' tilt is left out. */
+const OWN_PANEL_ROTATION = Quaternion.fromEulerDegrees(0, 180, 0)
+
+let raisedPanel: Entity | null = null
+
+function raiseOwnPanel(panel: Entity | null): void {
+  if (panel === raisedPanel) return
+  // Back in line with the rest; the old one may already be gone (unpark removes children).
+  if (raisedPanel !== null && Transform.getOrNull(raisedPanel) !== null) {
+    Tween.deleteFrom(raisedPanel)
+    TweenSequence.deleteFrom(raisedPanel)
+    const transform = Transform.getMutable(raisedPanel)
+    transform.position = Vector3.clone(PANEL_POSITION)
+    transform.rotation = { ...PANEL_ROTATION }
+    transform.scale = Vector3.One()
+  }
+  raisedPanel = panel
+  if (panel === null) return
+
+  const low = Vector3.add(PANEL_POSITION, Vector3.create(0, OWN_PANEL_RAISE_METERS, 0))
+  const high = Vector3.add(low, Vector3.create(0, OWN_PANEL_BOB_METERS, 0))
+  const transform = Transform.getMutable(panel)
+  transform.position = low
+  transform.rotation = { ...OWN_PANEL_ROTATION }
+  transform.scale = Vector3.create(OWN_PANEL_SCALE, OWN_PANEL_SCALE, OWN_PANEL_SCALE)
+  Tween.setMove(panel, low, high, OWN_PANEL_BOB_MS, EasingFunction.EF_EASESINE)
+  TweenSequence.createOrReplace(panel, { sequence: [], loop: TweenLoop.TL_YOYO })
 }
 
 // Only your own rig answers a click: the panel shows your fleet, not a neighbour's.
