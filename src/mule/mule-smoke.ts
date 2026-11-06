@@ -11,11 +11,15 @@ import { getParkedMuleBounds, yardPointToWorld } from './mule'
 /** How far the smoke reaches past the outermost rigs, on each side. */
 export const MULE_SMOKE_PADDING_METERS = 0.5
 
-/** Puffs per second for each square metre the area covers. */
+/** Puffs per second for each square metre while the area is small; it thins out as the area grows. */
 export const MULE_SMOKE_PER_SQUARE_METER = 1
 
-/** Caps the puffs per second however big the yard gets, since each puff is two entities alive for its whole life. */
-export const MULE_SMOKE_MAX_PER_SECOND = 20
+/**
+ * The puffs per second a huge yard approaches but never passes, since each puff is two entities
+ * alive for its whole life. The rate eases towards it, so the smoke per square metre drops
+ * progressively the more rigs the area spans.
+ */
+export const MULE_SMOKE_MAX_PER_SECOND = 10
 
 // The carpet preset from circus_fortune_teller. The area picks where each puff starts, so the
 // preset adds no spread of its own across the ground.
@@ -55,7 +59,9 @@ function emit(dt: number): void {
   const minZ = bounds.minZ - MULE_SMOKE_PADDING_METERS
   const maxZ = bounds.maxZ + MULE_SMOKE_PADDING_METERS
   const area = (maxX - minX) * (maxZ - minZ)
-  const perSecond = Math.min(area * MULE_SMOKE_PER_SQUARE_METER, MULE_SMOKE_MAX_PER_SECOND)
+  // Starts out at the full density per square metre and bends over towards the ceiling.
+  const perSecond =
+    MULE_SMOKE_MAX_PER_SECOND * (1 - Math.exp((-area * MULE_SMOKE_PER_SQUARE_METER) / MULE_SMOKE_MAX_PER_SECOND))
 
   // A frame's worth of puffs, carried over so a low rate still comes out right; capped so a long
   // hitch does not dump a backlog all at once.
