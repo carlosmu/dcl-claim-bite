@@ -51,15 +51,35 @@ class Particle {
   private direction: Vector3 = Vector3.Zero()
   private showTimer: number = 0
   private pendingSize: number = 1
+  /** The preset whose material the puff wears; the material is only set again for another one. */
+  private materialFor: SmokeSpawnConfig | null = null
+  /** Picked once, so a recycled puff keeps its material as it is. */
+  private readonly textureSrc =
+    'assets/images/' + SMOKE_TEXTURES[Math.floor(Math.random() * SMOKE_TEXTURES.length)]
 
   constructor() {
     this.parent = engine.addEntity()
     Transform.create(this.parent)
 
     this.entity = engine.addEntity()
-    MeshRenderer.setBox(this.entity)
+    // A plane is 2 triangles where a box is 12; the billboard keeps it facing the camera.
+    MeshRenderer.setPlane(this.entity)
     Transform.create(this.entity, { parent: this.parent, scale: Vector3.Zero() })
     Billboard.create(this.entity)
+  }
+
+  wear(cfg: SmokeSpawnConfig) {
+    if (this.materialFor === cfg) return
+    this.materialFor = cfg
+    const color = Color4.create(cfg.tint.r, cfg.tint.g, cfg.tint.b, cfg.opacity)
+    Material.setPbrMaterial(this.entity, {
+      texture: Material.Texture.Common({ src: this.textureSrc }),
+      albedoColor: color,
+      emissiveColor: color,
+      emissiveIntensity: cfg.emissiveIntensity,
+      transparencyMode: MaterialTransparencyMode.MTM_ALPHA_BLEND,
+      castShadows: false
+    })
   }
 
   live(
@@ -101,13 +121,6 @@ class Particle {
     if (this.life <= 0) {
       this.die()
       return
-    }
-
-    let scale = Transform.get(this.entity).scale.x
-    if (scale > 0) {
-      scale -= dt / this.life / 100
-      if (scale < 0) scale = 0
-      Transform.getMutable(this.entity).scale = Vector3.create(scale, scale, scale)
     }
 
     const t = Transform.getMutable(this.parent)
@@ -158,19 +171,8 @@ class SmokePool {
     const baseRot = Quaternion.fromEulerDegrees(cfg.rotationEulerX, cfg.rotationEulerY, cfg.rotationEulerZ)
     const finalRot = Quaternion.multiply(baseRot, rnd)
 
-    const src = 'assets/images/' + SMOKE_TEXTURES[Math.floor(Math.random() * SMOKE_TEXTURES.length)]
-
     p.live(Vector3.create(x, y, z), finalRot, cfg.lifeSec, cfg.size, randomSpeed(cfg), cfg.showDelaySec)
-
-    const color = Color4.create(cfg.tint.r, cfg.tint.g, cfg.tint.b, cfg.opacity)
-    Material.setPbrMaterial(p.entity, {
-      texture: Material.Texture.Common({ src }),
-      albedoColor: color,
-      emissiveColor: color,
-      emissiveIntensity: cfg.emissiveIntensity,
-      transparencyMode: MaterialTransparencyMode.MTM_ALPHA_BLEND,
-      castShadows: false
-    })
+    p.wear(cfg)
   }
 }
 
