@@ -32,6 +32,10 @@ export const DEBUG_SHOW_MULE_ALERTS = DEBUG_ENABLED && false
  * whole neighbourhood can be seen at once. Real owners still take their own lots. */
 export const DEBUG_FILL_PROPERTY_LOTS = DEBUG_ENABLED && false
 
+/** Parks a stand-in M.U.L.E. on every free spot of the yard, on this client only, so the full
+ * yard (and its smoke) can be seen at once. Real owners still take their own spots. */
+export const DEBUG_FILL_MULE_YARD = DEBUG_ENABLED && true
+
 /** Starts straight in the game: no title card, no welcome shot, and the player is not moved back
  * to the spawn by the mayor. The practice rocks still come with the mayor's pick. */
 export const DEBUG_SKIP_INTRO = DEBUG_ENABLED && false

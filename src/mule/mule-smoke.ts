@@ -24,7 +24,7 @@ export const MULE_SMOKE_MAX_PER_SECOND = 10
 // The carpet preset from circus_fortune_teller. The area picks where each puff starts, so the
 // preset adds no spread of its own across the ground.
 export const MULE_SMOKE: SmokeSpawnConfig = {
-  opacity: 0.5,
+  opacity: 1,
   // tint: { r: 0.48, g: 0.14, b: 0.68 },
   tint: { r: 0.05, g: 0.01, b: 0 },
   emissiveIntensity: 1,

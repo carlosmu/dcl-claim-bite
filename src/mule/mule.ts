@@ -1,4 +1,5 @@
 import {
+  Animator,
   ColliderLayer,
   engine,
   Entity,
@@ -6,7 +7,6 @@ import {
   GltfContainer,
   InputAction,
   Material,
-  MaterialTransparencyMode,
   MeshRenderer,
   pointerEventsSystem,
   TextAlignMode,
@@ -20,6 +20,7 @@ import { getPlayer } from '@dcl/sdk/players'
 import { WESTERN_FONT_SRC } from '../ui/bitmap-text'
 import { focusPanel, registerPanel } from '../world/panel-focus'
 import { MULE_YARD_COLUMNS, MULE_YARD_ROWS, MuleYard } from '../shared/net/mule-yard-sync'
+import { DEBUG_FILL_MULE_YARD } from '../shared/debug-flags'
 
 // The idle rigs standing in the world. They dig straight into the player's storage; walking up
 // to your rig is where you check on it. Fuel is bought at the General Store.
@@ -67,11 +68,7 @@ export function closeMulePanel(): void {
 export const MULE_AREA_ENTITY_NAME = 'Mule_Area'
 
 // The owner's panel, in metres: face on top, the name under it and the rig count at the bottom.
-const PANEL_WIDTH = 1.35
 const PANEL_PADDING = 0.05
-const PANEL_BORDER = 0.012
-/** Primitives cannot round a corner, so each one is notched by this much instead. */
-const PANEL_CORNER = 0.03
 
 const FACE_SIZE_METERS = 0.44
 const FACE_FRAME = 0.018
@@ -80,29 +77,29 @@ const FACE_FRAME_SIZE = FACE_SIZE_METERS + FACE_FRAME * 2
 
 /** Metres per em, as bitmap-text-3d counts them; TextShape's fontSize is 10 to the metre. */
 const NAME_SIZE = 0.13
-/** What fits the panel in the western font, which averages 0.72 em per character. */
-const NAME_MAX_CHARACTERS = 13
 const COUNT_SIZE = 0.11
 const FACE_TO_NAME_GAP = 0.04
 const NAME_TO_COUNT_GAP = 0.03
 
 const PANEL_HEIGHT = PANEL_PADDING * 2 + FACE_FRAME_SIZE + FACE_TO_NAME_GAP + NAME_SIZE + NAME_TO_COUNT_GAP + COUNT_SIZE
+/** The panel is square. */
+const PANEL_WIDTH = PANEL_HEIGHT
+
+/** What fits the panel in the western font, which averages 0.72 em per character. */
+const NAME_MAX_CHARACTERS = Math.floor((PANEL_WIDTH - PANEL_PADDING * 2) / (NAME_SIZE * 0.72))
 
 // Stacked down from the panel's top edge: face, name, count.
 const FACE_Y = PANEL_HEIGHT / 2 - PANEL_PADDING - FACE_FRAME_SIZE / 2
 const NAME_Y = FACE_Y - FACE_FRAME_SIZE / 2 - FACE_TO_NAME_GAP - NAME_SIZE / 2
 const COUNT_Y = NAME_Y - NAME_SIZE / 2 - NAME_TO_COUNT_GAP - COUNT_SIZE / 2
 
-// Layers towards the panel's readable side, its -Z. The text stands well clear of the
-// see-through background: both are transparent, so the renderer sorts them by distance from their
-// centres, and with a small gap the background can end up painted over text seen from below.
+// Layers towards the panel's readable side, its -Z. The text stands well clear of the background,
+// so it is never painted over when the panel is seen at an angle.
 const LAYER_TRIM_Z = -0.015
 const LAYER_FACE_Z = -0.03
-const LAYER_TEXT_Z = -0.08
+const LAYER_TEXT_Z = -0.12
 
-// The same as the pick selector's button in ui.tsx: BOTTOM_BUTTON_COLOR and BANK_TRIM.
-const PANEL_BACKGROUND = Color4.create(0.07, 0.08, 0.1, 1)
-const PANEL_BORDER_COLOR = Color4.create(0.42, 0.27, 0.12, 1)
+const PANEL_BACKGROUND = Color4.Black()
 const FACE_FRAME_COLOR = Color4.create(0.88, 0.7, 0.32, 1)
 const PANEL_CREAM = Color4.create(0.96, 0.9, 0.78, 1)
 
@@ -113,6 +110,8 @@ let spots: Vector3[] = []
 let yardRoot: Entity | null = null
 /** The rig's model; a `MULE` placed in the Creator Hub overrides it (see adoptTemplate). */
 let muleModel = 'assets/animations/mule-1.glb'
+/** The clip that comes with the rig's model, played on a loop. */
+const MULE_ANIMATION_CLIP = 'mule'
 let myAddress = ''
 /** The player's own rig, which is what the proximity check measures against. */
 let ownMule: Entity | null = null
@@ -161,19 +160,6 @@ function solidPlate(parent: Entity, x: number, y: number, z: number, width: numb
   Material.setBasicMaterial(plate(parent, x, y, z, width, height), { diffuseColor, castShadows: false })
 }
 
-// Lit by its own glow, so it reads the same in the shade as in the sun, like the face.
-function backgroundPlate(parent: Entity, y: number, width: number, height: number): void {
-  Material.setPbrMaterial(plate(parent, 0, y, 0, width, height), {
-    albedoColor: Color4.create(0, 0, 0, PANEL_BACKGROUND.a),
-    emissiveColor: Color3.create(PANEL_BACKGROUND.r, PANEL_BACKGROUND.g, PANEL_BACKGROUND.b),
-    emissiveIntensity: 1,
-    transparencyMode: MaterialTransparencyMode.MTM_ALPHA_BLEND,
-    metallic: 0,
-    roughness: 1,
-    specularIntensity: 0,
-    castShadows: false
-  })
-}
 
 function panelText(parent: Entity, y: number, size: number): Entity {
   const entity = engine.addEntity()
@@ -196,23 +182,9 @@ function panelText(parent: Entity, y: number, size: number): Entity {
   return entity
 }
 
-// The panel's see-through background is three rows that do not overlap, since an overlap would
-// show darker, with its border in four strips so nothing shows through behind it. The opaque
-// trims can be plain crosses of two plates.
+// A plain, opaque black square: no border, no notched corners.
 function panelBackground(panel: Entity): void {
-  const innerWidth = PANEL_WIDTH - PANEL_CORNER * 2
-  const innerHeight = PANEL_HEIGHT - PANEL_CORNER * 2
-  const edgeY = PANEL_HEIGHT / 2 - PANEL_CORNER / 2
-  backgroundPlate(panel, 0, PANEL_WIDTH, innerHeight)
-  backgroundPlate(panel, edgeY, innerWidth, PANEL_CORNER)
-  backgroundPlate(panel, -edgeY, innerWidth, PANEL_CORNER)
-
-  const borderX = PANEL_WIDTH / 2 - PANEL_BORDER / 2
-  const borderY = PANEL_HEIGHT / 2 - PANEL_BORDER / 2
-  solidPlate(panel, 0, borderY, LAYER_TRIM_Z, innerWidth, PANEL_BORDER, PANEL_BORDER_COLOR)
-  solidPlate(panel, 0, -borderY, LAYER_TRIM_Z, innerWidth, PANEL_BORDER, PANEL_BORDER_COLOR)
-  solidPlate(panel, borderX, 0, LAYER_TRIM_Z, PANEL_BORDER, innerHeight, PANEL_BORDER_COLOR)
-  solidPlate(panel, -borderX, 0, LAYER_TRIM_Z, PANEL_BORDER, innerHeight, PANEL_BORDER_COLOR)
+  solidPlate(panel, 0, 0, 0, PANEL_WIDTH, PANEL_HEIGHT, PANEL_BACKGROUND)
 }
 
 function notchedPlate(parent: Entity, x: number, y: number, width: number, height: number, corner: number, color: Color4): void {
@@ -238,6 +210,7 @@ function park(address: string): ParkedMule {
       visibleMeshesCollisionMask: ColliderLayer.CL_POINTER,
       invisibleMeshesCollisionMask: ColliderLayer.CL_POINTER | ColliderLayer.CL_PHYSICS
     })
+    Animator.create(root, { states: [{ clip: MULE_ANIMATION_CLIP, playing: true, loop: true }] })
   }
   const panel = engine.addEntity()
   Transform.create(panel, {
@@ -252,7 +225,13 @@ function park(address: string): ParkedMule {
   // resolveFace).
   notchedPlate(panel, 0, FACE_Y, FACE_FRAME_SIZE, FACE_FRAME_SIZE, FACE_FRAME_CORNER, FACE_FRAME_COLOR)
   const face = plate(panel, 0, FACE_Y, LAYER_FACE_Z, FACE_SIZE_METERS, FACE_SIZE_METERS)
-  setFace(face, Material.Texture.Avatar({ userId: address }))
+  // A stand-in has no avatar to fetch, which would leave the plate blank.
+  setFace(
+    face,
+    address.startsWith(STAND_IN_ADDRESS_PREFIX)
+      ? Material.Texture.Common({ src: FALLBACK_FACE_IMAGE })
+      : Material.Texture.Avatar({ userId: address })
+  )
 
   const mule: ParkedMule = {
     root,
@@ -289,12 +268,29 @@ function unpark(address: string, mule: ParkedMule): void {
   parked.delete(address)
 }
 
+type YardEntry = { slot: number; address: string; name: string; level: number }
+
+// Every spot nobody has, given to a made-up owner. Long and short names, to see both fit.
+const STAND_IN_NAMES = ['Calamity Jane', 'Doc', 'Wild Bill Hickok', 'Annie Oakley', 'Butch', 'Jesse James']
+const STAND_IN_ADDRESS_PREFIX = 'debug-mule-'
+
+function withStandIns(entries: readonly YardEntry[]): YardEntry[] {
+  const filled = [...entries]
+  const taken = new Set(entries.map((entry) => entry.slot))
+  for (let slot = 0; slot < spots.length; slot++) {
+    if (taken.has(slot)) continue
+    filled.push({ slot, address: `${STAND_IN_ADDRESS_PREFIX}${slot}`, name: STAND_IN_NAMES[slot % STAND_IN_NAMES.length], level: 1 + (slot % 5) })
+  }
+  return filled
+}
+
 function syncYard(): void {
   if (yardRoot === null) return
   if (myAddress === '') myAddress = (getPlayer()?.userId ?? '').toLowerCase()
 
   let entries: readonly { slot: number; address: string; name: string; level: number }[] = []
   for (const [, yard] of engine.getEntitiesWith(MuleYard)) entries = yard.mules
+  if (DEBUG_FILL_MULE_YARD) entries = withStandIns(entries)
 
   const seen = new Set<string>()
   ownMule = null
@@ -308,7 +304,7 @@ function syncYard(): void {
     const transform = Transform.getMutable(mule.root)
     if (!Vector3.equals(transform.position, spot)) transform.position = Vector3.clone(spot)
 
-    const levelText = `${entry.level} ${entry.level === 1 ? 'machine' : 'machines'}`
+    const levelText = `${entry.level} ${entry.level === 1 ? 'M.U.L.E.' : 'M.U.L.E.s'}`
     if (TextShape.get(mule.level).text !== levelText) TextShape.getMutable(mule.level).text = levelText
     const nameText = fitName(entry.name)
     if (TextShape.get(mule.name).text !== nameText) TextShape.getMutable(mule.name).text = nameText
