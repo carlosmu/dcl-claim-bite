@@ -50,6 +50,9 @@ let walletReceived = false
 let brokenPick = ''
 let brokenPickCount = 0
 let sinceLastHello = HELLO_RETRY_SECONDS
+/** Ore the rigs dug while the player was away, and how many times that news has arrived. */
+let muleAwayOre = 0
+let muleAwayCount = 0
 /** The purse as the server last sent it, and the coins of it the HUD is not to show yet. */
 let serverOre = 0
 let serverCoins = 0
@@ -102,6 +105,11 @@ export function getMuleCount(): number {
 /** Hours the rigs keep running on their fuel. Zero means they have stopped. */
 export function getMuleFuelHours(): number {
   return muleFuelHours
+}
+
+/** What the rigs dug while the player was away, with a count that goes up each time new news lands. */
+export function getMuleAway(): { ore: number; count: number } {
+  return { ore: muleAwayOre, count: muleAwayCount }
 }
 
 /** Whether the server has sent this player's purse yet. Until then every figure above is a placeholder. */
@@ -233,6 +241,14 @@ export function setupEconomyLink(): void {
 
   room.onMessage('slotResult', (data) => {
     onSlotResult({ reels: [...data.reels], bet: data.bet, win: data.win, jackpot: data.jackpot })
+  })
+
+  // The server may send the same arrival twice (on arrival and on hello): the same figure is
+  // the same news, so it is not shown again.
+  room.onMessage('muleAway', (data) => {
+    if (data.ore === muleAwayOre) return
+    muleAwayOre = data.ore
+    muleAwayCount += 1
   })
 
   // The payout's Social Bonus part, added under the "+10 Ore" that went up when the bar filled.

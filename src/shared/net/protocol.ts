@@ -75,6 +75,11 @@ export const Messages = {
     muleFuelHours: Schemas.Number
   }),
 
+  // Server -> one client: the ore the rigs put in storage while the player was away, worked out
+  // on arrival. Sent on arrival and again on `hello`, since the first can land before the client
+  // listens; the client treats a repeat as the same news, not more ore.
+  muleAway: Schemas.Map({ ore: Schemas.Number }),
+
   // Server -> one client: what a finished rock paid. `bonus` is the Social Bonus part of `ore`,
   // already capped by the bag like the rest.
   rockPaid: Schemas.Map({ ore: Schemas.Number, bonus: Schemas.Number }),

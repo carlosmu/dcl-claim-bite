@@ -22,6 +22,7 @@ import {
   getMuleFuelHours,
   getSyncedRate,
   getBrokenPick,
+  getMuleAway,
   hasWallet
 } from '../net/economy-link'
 import { findItem, fuelTankGallons, nextTier, ShopItemId } from '../shared/economy/catalogue'
@@ -65,6 +66,9 @@ const PRICE_ALERT_SECONDS = 6
 /** How long the note that a pick broke stays up. */
 const PICK_BROKEN_SECONDS = 8
 
+/** How long the news of what the rigs dug while the player was away stays up. */
+const MULE_AWAY_SECONDS = 15
+
 /** How long the news of a note left at the player's door stays up. */
 const NOTE_ALERT_SECONDS = 8
 
@@ -95,6 +99,8 @@ let socialAlertUntil = 0
 let socialIntroShown = false
 let lastNoteNews = 0
 let noteAlertUntil = 0
+let lastMuleAway = 0
+let muleAwayUntil = 0
 /** What is on screen, in the order it appeared: the first is the top one. */
 let shown: Objective[] = []
 /** Entries the player closed, by id, with the line they closed. They stay closed until they stop
@@ -172,6 +178,14 @@ function candidates(): Objective[] {
     const broken = findItem(getBrokenPick().id as ShopItemId)
     const next = getHitsPerRock() > 0 ? 'Using your next best pick' : 'The Mayor has a free one for you'
     list.push(alert('pick-broken', 'PICK BROKEN', `${broken?.label ?? 'Your pick'} is worn out`, next))
+  }
+
+  // What the rigs dug while the player was away: the moment it sinks in that their ore lands in
+  // storage by itself, with nothing to collect. Good news, so the gold of an objective.
+  if (clock < muleAwayUntil) {
+    const away = getMuleAway()
+    const who = mules === 1 ? 'Your M.U.L.E.' : 'Your M.U.L.E.s'
+    list.push({ id: 'mule-away', title: 'WHILE YOU WERE AWAY', message: `${who} dug ${away.ore} ore`, detail: 'Added to your Storage', progress: null, alert: false })
   }
 
   // Somebody left a note at the door, while the player was here or away.
@@ -283,6 +297,10 @@ function update(dt: number): void {
   const notes = getNoteNews().count
   if (notes !== lastNoteNews) noteAlertUntil = clock + NOTE_ALERT_SECONDS
   lastNoteNews = notes
+
+  const muleAway = getMuleAway().count
+  if (muleAway !== lastMuleAway) muleAwayUntil = clock + MULE_AWAY_SECONDS
+  lastMuleAway = muleAway
 
   const miners = getActiveMiners()
   if (miners >= 2 && miners !== lastMiners) socialAlertUntil = clock + SOCIAL_ALERT_SECONDS

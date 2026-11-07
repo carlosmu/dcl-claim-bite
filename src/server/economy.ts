@@ -233,10 +233,11 @@ function beginLoad(address: string): void {
 
       // Settled the moment it is read, so the wallet the player is about to be shown already
       // includes everything the rigs dug while they were away.
-      settleMule(purse, muleCount(owned), carryCapacity(owned))
+      settleArrival(address, purse)
       purses.set(address, purse)
       dirty.add(address)
       sendWallet(address)
+      sendMuleAway(address)
       console.log(`[Server] purse ${stored === null ? 'created for' : 'restored for'} ${address}`)
     })
     .catch((error) => {
@@ -245,6 +246,27 @@ function beginLoad(address: string): void {
       loadRetryAt.set(address, serverClock + LOAD_RETRY_SECONDS)
       console.log(`[Server] purse load failed for ${address}, retrying in ${LOAD_RETRY_SECONDS}s: ${error}`)
     })
+}
+
+/**
+ * Ore the rigs put in storage while each player was away, waiting to be told. Set on arrival,
+ * sent then and again on `hello` (which clears it), and dropped on departure.
+ */
+const muleAwayOre = new Map<string, number>()
+
+/** Settles the rigs for the time the player was gone, and keeps what they dug for the news. */
+function settleArrival(address: string, purse: Purse): void {
+  const owned = (id: ShopItemId) => purse.owned[id] ?? 0
+  const before = purse.ore
+  settleMule(purse, muleCount(owned), carryCapacity(owned))
+  const dug = purse.ore - before
+  if (dug > 0) muleAwayOre.set(address, dug)
+  else muleAwayOre.delete(address)
+}
+
+function sendMuleAway(address: string): void {
+  const ore = muleAwayOre.get(address) ?? 0
+  if (ore > 0) room.send('muleAway', { ore }, { to: [address] })
 }
 
 /** Gives the purse what every player owns from the start, if it lacks it — old saves included. */
@@ -722,12 +744,20 @@ function checkPresence(dt: number) {
     present.add(address)
     // The wallet message is sent by the load itself, once there is something true to send.
     beginLoad(address)
-    if (purses.has(address)) sendWallet(address)
+    const purse = purses.get(address)
+    if (purse !== undefined) {
+      // Back while the purse was still held: the rigs were not settled while they were gone.
+      settleArrival(address, purse)
+      dirty.add(address)
+      sendWallet(address)
+      sendMuleAway(address)
+    }
   }
 
   for (const address of present) {
     if (here.has(address)) continue
     present.delete(address)
+    muleAwayOre.delete(address)
     // The purse stays in `purses` — only the greeting is forgotten, so the next arrival is
     // treated as new and gets told what it holds.
     lastRockAt.delete(address)
@@ -1259,7 +1289,12 @@ export function setupEconomy(): void {
     if (!context) return
     // purseOf starts the read if it has not happened yet; the load's own completion sends the
     // wallet in that case, so this only sends when there is already something true to send.
-    if (purseOf(context.from) !== null) sendWallet(context.from)
+    if (purseOf(context.from) !== null) {
+      sendWallet(context.from)
+      // The arrival's copy may have gone out before this client was listening.
+      sendMuleAway(context.from)
+      muleAwayOre.delete(context.from)
+    }
     // Whatever was left at their door while they were away.
     sendNotes(context.from)
   })

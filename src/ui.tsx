@@ -2989,14 +2989,14 @@ function closeMuleDropdown() {
 // Running is fine, a full storage only waits on a sale, an empty tank stops everything.
 const MULE_WARNING_COLOR = PRICE_FAIR_COLOR
 
-type MuleHudState = { label: string; color: Color4; pulse: boolean }
+type MuleHudState = { label: string; color: Color4; pulse: boolean; running: boolean }
 
 /** The rigs' state in the dropdown's words, from the same rules as the full panel. */
 function muleHudState(): MuleHudState {
     const status = muleStatus()
-    if (status.running) return { label: 'Running', color: PRICE_GOOD_COLOR, pulse: true }
-    if (getMuleFuelHours() <= 0) return { label: 'No Fuel', color: SHORT_COLOR, pulse: false }
-    return { label: 'Storage Full', color: MULE_WARNING_COLOR, pulse: false }
+    if (status.running) return { label: 'Running', color: PRICE_GOOD_COLOR, pulse: true, running: true }
+    if (getMuleFuelHours() <= 0) return { label: 'No Fuel', color: SHORT_COLOR, pulse: false, running: false }
+    return { label: 'Storage Full', color: MULE_WARNING_COLOR, pulse: false, running: false }
 }
 
 /** The tank as a share, and its colour: gold while there is plenty, amber when low, red when dry. */
@@ -3065,11 +3065,12 @@ const muleDropdown = () => {
                 {statusDot({ color: state.color, pulse: state.pulse })}
                 <Label value={state.label} fontSize={16} color={state.color} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 24 }} />
             </UiEntity>,
+            ...(state.running ? [dropdownLine('output', `+${withCommas(Math.round(MULE_ORE_PER_HOUR * mules))} ore/hour`, 15, BANK_CREAM)] : []),
             dropdownLine('fuel', `Fuel left: ${hours > 0 ? durationText(hours).toUpperCase() : 'Empty'}`, 15, fuel.gallons > 0 ? BANK_CREAM : SHORT_COLOR),
             <UiEntity key="fuel-bar" uiTransform={{ width: '100%', margin: { top: 4 } }}>
                 {muleBar('hud-fuel-bar', fuel.share, fuel.color)}
             </UiEntity>,
-            dropdownLine('hint', 'Visit your M.U.L.E. for details', 13, BANK_CAPTION)
+            dropdownLine('hint', 'Ore goes straight to your Storage', 13, BANK_CAPTION)
         )
     }
     return dropdown(dockMuleLeft(), 'M.U.L.E.', closeMuleDropdown, [dropdownCard('mule-card', rows)])
