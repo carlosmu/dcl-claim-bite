@@ -2193,15 +2193,15 @@ const mulePanel = () => (
 
 let inventoryOpen = false
 
-// Tools work the ore (picks and rigs), utilities keep the operation going (storage and fuel),
-// property is where the player lives.
-type InventoryTab = 'all' | 'tools' | 'utilities' | 'property'
+// The General Store's grouping: tools are the picks, upgrades grow the operation (rigs, fuel,
+// storage). Land is where the player lives, bought at the Land & Claim Office.
+type InventoryTab = 'all' | 'tools' | 'upgrades' | 'land'
 
 const INVENTORY_TABS: { id: InventoryTab; label: string }[] = [
     { id: 'all', label: 'All' },
     { id: 'tools', label: 'Tools' },
-    { id: 'utilities', label: 'Utilities' },
-    { id: 'property', label: 'Property' }
+    { id: 'upgrades', label: 'Upgrades' },
+    { id: 'land', label: 'Land' }
 ]
 
 let inventoryTab: InventoryTab = 'all'
@@ -2264,7 +2264,7 @@ function inventoryEntries(): InventoryEntry[] {
     if (mules > 0) {
         entries.push({
             key: 'mule',
-            tab: 'tools',
+            tab: 'upgrades',
             title: 'M.U.L.E.',
             icon: ICON_MULE,
             status: `x${mules}`,
@@ -2281,7 +2281,7 @@ function inventoryEntries(): InventoryEntry[] {
     const nextStorage = nextTier('storage', (id) => getOwned(id))
     entries.push({
         key: 'storage',
-        tab: 'utilities',
+        tab: 'upgrades',
         title: 'Storage',
         icon: ICON_WAREHOUSE,
         status: `Level ${storage.level}`,
@@ -2300,7 +2300,7 @@ function inventoryEntries(): InventoryEntry[] {
         const active = property.id === home?.id
         entries.push({
             key: property.id,
-            tab: 'property',
+            tab: 'land',
             title: property.label,
             icon: PROPERTY_ICONS[property.id] ?? ICON_WAGON,
             status: property.benefit,
@@ -2318,7 +2318,7 @@ function inventoryEntries(): InventoryEntry[] {
         const gallons = Math.floor(fuelGallonsNow())
         entries.push({
             key: 'fuel',
-            tab: 'utilities',
+            tab: 'upgrades',
             title: 'Fuel',
             icon: ICON_FUEL,
             status: `${gallons} gal`,
