@@ -75,6 +75,7 @@ export enum EntityNames {
   billboard_casino = "billboard_casino",
   billboard_land_office = "billboard_land_office",
   billboard_store = "billboard_store",
+  billboard_tailor_shop_glb = "billboard_tailor_shop.glb",
   land_officer = "land_officer",
   mining_pool_glb = "mining-pool.glb",
   mining_pool_glb_2 = "mining-pool.glb_2",

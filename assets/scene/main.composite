@@ -1556,16 +1556,16 @@
               "y": 0.8430675864219666,
               "z": -16.6144962310791
             },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
             "rotation": {
               "x": 0,
               "y": -0.7288837432861328,
               "z": 0,
               "w": 0.6846374869346619
-            },
-            "scale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
             },
             "parent": 0
           }
@@ -1577,16 +1577,16 @@
               "y": 0.8232216238975525,
               "z": -18.027313232421875
             },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
             "rotation": {
               "x": 0,
               "y": -0.7288837432861328,
               "z": 0,
               "w": 0.6846374869346619
-            },
-            "scale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
             },
             "parent": 0
           }
@@ -1598,18 +1598,39 @@
               "y": 0.8293712139129639,
               "z": -19.5
             },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
             "rotation": {
               "x": 0,
               "y": -0.6861573457717896,
               "z": 0,
               "w": 0.7274531722068787
             },
+            "parent": 0
+          }
+        },
+        "588": {
+          "json": {
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "w": 1
+            },
             "scale": {
               "x": 1,
               "y": 1,
               "z": 1
             },
-            "parent": 0
+            "parent": 528
           }
         },
         "1558": {
@@ -2122,6 +2143,13 @@
             "invisibleMeshesCollisionMask": 3
           }
         },
+        "588": {
+          "json": {
+            "src": "assets/models/billboard_tailor_shop.glb",
+            "visibleMeshesCollisionMask": 0,
+            "invisibleMeshesCollisionMask": 3
+          }
+        },
         "1558": {
           "json": {
             "src": "assets/animations/town-mayor.glb",
@@ -2597,6 +2625,11 @@
             "value": "slot_machine.glb_3"
           }
         },
+        "588": {
+          "json": {
+            "value": "billboard_tailor_shop.glb"
+          }
+        },
         "1558": {
           "json": {
             "value": "Town Mayor"
@@ -3002,7 +3035,10 @@
               },
               {
                 "entity": 528,
-                "children": []
+                "open": true,
+                "children": [
+                  588
+                ]
               },
               {
                 "entity": 536,
@@ -3161,6 +3197,10 @@
               },
               {
                 "entity": 587,
+                "children": []
+              },
+              {
+                "entity": 588,
                 "children": []
               }
             ]
@@ -3408,6 +3448,9 @@
           "json": {}
         },
         "587": {
+          "json": {}
+        },
+        "588": {
           "json": {}
         },
         "1558": {
