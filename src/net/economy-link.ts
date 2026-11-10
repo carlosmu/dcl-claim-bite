@@ -21,7 +21,7 @@ import { equipPick, unequipPick } from '../player/held-pick'
 import { onMayorPickGiven } from '../mayor/mayor'
 import { onNoteResult } from '../land-office/owner-card'
 import { onSlotRefused, onSlotResult } from '../casino/casino'
-import { notePlaytestAction } from '../playtest'
+import { notePurchaseCount } from '../playtest'
 
 const BANK_SOUND_CLIP = 'assets/sounds/bank.mp3'
 const BUY_SOUND_CLIP = 'assets/sounds/buy.mp3'
@@ -243,6 +243,9 @@ export function setupEconomyLink(): void {
     onSlotResult({ reels: [...data.reels], bet: data.bet, win: data.win, jackpot: data.jackpot })
   })
 
+  // Paces the feedback asks; only a purchase that went through is counted.
+  room.onMessage('purchaseCount', (data) => notePurchaseCount(data.count))
+
   // The server may send the same arrival twice (on arrival and on hello): the same figure is
   // the same news, so it is not shown again.
   room.onMessage('muleAway', (data) => {
@@ -273,7 +276,6 @@ export function setupEconomyLink(): void {
     // Refused or not, the card says what became of the note.
     if (data.action === 'leaveNote') onNoteResult(data.ok, data.detail)
     if (data.action === 'slotSpin' && !data.ok) onSlotRefused(data.detail)
-    notePlaytestAction(data.action, data.ok)
     if (!data.ok) {
       console.log(`[economy] ${data.action} refused: ${data.detail}`)
       return

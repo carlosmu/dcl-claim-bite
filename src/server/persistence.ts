@@ -85,6 +85,8 @@ export type StoredPurse = {
    * durability existed, and a pick just got, which is set full anyway.
    */
   pickDurability?: Record<string, number>
+  /** Store purchases ever made. Missing means a save from before they were counted. */
+  purchases?: number
 }
 
 /**

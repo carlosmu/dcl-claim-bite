@@ -53,6 +53,9 @@ export type AskOptions = {
   // game (default): Intro once per visit. player (leaveFeedback): Intro every time, a greeting only:
   // yes opens the Group, no drops it, participation untouched. debug: no Intro, participation untouched.
   source?: AskSource
+  // LOCAL PATCH (not upstream). No Intro for this call. game: shows to anyone who has not said no
+  // to the Intro this visit, participant or not. player: straight to the Questions, no greeting.
+  skipIntro?: boolean
 }
 
 export type AskSource = 'game' | 'player' | 'debug'
@@ -75,6 +78,8 @@ type Ask = {
   draft?: { rating: number; comment: string }
   trigger: string
   source: AskSource
+  // AskOptions.skipIntro (local patch)
+  skipIntro: boolean
   // intro: the Intro alone (showIntro()), no steps. results[0]: submitted = accepted, skipped = declined.
   kind: 'group' | 'intro'
   // Intro answered yes for this Group (leaveFeedback shows it first)
@@ -97,8 +102,9 @@ export function askQuestions(questionIds: readonly string[], trigger: string, op
   const results: AskResult[] = questionIds.map(() => 'not-shown')
   const steps: Ask['steps'] = []
   const source = options.source ?? 'game'
+  const skipIntro = options.skipIntro === true
   // while an Intro is pending, Questions queue behind it instead of being dropped
-  if (source === 'game' && !gameMayAsk() && (participation === 'out' || !introPending())) {
+  if (source === 'game' && !gameMayAsk(skipIntro) && (participation === 'out' || !introPending())) {
     const out = participation === 'out'
     const why = out ? 'player said no to the Intro' : 'not a participant: feedback.intro() or feedback.enroll() first'
     console.log(`[FEEDBACK] ${why}, not showing ${questionIds.join(', ')}`)
@@ -118,7 +124,7 @@ export function askQuestions(questionIds: readonly string[], trigger: string, op
   if (steps.length === 0) return Promise.resolve(results)
 
   return new Promise((resolve) => {
-    const ask: Ask = { kind: 'group', steps, reached: -1, at: 0, trigger, source, introDone: false, results, resolve, askedAt: Date.now() }
+    const ask: Ask = { kind: 'group', steps, reached: -1, at: 0, trigger, source, skipIntro, introDone: skipIntro, results, resolve, askedAt: Date.now() }
     if (source !== 'player') {
       queue.push(ask)
       return
@@ -184,7 +190,7 @@ function processQueue(): void {
     feedback.phase = 'intro'
     return
   }
-  if (queue[0].source === 'game' && !gameMayAsk()) {
+  if (queue[0].source === 'game' && !gameMayAsk(queue[0].skipIntro)) {
     const [dropped] = queue.splice(0, 1)
     console.log(`[FEEDBACK] not a participant, not showing ${dropped.steps.map((s) => s.question.id).join(', ')}`)
     return dropGroup(dropped)
@@ -202,9 +208,9 @@ export type Participation = 'unknown' | 'in' | 'out'
 let participation: Participation = 'unknown'
 let participantsOnly = true
 
-// the game's ask() may show now
-function gameMayAsk(): boolean {
-  return participation === 'in' || (participation === 'unknown' && !participantsOnly)
+// the game's ask() may show now. skipIntro (local patch): anyone but a no to the Intro.
+function gameMayAsk(skipIntro = false): boolean {
+  return participation === 'in' || (participation === 'unknown' && (!participantsOnly || skipIntro))
 }
 
 export function getParticipation(): Participation {
@@ -247,7 +253,7 @@ export function showIntro(trigger: string, source: AskSource = 'game'): Promise<
     return Promise.resolve('not-shown')
   }
   return new Promise<AskResult[]>((resolve) =>
-    queue.push({ kind: 'intro', steps: [], reached: 0, at: 0, trigger, source, introDone: false, results: ['not-shown'], resolve, askedAt: Date.now() })
+    queue.push({ kind: 'intro', steps: [], reached: 0, at: 0, trigger, source, skipIntro: false, introDone: false, results: ['not-shown'], resolve, askedAt: Date.now() })
   ).then(([r]) => (r === 'submitted' ? 'accepted' : r === 'skipped' ? 'declined' : 'not-shown'))
 }
 

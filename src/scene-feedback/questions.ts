@@ -47,6 +47,21 @@ export const QUESTIONS = {
     commentPrompt: 'What most affected your rating? (optional)'
   },
 
-  // T01, from the bank as is: the outcome of the first steps
-  playMore: QUESTION_BANK.motivation.playMore
+  // T01, from the bank as is: the outcome of the first steps. Asked again alone every
+  // PURCHASES_BETWEEN_ASKS purchases after the first (src/playtest.ts), so it reads over time.
+  playMore: QUESTION_BANK.motivation.playMore,
+
+  // The Feedback button's "Give feedback": whenever the player wants to say something.
+  generalFeedback: {
+    text: 'How much are you enjoying Claim Bite so far?',
+    scale: 'ENJOY',
+    commentPrompt: 'Anything you like, dislike or would change? (optional)'
+  },
+
+  // The Feedback button's "Report a bug": text only.
+  bugReport: {
+    text: 'What went wrong?',
+    commentOnly: true,
+    commentPrompt: 'Describe the bug and what you were doing when it happened.'
+  }
 } satisfies Record<string, QuestionSpec>

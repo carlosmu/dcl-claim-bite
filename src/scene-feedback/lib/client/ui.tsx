@@ -649,7 +649,8 @@ function footer() {
   )
 }
 
-// top centre, over everything; the full-width row centres it on any aspect ratio
+// LOCAL PATCH (not upstream): screen centre and twice the size; upstream is top centre at 14 px.
+// Over everything; the full-screen box centres it on any aspect ratio.
 function toast() {
   const opacity = toastOpacity()
   if (opacity === null) return null
@@ -660,18 +661,20 @@ function toast() {
       key="toast"
       uiTransform={{
         positionType: 'absolute',
-        position: { top: TOAST_TOP, left: 0 },
+        position: { top: 0, left: 0 },
         width: '100%',
+        height: '100%',
         flexDirection: 'row',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        alignItems: 'center'
       }}
     >
       <UiEntity
         uiTransform={{
-          height: 40,
-          padding: { left: 10, right: 16 },
-          borderRadius: 12,
-          borderWidth: 1,
+          height: 80,
+          padding: { left: 20, right: 32 },
+          borderRadius: 24,
+          borderWidth: 2,
           borderColor: fade(TOAST_BORDER),
           flexDirection: 'row',
           alignItems: 'center'
@@ -679,10 +682,10 @@ function toast() {
         uiBackground={{ color: fade(INK) }}
       >
         <UiEntity
-          uiTransform={{ width: 18, height: 18, margin: { right: 6 } }}
+          uiTransform={{ width: 36, height: 36, margin: { right: 12 } }}
           uiBackground={{ textureMode: 'stretch', texture: { src: ASSETS + 'check.png' }, color: fade(SNOW) }}
         />
-        <Label value="Thanks for your feedback!" fontSize={14} color={fade(SNOW)} />
+        <Label value="Thanks for your feedback!" fontSize={28} color={fade(SNOW)} />
       </UiEntity>
     </UiEntity>
   )

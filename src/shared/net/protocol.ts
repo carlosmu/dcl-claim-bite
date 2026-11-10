@@ -80,6 +80,10 @@ export const Messages = {
   // listens; the client treats a repeat as the same news, not more ore.
   muleAway: Schemas.Map({ ore: Schemas.Number }),
 
+  // Server -> one client: how many store purchases the player has ever made, sent after each
+  // one goes through. Paces the feedback asks (src/playtest.ts).
+  purchaseCount: Schemas.Map({ count: Schemas.Number }),
+
   // Server -> one client: what a finished rock paid. `bonus` is the Social Bonus part of `ore`,
   // already capped by the bag like the rest.
   rockPaid: Schemas.Map({ ore: Schemas.Number, bonus: Schemas.Number }),

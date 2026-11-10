@@ -88,6 +88,8 @@ type Purse = {
   equipped: string
   /** Rocks each owned pick has left; a pick missing here is full (see durabilityLeft). */
   pickDurability: Record<string, number>
+  /** Store purchases ever made that went through, fuel included: paces the feedback asks. */
+  purchases: number
   /** Ore the rigs put in storage since it was last reported to the titles. Not saved. */
   rigOreTally: number
 }
@@ -222,8 +224,12 @@ function beginLoad(address: string): void {
         muleFuel: stored?.muleFuel ?? 0,
         equipped: stored?.equipped ?? '',
         pickDurability: stored?.pickDurability ?? {},
+        purchases: stored?.purchases ?? 0,
         rigOreTally: 0
       }
+      // A save from before the tally: one that owns something only the store sells has bought
+      // before, so its first purchase from now on is not taken for the first ever.
+      if (stored !== null && stored.purchases === undefined && boughtBefore(purse)) purse.purchases = 1
       grantStartingItems(purse)
       const owned = (id: ShopItemId) => purse.owned[id] ?? 0
 
@@ -272,6 +278,19 @@ function sendMuleAway(address: string): void {
 /** Gives the purse what every player owns from the start, if it lacks it — old saves included. */
 function grantStartingItems(purse: Purse): void {
   for (const item of STARTING_ITEMS) if ((purse.owned[item.id] ?? 0) <= 0) purse.owned[item.id] = 1
+}
+
+/** Owns anything the store sells, beyond what everyone starts with and the mayor's pick. */
+function boughtBefore(purse: Purse): boolean {
+  return Object.keys(purse.owned).some(
+    (id) => (purse.owned[id] ?? 0) > 0 && id !== 'pick' && !STARTING_ITEMS.some((item) => item.id === id)
+  )
+}
+
+/** One more store purchase gone through, told to the player so the feedback asks can pace themselves. */
+function notePurchase(address: string, purse: Purse): void {
+  purse.purchases += 1
+  room.send('purchaseCount', { count: purse.purchases }, { to: [address] })
 }
 
 /** The player's purse, or null while it is still being read. */
@@ -509,6 +528,7 @@ function handleBuy(address: string, itemId: string): void {
 
   sendWallet(address)
   sendResult(address, 'buy', true, item.id)
+  notePurchase(address, purse)
   console.log(`[Server] ${address} bought ${item.label} for ${price} · balance ${purse.coins}`)
 }
 
@@ -538,6 +558,7 @@ function buyFuel(address: string, purse: Purse, item: ShopItem): void {
 
   sendWallet(address)
   sendResult(address, 'buy', true, item.id)
+  notePurchase(address, purse)
   console.log(`[Server] ${address} bought ${order.gallons.toFixed(1)} gallons for ${order.price} · balance ${purse.coins}`)
 }
 
@@ -702,6 +723,7 @@ function handleDebugReset(address: string): void {
   purse.muleFuel = 0
   purse.equipped = ''
   purse.pickDurability = {}
+  purse.purchases = 0
   purse.rigOreTally = 0
   lastRockAt.delete(address)
   lastSwing.delete(address)
@@ -783,7 +805,8 @@ function flushPurse(address: string): void {
     muleAt: purse.muleAt,
     muleFuel: purse.muleFuel,
     equipped: purse.equipped,
-    pickDurability: purse.pickDurability
+    pickDurability: purse.pickDurability,
+    purchases: purse.purchases
   })
   // A failed write puts the purse back in the queue for the next flush rather than losing it.
   saved

@@ -76,6 +76,7 @@ import { isLocalPreview } from './shared/local-preview'
 import { quotedRate } from './shared/state/market'
 import { BitmapText } from './ui/bitmap-text'
 import { introScreen } from './ui/intro-screen'
+import { giveFeedback, reportBug } from './playtest'
 import { welcomeOverlay } from './ui/welcome-overlay'
 import { getMusicStep, getSfxStep, setMusicStep, setSfxStep, VOLUME_STEPS } from './world/volume'
 import { clearObjectiveHistory, dismissObjective, getObjectiveClock, getObjectives, getObjectiveHistory, Objective, PastObjective, setupObjective, SOCIAL_BONUS_TITLE } from './ui/objective'
@@ -253,6 +254,7 @@ const ICON_HORSE = atlasCell(2, 2, ATLAS_2) // B2
 const ICON_REVOLVER = atlasCell(3, 2, ATLAS_2) // C2
 const ICON_DYNAMITE = atlasCell(4, 2, ATLAS_2) // D2
 const ICON_RATE = atlasCell(1, 3, ATLAS_2) // A3
+const ICON_FEEDBACK = atlasCell(4, 4, ATLAS_2) // D4 — speech bubble with stars
 
 // Property icon by catalogue id.
 const PROPERTY_ICONS: Record<string, Icon> = {
@@ -2576,6 +2578,7 @@ const inventoryButton = () => (
                 notificationsOpen = false
                 soundOpen = false
                 townBoardOpen = false
+                feedbackMenuOpen = false
                 mapOpen = false
                 pickSelectorOpen = false
                 muleDropdownOpen = false
@@ -2644,6 +2647,7 @@ const mapButton = () => (
                 notificationsOpen = false
                 soundOpen = false
                 townBoardOpen = false
+                feedbackMenuOpen = false
                 inventoryOpen = false
                 pickSelectorOpen = false
                 muleDropdownOpen = false
@@ -3412,8 +3416,8 @@ const NOTIFY_PANEL_WIDTH = 560
  *  edge lines up with the objective tracker's below. */
 const CORNER_BUTTON_RIGHT = HUD_MARGIN + OBJECTIVE_WIDTH - (3 * BOTTOM_BUTTON_WIDTH + 2 * BOTTOM_BUTTON_GAP)
 
-/** Town Board, Sound and Notifications: square icon buttons like Map and Inventory, side by side on the
- *  screen's top-right corner, Notifications at the edge. `slot` counts from the right. Centred
+/** Town Board, Sound, Notifications and Feedback: square icon buttons like Map and Inventory, side by
+ *  side on the screen's top-right corner, Feedback (slot -1) at the edge. `slot` counts from the right. Centred
  *  on the HUD's height: the plank hangs from the top of the screen. */
 const cornerButton = (slot: number, open: boolean, icon: Icon, onPress: () => void) => (
     <UiEntity
@@ -3452,6 +3456,7 @@ const notificationsButton = () =>
         if (notificationsOpen) {
             soundOpen = false
             townBoardOpen = false
+            feedbackMenuOpen = false
             mapOpen = false
             inventoryOpen = false
             pickSelectorOpen = false
@@ -3536,6 +3541,78 @@ const notificationsPanel = () => {
     )
 }
 
+// --- Feedback ----------------------------------------------------------------------------
+//
+// Right of Notifications: a speech bubble that drops a two-choice menu under it, Give feedback
+// or Report a bug. Either one closes the menu and opens the Scene Feedback panel straight on its
+// question (src/playtest.ts), whenever the player wants, apart from the asks the game paces.
+
+const FEEDBACK_MENU_WIDTH = 260
+const FEEDBACK_MENU_ROW_HEIGHT = 48
+const FEEDBACK_MENU_GAP = 8
+
+let feedbackMenuOpen = false
+
+const feedbackButton = () =>
+    cornerButton(-1, feedbackMenuOpen, ICON_FEEDBACK, () => {
+        feedbackMenuOpen = !feedbackMenuOpen
+        if (feedbackMenuOpen) {
+            notificationsOpen = false
+            soundOpen = false
+            townBoardOpen = false
+            mapOpen = false
+            inventoryOpen = false
+            pickSelectorOpen = false
+            muleDropdownOpen = false
+        }
+    })
+
+const feedbackMenuRow = (label: string, first: boolean, onPress: () => void) => (
+    <UiEntity
+        key={label}
+        uiTransform={{
+            width: '100%',
+            height: FEEDBACK_MENU_ROW_HEIGHT,
+            margin: { top: first ? 0 : FEEDBACK_MENU_GAP },
+            justifyContent: 'center',
+            alignItems: 'center',
+            borderRadius: 8,
+            borderWidth: 2,
+            borderColor: BANK_TRIM
+        }}
+        uiBackground={{ color: BANK_GOLD }}
+        onMouseDown={() => {
+            feedbackMenuOpen = false
+            onPress()
+        }}
+    >
+        <BitmapText value={label} fontSize={22} color={BANK_INK} />
+    </UiEntity>
+)
+
+/** Hangs under the button, its right edge level with the button's. */
+const feedbackMenu = () => (
+    <UiEntity
+        uiTransform={{
+            positionType: 'absolute',
+            position: {
+                top: (HUD_PILL_HEIGHT - BOTTOM_PANEL_HEIGHT) / 2 + BOTTOM_PANEL_HEIGHT + FEEDBACK_MENU_GAP,
+                right: CORNER_BUTTON_RIGHT - (bottomButtonWidth() + BOTTOM_BUTTON_GAP)
+            },
+            width: FEEDBACK_MENU_WIDTH,
+            flexDirection: 'column',
+            padding: 10,
+            borderRadius: PANEL_RADIUS,
+            borderWidth: 3,
+            borderColor: BANK_TRIM
+        }}
+        uiBackground={{ color: BANK_WOOD_DARK }}
+    >
+        {feedbackMenuRow('GIVE FEEDBACK', true, giveFeedback)}
+        {feedbackMenuRow('REPORT A BUG', false, reportBug)}
+    </UiEntity>
+)
+
 // --- Sound -------------------------------------------------------------------------------
 //
 // Music and SFX volume, each a row of VOLUME_STEPS segments: tap one to set the level there,
@@ -3556,6 +3633,7 @@ const soundButton = () =>
         if (soundOpen) {
             notificationsOpen = false
             townBoardOpen = false
+            feedbackMenuOpen = false
             mapOpen = false
             inventoryOpen = false
             pickSelectorOpen = false
@@ -3676,6 +3754,7 @@ const townBoardButton = () =>
             townBoardPage = 0
             soundOpen = false
             notificationsOpen = false
+            feedbackMenuOpen = false
             mapOpen = false
             inventoryOpen = false
             pickSelectorOpen = false
@@ -4070,6 +4149,8 @@ export const uiMenu = () => (
         {notificationsButton()}
         {soundButton()}
         {townBoardButton()}
+        {feedbackButton()}
+        {feedbackMenuOpen ? feedbackMenu() : null}
         {isLocalPreview() && (DEBUG_RESET_PROGRESS || DEBUG_ADD_COINS || DEBUG_ADD_ORE || DEBUG_SERVER_STATUS) ? debugBox() : null}
         {/* main-container: every piece of UI goes in here */}
         <UiEntity

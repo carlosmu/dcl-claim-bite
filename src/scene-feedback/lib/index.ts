@@ -50,6 +50,8 @@ export type AskOptions = {
   // Optional comments on rating Questions: true (default) all, false none, or only these ids.
   // Text-only Questions always show their answer field; rating Questions need commentPrompt.
   comment?: boolean | readonly QuestionId[]
+  // LOCAL PATCH (not upstream). No Intro: shown to anyone who has not said no to it this visit.
+  skipIntro?: boolean
 }
 
 // Dynamic mode. Queued, shown once nothing else is on screen and the server is up.
@@ -72,9 +74,10 @@ function ask(
 // Static mode: player-initiated (button, kiosk, area). Intro, then the batch as one Group, on every call,
 // whatever the answer to feedback.intro(). Its Intro only greets: participation stays as it was.
 // Closes a game panel on screen (a game Intro comes back after). Ignored (not-shown) while the previous call is open or waiting.
-function leaveFeedback(questionIds: readonly QuestionId[], trigger: string): Promise<AskResult[]> {
+// LOCAL PATCH (not upstream): skipIntro opens straight on the Questions, no greeting.
+function leaveFeedback(questionIds: readonly QuestionId[], trigger: string, options?: { skipIntro?: boolean }): Promise<AskResult[]> {
   if (isServer()) return Promise.resolve(questionIds.map((): AskResult => 'not-shown'))
-  return askQuestions(questionIds, trigger, { repeat: true, source: 'player' })
+  return askQuestions(questionIds, trigger, { repeat: true, source: 'player', skipIntro: options?.skipIntro })
 }
 
 // Dynamic mode opt-in (INTRO in questions.ts): yes = participant, no = no game Questions this visit.
