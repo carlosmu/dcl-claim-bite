@@ -1,8 +1,8 @@
-// Only one building's panel is ever on screen. The bank, the store, the Land Office, the
+// Only one building's panel is ever on screen. The bank, the store, the Land Office, the Claim Office, the
 // M.U.L.E. and a property's owner card each open on their own (walking up or clicking), so
 // whichever opens last closes the rest, as if their X had been pressed.
 
-export type PanelId = 'bank' | 'store' | 'land-office' | 'mule' | 'owner-card' | 'casino'
+export type PanelId = 'bank' | 'store' | 'land-office' | 'mule' | 'owner-card' | 'casino' | 'claim-office'
 
 const closers = new Map<PanelId, () => void>()
 

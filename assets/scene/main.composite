@@ -1619,6 +1619,27 @@
               "y": 0,
               "z": 0
             },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "w": 1
+            },
+            "parent": 528
+          }
+        },
+        "589": {
+          "json": {
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
             "rotation": {
               "x": 0,
               "y": 0,
@@ -1630,7 +1651,28 @@
               "y": 1,
               "z": 1
             },
-            "parent": 528
+            "parent": 522
+          }
+        },
+        "590": {
+          "json": {
+            "position": {
+              "x": -8,
+              "y": 0.7473630905151367,
+              "z": -2.750000476837158
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "w": 1
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
+            "parent": 522
           }
         },
         "1558": {
@@ -2150,6 +2192,20 @@
             "invisibleMeshesCollisionMask": 3
           }
         },
+        "589": {
+          "json": {
+            "src": "assets/models/billboard_claim_office.glb",
+            "visibleMeshesCollisionMask": 0,
+            "invisibleMeshesCollisionMask": 3
+          }
+        },
+        "590": {
+          "json": {
+            "src": "assets/models/bank_officer.glb",
+            "visibleMeshesCollisionMask": 0,
+            "invisibleMeshesCollisionMask": 3
+          }
+        },
         "1558": {
           "json": {
             "src": "assets/animations/town-mayor.glb",
@@ -2297,7 +2353,7 @@
         },
         "522": {
           "json": {
-            "value": "Land-Office_3"
+            "value": "Claim Office"
           }
         },
         "523": {
@@ -2327,7 +2383,7 @@
         },
         "528": {
           "json": {
-            "value": "Land-Office_4"
+            "value": "Tailor Shop"
           }
         },
         "529": {
@@ -2628,6 +2684,16 @@
         "588": {
           "json": {
             "value": "billboard_tailor_shop.glb"
+          }
+        },
+        "589": {
+          "json": {
+            "value": "billboard_claim_office.glb"
+          }
+        },
+        "590": {
+          "json": {
+            "value": "claim_officer"
           }
         },
         "1558": {
@@ -3031,7 +3097,10 @@
               {
                 "entity": 522,
                 "open": true,
-                "children": []
+                "children": [
+                  589,
+                  590
+                ]
               },
               {
                 "entity": 528,
@@ -3201,6 +3270,14 @@
               },
               {
                 "entity": 588,
+                "children": []
+              },
+              {
+                "entity": 589,
+                "children": []
+              },
+              {
+                "entity": 590,
                 "children": []
               }
             ]
@@ -3451,6 +3528,12 @@
           "json": {}
         },
         "588": {
+          "json": {}
+        },
+        "589": {
+          "json": {}
+        },
+        "590": {
           "json": {}
         },
         "1558": {

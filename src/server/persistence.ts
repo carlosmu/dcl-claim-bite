@@ -85,9 +85,17 @@ export type StoredPurse = {
    * durability existed, and a pick just got, which is set full anyway.
    */
   pickDurability?: Record<string, number>
-  /** Store purchases ever made. Missing means a save from before they were counted. */
-  purchases?: number
+  /**
+   * Store purchases since the feedback asks were last restarted (2026-11-11): the next one after
+   * that is everyone's "first", then every 10th. A new key on purpose, so saves that already held
+   * the old `purchases` tally start over too. Missing means none since.
+   */
+  feedbackPurchases?: number
+  /** The Claim Office's free wearable: requirements met since it went live, and whether it was claimed. */
+  gift?: StoredGift
 }
+
+export type StoredGift = { sold: boolean; bought: boolean; surveyed: boolean; claimed: boolean }
 
 /**
  * Reads one stored value: null ONLY when the service confirms the key does not exist.

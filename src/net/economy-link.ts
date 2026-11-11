@@ -22,6 +22,7 @@ import { onMayorPickGiven } from '../mayor/mayor'
 import { onNoteResult } from '../land-office/owner-card'
 import { onSlotRefused, onSlotResult } from '../casino/casino'
 import { notePurchaseCount } from '../playtest'
+import { applyGiftStatus, onGiftClaimResult } from '../claim-office/claim-office'
 
 const BANK_SOUND_CLIP = 'assets/sounds/bank.mp3'
 const BUY_SOUND_CLIP = 'assets/sounds/buy.mp3'
@@ -154,6 +155,12 @@ export function sendEquip(itemId: string): void {
   room.send('equip', { itemId })
 }
 
+/** Asks the Claim Office's free wearable. The server checks the requirements and asks the Rewards service. */
+export function sendClaimGift(): void {
+  if (!isStateSyncronized()) return
+  room.send('claimGift', { ready: true })
+}
+
 /** Asks the mayor's free pick. The server only grants it to a player with none. */
 export function sendClaimPick(): void {
   if (!isStateSyncronized()) return
@@ -246,6 +253,8 @@ export function setupEconomyLink(): void {
   // Paces the feedback asks; only a purchase that went through is counted.
   room.onMessage('purchaseCount', (data) => notePurchaseCount(data.count))
 
+  room.onMessage('giftStatus', (data) => applyGiftStatus({ ...data }))
+
   // The server may send the same arrival twice (on arrival and on hello): the same figure is
   // the same news, so it is not shown again.
   room.onMessage('muleAway', (data) => {
@@ -276,6 +285,7 @@ export function setupEconomyLink(): void {
     // Refused or not, the card says what became of the note.
     if (data.action === 'leaveNote') onNoteResult(data.ok, data.detail)
     if (data.action === 'slotSpin' && !data.ok) onSlotRefused(data.detail)
+    if (data.action === 'claimGift') onGiftClaimResult(data.ok, data.detail)
     if (!data.ok) {
       console.log(`[economy] ${data.action} refused: ${data.detail}`)
       return

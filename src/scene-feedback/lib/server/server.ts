@@ -18,6 +18,7 @@ import { ServerHeartbeat } from '../shared/schemas'
 import { sinceLoad } from '../shared/clock'
 import { CsvRow, formatRow, sanitizeId, utf8Length } from './csv'
 import { CURRENT_PART_KEY, PartStore, writeBatch } from './parts'
+import { notifyResponseSaved } from './hooks'
 
 // Responses buffer in memory, then flush into numbered CSV parts in scene Storage.
 // Flush after FLUSH_COOLDOWN_MS, or at once when the last player leaves: no shutdown hook.
@@ -179,6 +180,8 @@ function receiveResponse(
   accept(row)
   console.log(`[SERVER] ${question.id} rating=${rating ?? '-'} from ${row.address}, ${pending.size} pending`)
   ack(true)
+  // LOCAL PATCH (not upstream): see ./hooks.ts
+  notifyResponseSaved({ address: from, questionId: question.id, trigger: data.trigger, answered: rating !== null || comment !== '' })
 }
 
 function receiveIntroAnswer(

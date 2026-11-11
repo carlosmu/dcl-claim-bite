@@ -21,6 +21,8 @@ import { getJackpot } from './shared/net/casino-sync'
 import { buyItem, closeStorePanel, currentPrice, getSelectedProduct, isStorePanelOpen, selectProduct, whyUnavailable } from './shop/shop'
 import { closeMulePanel, isMulePanelOpen } from './mule/mule'
 import { closeLandOfficePanel, getSelectedProperty, isLandOfficePanelOpen, selectProperty } from './land-office/land-office'
+import { canClaimGift, claimGift, closeClaimOfficePanel, getGiftClaimError, getGiftStatus, isClaimOfficePanelOpen } from './claim-office/claim-office'
+import { GIFT_WEARABLE } from './shared/gift'
 import {
     canSendNote,
     clearMyNotes,
@@ -254,6 +256,7 @@ const ICON_HORSE = atlasCell(2, 2, ATLAS_2) // B2
 const ICON_REVOLVER = atlasCell(3, 2, ATLAS_2) // C2
 const ICON_DYNAMITE = atlasCell(4, 2, ATLAS_2) // D2
 const ICON_RATE = atlasCell(1, 3, ATLAS_2) // A3
+const ICON_GIFT = atlasCell(3, 4, ATLAS_2) // C4 — gift box
 const ICON_FEEDBACK = atlasCell(4, 4, ATLAS_2) // D4 — speech bubble with stars
 
 // Property icon by catalogue id.
@@ -922,6 +925,8 @@ const STORE_CARD_GAP = 6
 const STORE_CARDS_PER_PAGE = 5
 const STORE_CARD_ICON = 42
 const STORE_DETAIL_ICON = 130
+/** A detail's picture when it takes half the pane (Detail.bigIcon): fits half of the narrowest panel. */
+const STORE_DETAIL_BIG_ICON = 190
 const STORE_ACTION_HEIGHT = 64
 const SHORT_COLOR = Color4.create(0.9, 0.45, 0.4, 1)
 const EQUIPPED_COLOR = Color4.create(0.42, 0.52, 0.24, 1)
@@ -972,7 +977,7 @@ const PICK_COPY: Record<string, { description: string; benefits: string[] }> = {
 
 // --- Products ---
 
-type ProductKey = ShopItemId | 'fuel' | 'storage' | 'horse' | 'revolver' | 'dynamite'
+type ProductKey = ShopItemId | 'fuel' | 'storage' | 'horse' | 'revolver' | 'dynamite' | 'free-wearable' | 'credits'
 
 type Status = { text: string; color: Color4 }
 
@@ -1153,7 +1158,16 @@ function buyAction(item: ShopItem, label: string = 'BUY'): Action {
 }
 
 /** The pieces of one product's detail: what it is, its numbers, and what you can do. */
-type Detail = { title: string; description: string; icon: Icon; stats: ReactEcs.JSX.Element[]; notes: ReactEcs.JSX.Element[]; actions: ReactEcs.JSX.Element[] }
+type Detail = {
+    title: string
+    description: string
+    icon: Icon
+    stats: ReactEcs.JSX.Element[]
+    notes: ReactEcs.JSX.Element[]
+    actions: ReactEcs.JSX.Element[]
+    /** Two halves: a big picture on the left, the stats and notes on the right. */
+    bigIcon?: boolean
+}
 
 function pickDetail(item: ShopItem): Detail {
     const copy = PICK_COPY[item.id]
@@ -1328,14 +1342,32 @@ const storeDetail = (detail: Detail) => (
     >
         <BitmapText value={detail.title.toUpperCase()} fontSize={40} color={BANK_GOLD_LIGHT} />
         <Label value={detail.description} fontSize={16} color={BANK_CAPTION} textAlign="middle-left" uiTransform={{ height: 26 }} />
-        <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', margin: { top: 12 } }}>
-            <UiEntity
-                uiTransform={{ width: STORE_DETAIL_ICON, height: STORE_DETAIL_ICON, margin: { right: 18 }, flexShrink: 0 }}
-                uiBackground={iconBackground(detail.icon)}
-            />
-            <UiEntity uiTransform={{ flexGrow: 1, flexDirection: 'column' }}>{detail.stats}</UiEntity>
-        </UiEntity>
-        <UiEntity uiTransform={{ width: '100%', flexDirection: 'column', margin: { top: 6 } }}>{detail.notes}</UiEntity>
+        {detail.bigIcon === true ? (
+            <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', margin: { top: 12 } }}>
+                {/* Against the text, not centred in its half: centred left a gap as wide as the pane allows. */}
+                <UiEntity uiTransform={{ width: '50%', flexDirection: 'column', alignItems: 'flex-end' }}>
+                    <UiEntity
+                        uiTransform={{ width: STORE_DETAIL_BIG_ICON, height: STORE_DETAIL_BIG_ICON, flexShrink: 0 }}
+                        uiBackground={iconBackground(detail.icon)}
+                    />
+                </UiEntity>
+                <UiEntity uiTransform={{ width: '50%', flexDirection: 'column', padding: { left: 18 } }}>
+                    {detail.stats}
+                    {detail.notes}
+                </UiEntity>
+            </UiEntity>
+        ) : (
+            <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', margin: { top: 12 } }}>
+                <UiEntity
+                    uiTransform={{ width: STORE_DETAIL_ICON, height: STORE_DETAIL_ICON, margin: { right: 18 }, flexShrink: 0 }}
+                    uiBackground={iconBackground(detail.icon)}
+                />
+                <UiEntity uiTransform={{ flexGrow: 1, flexDirection: 'column' }}>{detail.stats}</UiEntity>
+            </UiEntity>
+        )}
+        {detail.bigIcon === true ? null : (
+            <UiEntity uiTransform={{ width: '100%', flexDirection: 'column', margin: { top: 6 } }}>{detail.notes}</UiEntity>
+        )}
         {/* The action sits at the bottom, however much the product above has to say. */}
         <UiEntity uiTransform={{ flexGrow: 1 }} />
         {detail.actions}
@@ -1386,9 +1418,13 @@ const counterPanel = (
     key: string,
     onSelect: (key: string) => void,
     detail: Detail,
-    tabs?: ReactEcs.JSX.Element[]
+    tabs?: ReactEcs.JSX.Element[],
+    /** The purse under the title: off where nothing is sold (the Claim Office). */
+    showCoins: boolean = true,
+    /** The cards' column: narrower where the cards say little (the Claim Office). */
+    listWidth: number = STORE_LIST_WIDTH
 ) => {
-    const content = counterContent(products, key, onSelect, detail)
+    const content = counterContent(products, key, onSelect, detail, listWidth)
     return (
         <UiEntity
             uiTransform={{
@@ -1408,13 +1444,15 @@ const counterPanel = (
             {/* Title centred with the purse under it; the close button sits apart in the corner. */}
             <UiEntity uiTransform={{ width: '100%', flexDirection: 'column', alignItems: 'center', margin: { bottom: 12 } }}>
                 <BitmapText value={title} fontSize={40} color={BANK_GOLD_LIGHT} />
-                <UiEntity
-                    uiTransform={{ height: 44, flexDirection: 'row', alignItems: 'center', flexShrink: 0, padding: { left: 8, right: 14 }, margin: { top: 6 }, borderRadius: 22 }}
-                    uiBackground={{ color: BANK_WOOD }}
-                >
-                    <UiEntity uiTransform={{ width: 34, height: 34, margin: { right: 8 } }} uiBackground={iconBackground(ICON_COINS)} />
-                    <BitmapText value={`${withCommas(getCoins())} COINS`} fontSize={26} color={COIN_COLOR} />
-                </UiEntity>
+                {showCoins ? (
+                    <UiEntity
+                        uiTransform={{ height: 44, flexDirection: 'row', alignItems: 'center', flexShrink: 0, padding: { left: 8, right: 14 }, margin: { top: 6 }, borderRadius: 22 }}
+                        uiBackground={{ color: BANK_WOOD }}
+                    >
+                        <UiEntity uiTransform={{ width: 34, height: 34, margin: { right: 8 } }} uiBackground={iconBackground(ICON_COINS)} />
+                        <BitmapText value={`${withCommas(getCoins())} COINS`} fontSize={26} color={COIN_COLOR} />
+                    </UiEntity>
+                ) : null}
                 <Button
                     value="X"
                     fontSize={30}
@@ -1431,7 +1469,7 @@ const counterPanel = (
 }
 
 /** Cards on the left, a page at a time, and the selected one's detail on the right. */
-const counterContent = (products: Product[], key: string, onSelect: (key: string) => void, detail: Detail) => {
+const counterContent = (products: Product[], key: string, onSelect: (key: string) => void, detail: Detail, listWidth: number) => {
     // The page is wherever the selected card is, so a page turn selects that page's first card and
     // the panel always opens on the page of what it shows.
     const pages = Math.ceil(products.length / STORE_CARDS_PER_PAGE)
@@ -1441,7 +1479,7 @@ const counterContent = (products: Product[], key: string, onSelect: (key: string
     return (
         // On mobile, fills what the header leaves, so the detail's action sits at the bottom of the screen.
         <UiEntity uiTransform={{ width: '100%', flexGrow: 1, flexDirection: 'row' }}>
-            <UiEntity uiTransform={{ width: STORE_LIST_WIDTH, flexShrink: 0, flexDirection: 'column' }}>
+            <UiEntity uiTransform={{ width: listWidth, flexShrink: 0, flexDirection: 'column' }}>
                 {/* As tall as a full page, so the arrows stay put on a shorter one. */}
                 <UiEntity uiTransform={{ width: '100%', height: STORE_CARDS_PER_PAGE * (STORE_CARD_HEIGHT + STORE_CARD_GAP), flexShrink: 0, flexDirection: 'column' }}>
                     {products.slice(firstCard, firstCard + STORE_CARDS_PER_PAGE).map((product) => storeCard(product, product.key === key, onSelect))}
@@ -1527,6 +1565,124 @@ function propertyDetail(item: ShopItem): Detail {
 const landOfficePanel = () => {
     const key = selectedPropertyKey()
     return counterPanel('LAND & CLAIM OFFICE', closeLandOfficePanel, landOfficeProducts(), key, selectProperty, propertyDetail(findItem(key)!))
+}
+
+// --- Claim Office -----------------------------------------------------------------------
+//
+// The Land Office's layout with a single card for now: the free wearable (shared/gift.ts), its
+// requirements as a checklist, and a Claim that comes alive once all three are met. The server
+// checks them again and asks the Rewards service; only its yes turns the button to Claimed.
+
+const GIFT_KEY: ProductKey = 'free-wearable'
+const GIFT_DONE_COLOR = PRICE_GOOD_COLOR
+const GIFT_TODO_COLOR = BANK_CREAM
+
+/** The item's thumbnail when one is set, else the gift box from the atlas. */
+function giftIcon(): Icon {
+    return GIFT_WEARABLE.thumbnail !== '' ? { src: GIFT_WEARABLE.thumbnail, uvs: [0, 0, 0, 1, 1, 1, 1, 0] } : ICON_GIFT
+}
+
+/** No "Locked" while the quest is under way: the card's Quest x/3 already says where it stands. */
+function giftCardStatus(): Status | null {
+    const gift = getGiftStatus()
+    if (gift.claimed) return { text: 'Claimed', color: PRICE_GOOD_COLOR }
+    return canClaimGift() ? { text: 'Ready to claim', color: BANK_GOLD_LIGHT } : null
+}
+
+/** The gift's card: short, the full name is in the detail. */
+const GIFT_CARD_TITLE = 'Jacket'
+const CREDITS_KEY: ProductKey = 'credits'
+/** The cards' column, a quarter narrower than the store's: the detail gets the room. */
+const CLAIM_LIST_WIDTH = Math.round(STORE_LIST_WIDTH * 0.75)
+
+// Collectibles are the wearables; Credits is a placeholder for now.
+type ClaimTab = 'collectibles' | 'credits'
+const CLAIM_TABS: { id: ClaimTab; label: string }[] = [
+    { id: 'collectibles', label: 'Collectibles' },
+    { id: 'credits', label: 'Credits' }
+]
+let claimTab: ClaimTab = 'collectibles'
+
+function claimOfficeProducts(): Product[] {
+    if (claimTab === 'credits') return [{ key: CREDITS_KEY, title: 'Credits', icon: ICON_COINS, hint: '', status: STATUS_SOON, muted: true }]
+    // Quest x/3 while under way; Ready to claim / Claimed take its place after.
+    const status = giftCardStatus()
+    const hint = status === null ? `Quest ${giftStepsDone()}/3` : ''
+    return [{ key: GIFT_KEY, title: GIFT_CARD_TITLE, icon: giftIcon(), hint, status, muted: false }]
+}
+
+function creditsDetail(): Detail {
+    return {
+        title: 'Credits',
+        description: 'Coming soon to the Claim Office.',
+        icon: ICON_COINS,
+        stats: [],
+        notes: [],
+        actions: [storeActionButton({ label: 'COMING SOON', kind: 'off' })]
+    }
+}
+
+/** How many of the gift's three steps are done. */
+function giftStepsDone(): number {
+    const gift = getGiftStatus()
+    return [gift.sold, gift.bought, gift.surveyed].filter((done) => done).length
+}
+
+/** A reward has no price: the stat is the quest's progress, green once complete. */
+function giftQuestStat(): ReactEcs.JSX.Element {
+    const done = giftStepsDone()
+    return detailStat('Quest', done === 3 ? 'COMPLETE' : `${done}/3`, done === 3 ? GIFT_DONE_COLOR : BANK_GOLD_LIGHT)
+}
+
+const giftRequirement = (done: boolean, text: string) => detailNote(`${done ? '✓' : '•'} ${text}`, done ? GIFT_DONE_COLOR : GIFT_TODO_COLOR)
+
+function giftDetail(): Detail {
+    const gift = getGiftStatus()
+    let action: Action
+    if (gift.claimed) action = { label: 'CLAIMED', kind: 'equipped' }
+    else if (gift.claiming) action = { label: 'CLAIMING...', kind: 'off' }
+    else if (canClaimGift()) action = { label: 'CLAIM', kind: 'buy', onClick: claimGift }
+    else action = { label: 'LOCKED', kind: 'off' }
+
+    const notes = gift.claimed
+        ? [
+              // The Rewards service mints it on chain when gas allows: it can take a while to show up.
+              detailNote('On its way to your backpack', PRICE_GOOD_COLOR),
+              detailNote('It may take a few minutes', BANK_CAPTION),
+              detailNote('Press I to open your backpack', BANK_CAPTION)
+          ]
+        : [
+              giftRequirement(gift.sold, 'Sell ore at the Bank'),
+              giftRequirement(gift.bought, 'Buy at the General Store'),
+              giftRequirement(gift.surveyed, 'Answer a feedback survey')
+          ]
+    const error = getGiftClaimError()
+    if (error !== '') notes.push(detailNote(error, SHORT_COLOR))
+    return {
+        title: GIFT_WEARABLE.name,
+        description: GIFT_WEARABLE.description,
+        icon: giftIcon(),
+        stats: [giftQuestStat()],
+        notes,
+        actions: [storeActionButton(action)],
+        bigIcon: true
+    }
+}
+
+const claimOfficePanel = () => {
+    const tabs = CLAIM_TABS.map((tab) => tabButton(tab.id, tab.label, tab.id === claimTab, () => (claimTab = tab.id)))
+    const credits = claimTab === 'credits'
+    return counterPanel(
+        'CLAIM REWARDS',
+        closeClaimOfficePanel,
+        claimOfficeProducts(),
+        credits ? CREDITS_KEY : GIFT_KEY,
+        () => {},
+        credits ? creditsDetail() : giftDetail(),
+        tabs,
+        false,
+        CLAIM_LIST_WIDTH
+    )
 }
 
 // --- Debug: reset progress --------------------------------------------------------------
@@ -4181,6 +4337,7 @@ export const uiMenu = () => (
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isBankPanelOpen() ? bankPanel() : null}
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isStorePanelOpen() ? storePanel() : null}
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isLandOfficePanelOpen() ? landOfficePanel() : null}
+            {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isClaimOfficePanelOpen() ? claimOfficePanel() : null}
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isMulePanelOpen() && getMuleCount() > 0 ? mulePanel() : null}
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isOwnerCardOpen() ? ownerCardPanel() : null}
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isCasinoPanelOpen() ? casinoPanel() : null}

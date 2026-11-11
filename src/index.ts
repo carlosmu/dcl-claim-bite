@@ -22,6 +22,7 @@ import { setupBank } from './bank/bank'
 import { setupShop } from './shop/shop'
 import { setupCasino } from './casino/casino'
 import { setupLandOffice } from './land-office/land-office'
+import { setupClaimOffice } from './claim-office/claim-office'
 import { setupProperties } from './land-office/properties'
 import { setupOwnerCard } from './land-office/owner-card'
 import { setupMule } from './mule/mule'
@@ -67,6 +68,7 @@ export async function main() {
     setupShop()
     setupCasino()
     setupLandOffice()
+    setupClaimOffice()
     setupProperties()
     setupOwnerCard()
     setupMule()

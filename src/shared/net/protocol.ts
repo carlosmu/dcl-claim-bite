@@ -39,6 +39,9 @@ export const Messages = {
   /** "Leave this note at their door." Refused for one's own door, a door with no owner, or too soon after the last. */
   leaveNote: Schemas.Map({ owner: Schemas.String, text: Schemas.String }),
 
+  /** "Give me the Claim Office's free wearable." Granted once, to a player who has met its requirements. */
+  claimGift: Schemas.Map({ ready: Schemas.Boolean }),
+
   /** "Throw away the notes left at my door." */
   clearNotes: Schemas.Map({ ready: Schemas.Boolean }),
 
@@ -83,6 +86,16 @@ export const Messages = {
   // Server -> one client: how many store purchases the player has ever made, sent after each
   // one goes through. Paces the feedback asks (src/playtest.ts).
   purchaseCount: Schemas.Map({ count: Schemas.Number }),
+
+  // Server -> one client: where they stand with the Claim Office's free wearable (shared/gift.ts).
+  // Sent on arrival, on hello, and whenever a requirement is met or a claim is answered.
+  giftStatus: Schemas.Map({
+    sold: Schemas.Boolean,
+    bought: Schemas.Boolean,
+    surveyed: Schemas.Boolean,
+    claimed: Schemas.Boolean,
+    claiming: Schemas.Boolean
+  }),
 
   // Server -> one client: what a finished rock paid. `bonus` is the Social Bonus part of `ore`,
   // already capped by the bag like the rest.

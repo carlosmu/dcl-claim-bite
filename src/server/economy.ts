@@ -39,6 +39,7 @@ import {
   savePropertyLots,
   savePurse,
   saveMarketPrice,
+  StoredGift,
   StoredLot,
   StoredMule
 } from './persistence'
@@ -74,6 +75,9 @@ import { isCasinoReady, setupCasino, spin } from './casino'
 import { SLOT_BETS, SLOT_MIN_SECONDS_BETWEEN_SPINS } from '../shared/economy/slots'
 import { TUTORIAL_ROCK_SEQS } from '../shared/net/rock-sync'
 import { advanceRock, getRockSeqs, hasFinishedRock, isRock, isRockStarted, markFinished } from './rock'
+import { requestReward } from './rewards'
+import { onResponseSaved } from '../scene-feedback/lib/server/hooks'
+import { GIFT_SURVEY_QUESTIONS } from '../shared/gift'
 
 type Purse = {
   ore: number
@@ -88,8 +92,10 @@ type Purse = {
   equipped: string
   /** Rocks each owned pick has left; a pick missing here is full (see durabilityLeft). */
   pickDurability: Record<string, number>
-  /** Store purchases ever made that went through, fuel included: paces the feedback asks. */
+  /** Store purchases since the feedback asks restarted (fuel included): paces them. Stored as feedbackPurchases. */
   purchases: number
+  /** The Claim Office's free wearable: see sendGiftStatus. */
+  gift: StoredGift
   /** Ore the rigs put in storage since it was last reported to the titles. Not saved. */
   rigOreTally: number
 }
@@ -224,12 +230,10 @@ function beginLoad(address: string): void {
         muleFuel: stored?.muleFuel ?? 0,
         equipped: stored?.equipped ?? '',
         pickDurability: stored?.pickDurability ?? {},
-        purchases: stored?.purchases ?? 0,
+        purchases: stored?.feedbackPurchases ?? 0,
+        gift: { ...NO_GIFT, ...stored?.gift },
         rigOreTally: 0
       }
-      // A save from before the tally: one that owns something only the store sells has bought
-      // before, so its first purchase from now on is not taken for the first ever.
-      if (stored !== null && stored.purchases === undefined && boughtBefore(purse)) purse.purchases = 1
       grantStartingItems(purse)
       const owned = (id: ShopItemId) => purse.owned[id] ?? 0
 
@@ -244,6 +248,7 @@ function beginLoad(address: string): void {
       dirty.add(address)
       sendWallet(address)
       sendMuleAway(address)
+      sendGiftStatus(address)
       console.log(`[Server] purse ${stored === null ? 'created for' : 'restored for'} ${address}`)
     })
     .catch((error) => {
@@ -280,17 +285,74 @@ function grantStartingItems(purse: Purse): void {
   for (const item of STARTING_ITEMS) if ((purse.owned[item.id] ?? 0) <= 0) purse.owned[item.id] = 1
 }
 
-/** Owns anything the store sells, beyond what everyone starts with and the mayor's pick. */
-function boughtBefore(purse: Purse): boolean {
-  return Object.keys(purse.owned).some(
-    (id) => (purse.owned[id] ?? 0) > 0 && id !== 'pick' && !STARTING_ITEMS.some((item) => item.id === id)
-  )
-}
-
 /** One more store purchase gone through, told to the player so the feedback asks can pace themselves. */
 function notePurchase(address: string, purse: Purse): void {
   purse.purchases += 1
   room.send('purchaseCount', { count: purse.purchases }, { to: [address] })
+  noteGiftStep(address, purse, 'bought')
+}
+
+// --- The Claim Office's free wearable ---
+//
+// Sold ore, bought at the store, answered a survey (shared/gift.ts): each recorded in the purse
+// the first time it happens from now on, nothing worked out from older saves. Then one claim,
+// passed on to the Rewards service (rewards.ts); only its yes marks the gift claimed.
+
+const NO_GIFT: StoredGift = { sold: false, bought: false, surveyed: false, claimed: false }
+
+/** Players whose claim is with the Rewards service right now. */
+const claimingGift = new Set<string>()
+
+function sendGiftStatus(address: string): void {
+  const purse = purses.get(address)
+  if (purse === undefined) return
+  room.send('giftStatus', { ...purse.gift, claiming: claimingGift.has(address) }, { to: [address] })
+}
+
+function noteGiftStep(address: string, purse: Purse, step: 'sold' | 'bought' | 'surveyed'): void {
+  if (purse.gift[step]) return
+  purse.gift[step] = true
+  dirty.add(address)
+  sendGiftStatus(address)
+  console.log(`[Server] ${address} met the gift's "${step}" requirement`)
+}
+
+function handleClaimGift(address: string): void {
+  const purse = purseOf(address)
+  if (purse === null) {
+    sendResult(address, 'claimGift', false, 'still loading')
+    return
+  }
+  const { sold, bought, surveyed, claimed } = purse.gift
+  if (claimed) {
+    sendResult(address, 'claimGift', false, 'already claimed')
+    return
+  }
+  if (!sold || !bought || !surveyed) {
+    sendResult(address, 'claimGift', false, 'requirements not met')
+    return
+  }
+  if (claimingGift.has(address)) return
+  claimingGift.add(address)
+  sendGiftStatus(address)
+
+  void requestReward(address).then((result) => {
+    claimingGift.delete(address)
+    // Looked up again: the player may have left while the service answered. Then the claim is
+    // not recorded here, and the campaign's one-per-player limit is what stops a second one.
+    const now = purses.get(address)
+    // A refusal for "already got it" counts as claimed too: the wallet has its wearable, only
+    // this purse had lost the record of it.
+    const claimedNow = result.ok || result.alreadyClaimed
+    if (claimedNow && now !== undefined) {
+      now.gift.claimed = true
+      dirty.add(address)
+      flushPurse(address)
+    }
+    sendResult(address, 'claimGift', claimedNow, result.ok ? result.detail : claimedNow ? 'already claimed' : result.detail)
+    sendGiftStatus(address)
+    console.log(`[Server] gift claim for ${address}: ${result.ok ? 'assigned' : result.detail}`)
+  })
 }
 
 /** The player's purse, or null while it is still being read. */
@@ -480,6 +542,7 @@ function handleSell(address: string, requested: number): void {
 
   sendWallet(address)
   sendResult(address, 'sell', true, `${spent} ore for ${payout} coins`)
+  noteGiftStep(address, purse, 'sold')
   console.log(`[Server] ${address} sold ${spent} ore for ${payout} · rate now ${getRate().toFixed(2)} ore/coin`)
 }
 
@@ -724,6 +787,8 @@ function handleDebugReset(address: string): void {
   purse.equipped = ''
   purse.pickDurability = {}
   purse.purchases = 0
+  // DEBUG only: a claimed gift stays claimed, the Rewards campaign would not give it twice anyway.
+  purse.gift = { ...NO_GIFT, claimed: purse.gift.claimed }
   purse.rigOreTally = 0
   lastRockAt.delete(address)
   lastSwing.delete(address)
@@ -806,7 +871,8 @@ function flushPurse(address: string): void {
     muleFuel: purse.muleFuel,
     equipped: purse.equipped,
     pickDurability: purse.pickDurability,
-    purchases: purse.purchases
+    feedbackPurchases: purse.purchases,
+    gift: purse.gift
   })
   // A failed write puts the purse back in the queue for the next flush rather than losing it.
   saved
@@ -1314,6 +1380,7 @@ export function setupEconomy(): void {
     // wallet in that case, so this only sends when there is already something true to send.
     if (purseOf(context.from) !== null) {
       sendWallet(context.from)
+      sendGiftStatus(context.from)
       // The arrival's copy may have gone out before this client was listening.
       sendMuleAway(context.from)
       muleAwayOre.delete(context.from)
@@ -1387,6 +1454,19 @@ export function setupEconomy(): void {
   room.onMessage('equip', (data, context) => {
     if (!context) return
     handleEquip(context.from, data.itemId)
+  })
+
+  room.onMessage('claimGift', (_data, context) => {
+    if (!context) return
+    handleClaimGift(context.from)
+  })
+
+  // A survey answered (not skipped) counts toward the gift.
+  onResponseSaved((response) => {
+    if (!response.answered || !GIFT_SURVEY_QUESTIONS.includes(response.questionId)) return
+    const purse = purses.get(response.address)
+    if (purse === undefined) return console.log(`[Server] survey answer from ${response.address} with no purse loaded, not counted for the gift`)
+    noteGiftStep(response.address, purse, 'surveyed')
   })
 
   // The clock goes first so everything scheduled after it reads the current frame's time.
