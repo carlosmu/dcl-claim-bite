@@ -310,7 +310,8 @@ function sendGiftStatus(address: string): void {
 }
 
 function noteGiftStep(address: string, purse: Purse, step: 'sold' | 'bought' | 'surveyed'): void {
-  if (purse.gift[step]) return
+  // Already met: sent again anyway, so a client that missed it catches up on the next sale or buy.
+  if (purse.gift[step]) return sendGiftStatus(address)
   purse.gift[step] = true
   dirty.add(address)
   sendGiftStatus(address)
@@ -797,6 +798,7 @@ function handleDebugReset(address: string): void {
 
   dirty.add(address)
   sendWallet(address)
+  sendGiftStatus(address)
   sendResult(address, 'debugReset', true, 'progress wiped')
   console.log(`[Server] DEBUG wiped the progress of ${address}`)
 }
@@ -838,6 +840,9 @@ function checkPresence(dt: number) {
       dirty.add(address)
       sendWallet(address)
       sendMuleAway(address)
+      // The returning client starts from an empty mirror, and this wallet may stop its hellos
+      // before one brings the gift's status: it goes with the wallet.
+      sendGiftStatus(address)
     }
   }
 
