@@ -147,10 +147,17 @@ export function getObjectiveClock(): number {
   return clock
 }
 
+/** Entries that keep only their latest message in the history: they come back often (the price,
+ * the Social Bonus, a storage that fills after every sale, an upgrade that comes and goes with the
+ * coins) or their latest line already sums up the rest (the notes), and a run of them would push
+ * the important ones off the list. */
+const LATEST_ONLY_IN_HISTORY = new Set(['price', 'social', 'storage-full', 'upgrade-pick', 'upgrade-mule', 'note'])
+
 // Logged when an entry comes on screen or its line changes. The detail does not count: it
 // carries running numbers (ore so far, hours left) that would log the same message every tick.
 function record(objective: Objective): void {
-  history = [{ ...objective, at: clock }, ...history].slice(0, HISTORY_LENGTH)
+  const kept = LATEST_ONLY_IN_HISTORY.has(objective.id) ? history.filter((past) => past.id !== objective.id) : history
+  history = [{ ...objective, at: clock }, ...kept].slice(0, HISTORY_LENGTH)
 }
 
 function alert(id: string, title: string, message: string, detail: string = ''): Objective {
