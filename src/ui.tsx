@@ -23,7 +23,15 @@ import { getJackpot } from './shared/net/casino-sync'
 import { buyItem, closeStorePanel, currentPrice, getSelectedProduct, isStorePanelOpen, selectProduct, whyUnavailable } from './shop/shop'
 import { closeMulePanel, isMulePanelOpen } from './mule/mule'
 import { closeLandOfficePanel, getSelectedProperty, isLandOfficePanelOpen, selectProperty } from './land-office/land-office'
-import { canClaimReward, claimReward, closeClaimOfficePanel, getRewardClaimError, getRewardStatus, isClaimOfficePanelOpen } from './claim-office/claim-office'
+import {
+    canClaimReward,
+    claimReward,
+    closeClaimOfficePanel,
+    getRewardClaimError,
+    getRewardStatus,
+    isClaimOfficePanelOpen,
+    toggleClaimOfficeFromButton
+} from './claim-office/claim-office'
 import { REWARD_CAMPAIGNS, REWARD_STEP_LABELS, RewardCampaign } from './shared/rewards'
 import {
     canSendNote,
@@ -3587,8 +3595,8 @@ const NOTIFY_PANEL_WIDTH = 560
  *  edge lines up with the objective tracker's below. */
 const CORNER_BUTTON_RIGHT = HUD_MARGIN + OBJECTIVE_WIDTH - (3 * BOTTOM_BUTTON_WIDTH + 2 * BOTTOM_BUTTON_GAP)
 
-/** Town Board, Sound, Notifications and Feedback: square icon buttons like Map and Inventory, side by
- *  side on the screen's top-right corner, Feedback (slot -1) at the edge. `slot` counts from the right. Centred
+/** Town Board, Sound, Notifications, Feedback and Rewards: square icon buttons like Map and Inventory, side by
+ *  side on the screen's top-right corner, Rewards (slot -2) at the edge. `slot` counts from the right. Centred
  *  on the HUD's height: the plank hangs from the top of the screen. */
 const cornerButton = (slot: number, open: boolean, icon: Icon, onPress: () => void) => (
     <UiEntity
@@ -3718,7 +3726,8 @@ const notificationsPanel = () => {
 // or Report a bug. Either one closes the menu and opens the Scene Feedback panel straight on its
 // question (src/playtest.ts), whenever the player wants, apart from the asks the game paces.
 
-const FEEDBACK_MENU_WIDTH = 260
+/** From the Town Board's left edge to Feedback's right edge: four corner buttons and the gaps between them. */
+const FEEDBACK_MENU_WIDTH = 4 * BOTTOM_BUTTON_WIDTH + 3 * BOTTOM_BUTTON_GAP
 const FEEDBACK_MENU_ROW_HEIGHT = 48
 const FEEDBACK_MENU_GAP = 8
 
@@ -3823,6 +3832,26 @@ const feedbackMenuBuild = () => {
         </UiEntity>
     )
 }
+
+// --- Rewards -----------------------------------------------------------------------------
+//
+// Right of Feedback, at the corner's edge: opens the Claim Office's panel from anywhere, the same
+// screen the clerk shows. For now only a shortcut to it.
+
+const rewardsButton = () =>
+    cornerButton(-2, isClaimOfficePanelOpen(), ICON_GIFT, () => {
+        toggleClaimOfficeFromButton()
+        if (isClaimOfficePanelOpen()) {
+            notificationsOpen = false
+            soundOpen = false
+            townBoardOpen = false
+            feedbackMenuOpen = false
+            mapOpen = false
+            inventoryOpen = false
+            pickSelectorOpen = false
+            muleDropdownOpen = false
+        }
+    })
 
 // --- Sound -------------------------------------------------------------------------------
 //
@@ -4361,6 +4390,7 @@ export const uiMenu = () => (
         {soundButton()}
         {townBoardButton()}
         {feedbackButton()}
+        {rewardsButton()}
         {feedbackMenuOpen ? feedbackMenu() : null}
         {isLocalPreview() && (DEBUG_RESET_PROGRESS || DEBUG_ADD_COINS || DEBUG_ADD_ORE || DEBUG_SERVER_STATUS) ? debugBox() : null}
         {/* main-container: every piece of UI goes in here */}

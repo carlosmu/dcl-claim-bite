@@ -24,13 +24,13 @@ export function getDeployStamp(): string | undefined {
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-/** Like `Build x7k2qa - Nov 10 - 12:00 UTC`, for players to quote in bug reports; undefined like
+/** Like `Build x7k2qa Nov 10 12:00 UTC`, for players to quote in bug reports; undefined like
  *  getDeployStamp. */
 export function getDeployStampUtc(): string | undefined {
   if (deployedAt === undefined || buildCode === undefined) return undefined
   const d = new Date(deployedAt)
   const two = (n: number) => `${n}`.padStart(2, '0')
-  return `Build ${buildCode} - ${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()} - ${two(d.getUTCHours())}:${two(d.getUTCMinutes())} UTC`
+  return `Build ${buildCode} ${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()} ${two(d.getUTCHours())}:${two(d.getUTCMinutes())} UTC`
 }
 
 /** Why the deployed build has no stamp, or undefined while it is still looking or once it has one. */

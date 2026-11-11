@@ -17,6 +17,8 @@ export const CLAIM_OFFICE_RADIUS_METERS = 4
 
 let zone: ProximityZone | null = null
 let closed = false
+/** Opened from the HUD's Rewards button: shown wherever the player is, until closed. */
+let openedFromButton = false
 
 /** Where the player stands with each campaign, by its id. Empty until the server says. */
 let statuses = new Map<string, RewardStatus>()
@@ -25,12 +27,25 @@ let claimError = ''
 let claimErrorFor = ''
 
 export function isClaimOfficePanelOpen(): boolean {
-  return zone !== null && zone.isPlayerInside() && !closed
+  return openedFromButton || (zone !== null && zone.isPlayerInside() && !closed)
 }
 
 export function closeClaimOfficePanel(): void {
+  openedFromButton = false
   closed = true
   zone?.release()
+}
+
+/** The HUD's Rewards button: the same panel as the office, from anywhere. Closes it if open. */
+export function toggleClaimOfficeFromButton(): void {
+  if (isClaimOfficePanelOpen()) {
+    closeClaimOfficePanel()
+    return
+  }
+  openedFromButton = true
+  closed = false
+  claimError = ''
+  focusPanel('claim-office')
 }
 
 /** Where the player stands with a campaign: nothing done until the server says otherwise. */
