@@ -10,28 +10,99 @@
 //
 // The live rate is settled + the open window's impact, so a sale shows on the board at once
 // instead of a minute later, and nobody can sell a second load at the pre-dump price. When the
-// window closes the impact is folded into the settled rate and recovery takes one 0.1 step
-// back toward the base.
+// window closes the impact is folded into the settled rate. Separately, every few seconds,
+// recovery gives back a small share of the settled rate's distance to the base.
+//
+// Both depend on the crowd: how many players are in the scene, held between MARKET_MIN_PLAYERS
+// and MARKET_MAX_PLAYERS. A bigger crowd makes a deeper market (the same sale moves it less) and
+// a faster recovery.
 //
 // Same rule as the wallet: no ECS, React or rendering imports. The server owns this.
 
 import {
   MARKET_IMPACT_SCALE,
-  MARKET_IMPACT_VOLUME,
+  MARKET_IMPACT_VOLUME_MAX_PLAYERS,
+  MARKET_IMPACT_VOLUME_MIN_PLAYERS,
+  MARKET_MAX_PLAYERS,
+  MARKET_MIN_PLAYERS,
   MARKET_WINDOW_SECONDS,
   RATE_BASE,
   RATE_CAP,
-  RATE_RECOVERY_PER_WINDOW
+  RATE_RECOVERY_SHARE_MAX_PLAYERS,
+  RATE_RECOVERY_SHARE_MIN_PLAYERS,
+  RATE_RECOVERY_SNAP,
+  RATE_RECOVERY_STEP_SECONDS
 } from '../economy/constants'
 
 let settled = RATE_BASE
 let windowOre = 0
 let windowElapsed = 0
+let recoveryElapsed = 0
+// The crowd the open window is priced for, and the latest head count from the server.
+let windowPlayers = MARKET_MIN_PLAYERS
+let latestPlayers = MARKET_MIN_PLAYERS
 
-/** How much the rate rises for `oreSold` ore sold within one window. */
-export function marketImpact(oreSold: number): number {
+// Where a crowd sits between the smallest (0) and the biggest (1) the market is tuned for.
+function crowdShare(players: number): number {
+  const clamped = Math.max(MARKET_MIN_PLAYERS, Math.min(MARKET_MAX_PLAYERS, players))
+  return (clamped - MARKET_MIN_PLAYERS) / (MARKET_MAX_PLAYERS - MARKET_MIN_PLAYERS)
+}
+
+function lerp(from: number, to: number, t: number): number {
+  return from + (to - from) * t
+}
+
+/** How much ore it takes to move the market, for this crowd. */
+function marketDepth(players: number): number {
+  return lerp(MARKET_IMPACT_VOLUME_MIN_PLAYERS, MARKET_IMPACT_VOLUME_MAX_PLAYERS, crowdShare(players))
+}
+
+/**
+ * The share of its distance above the base the rate gives back per recovery step, for this
+ * crowd. The constants are per minute; a step is a fraction of one, compounded so that a
+ * minute of steps gives back exactly the per-minute share.
+ */
+function recoveryShare(players: number): number {
+  const perMinute = lerp(RATE_RECOVERY_SHARE_MIN_PLAYERS, RATE_RECOVERY_SHARE_MAX_PLAYERS, crowdShare(players))
+  return 1 - Math.pow(1 - perMinute, RATE_RECOVERY_STEP_SECONDS / 60)
+}
+
+/** The rate one recovery step later, with nothing sold. */
+function recoverOnce(rate: number, players: number): number {
+  const distance = (rate - RATE_BASE) * (1 - recoveryShare(players))
+  return distance < RATE_RECOVERY_SNAP ? RATE_BASE : RATE_BASE + distance
+}
+
+/** How much the rate rises for `oreSold` ore sold within one window, by a crowd of `players`. */
+export function marketImpact(oreSold: number, players: number = windowPlayers): number {
   if (oreSold <= 0) return 0
-  return MARKET_IMPACT_SCALE * Math.log2(1 + oreSold / MARKET_IMPACT_VOLUME)
+  return MARKET_IMPACT_SCALE * Math.log2(1 + oreSold / marketDepth(players))
+}
+
+/**
+ * Tells the market how many players are in the scene. Call whenever the count is known.
+ *
+ * The open window keeps the crowd it was priced for once something has been sold in it, so a
+ * player leaving mid-window cannot move the rate without a sale. An empty window has no impact
+ * to reprice, so it takes the new count at once.
+ */
+export function setMarketPlayers(players: number): void {
+  latestPlayers = players
+  if (windowOre <= 0) windowPlayers = players
+}
+
+/**
+ * Seconds until the rate is back at the base if nobody sells and the crowd stays at `players`.
+ * For the bank's estimate.
+ */
+export function secondsToRecover(rate: number, players: number): number {
+  let steps = 0
+  // The snap guarantees arrival; the bound is only a guard against a bad input.
+  while (rate > RATE_BASE && steps < 10000) {
+    rate = recoverOnce(rate, players)
+    steps += 1
+  }
+  return steps * RATE_RECOVERY_STEP_SECONDS
 }
 
 /** What one coin costs in ore right now. Higher is worse for the seller. */
@@ -108,17 +179,25 @@ export function applySale(oreAmount: number): void {
 /**
  * Advances the market clock. Call once per frame with the frame's dt.
  *
- * Each time a window closes: its impact is settled into the rate, then the rate takes one
- * recovery step back toward the base. A town selling about 100 ore a minute therefore holds
- * the rate where it is; a quiet one walks it down 0.1 a minute, 12 to 10 in twenty minutes.
+ * Every recovery step the settled rate gives back a small share of its distance to the base,
+ * for the crowd there is now. Each time a window closes its impact is settled into the rate and
+ * the next window opens for the latest crowd. A steady stream of sales therefore settles at a
+ * level instead of climbing forever, and a quiet town walks the rate down fast from the cap and
+ * slowly near the base.
  */
 export function tickMarket(dt: number): void {
+  recoveryElapsed += dt
+  while (recoveryElapsed >= RATE_RECOVERY_STEP_SECONDS) {
+    recoveryElapsed -= RATE_RECOVERY_STEP_SECONDS
+    settled = recoverOnce(settled, latestPlayers)
+  }
+
   windowElapsed += dt
   while (windowElapsed >= MARKET_WINDOW_SECONDS) {
     windowElapsed -= MARKET_WINDOW_SECONDS
-    const withSales = Math.min(RATE_CAP, settled + marketImpact(windowOre))
+    settled = Math.min(RATE_CAP, settled + marketImpact(windowOre, windowPlayers))
     windowOre = 0
-    settled = Math.max(RATE_BASE, withSales - RATE_RECOVERY_PER_WINDOW)
+    windowPlayers = latestPlayers
   }
 }
 

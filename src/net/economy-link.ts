@@ -31,6 +31,7 @@ const SOUND_VOLUME = 0.8
 // Falls back to the base price only until the first sync lands, so the panel never has to
 // render an empty slot.
 let price = RATE_BASE
+let marketPlayers = 0
 
 // The rates this session has seen, oldest first, for the bank's chart. A new entry lands
 // only when the rate moves by the smallest step the panel shows, so the slow recovery
@@ -81,6 +82,11 @@ export function getBrokenPick(): { id: string; count: number } {
 
 export function getSyncedRate(): number {
   return price
+}
+
+/** Players in the scene, as the server's market counts them. */
+export function getMarketPlayers(): number {
+  return marketPlayers
 }
 
 /** The rates seen this session, oldest first, each rounded to the panel's 0.1 step. */
@@ -205,6 +211,7 @@ function announce(dt: number) {
 function readPrice() {
   for (const [, market] of engine.getEntitiesWith(OreMarket)) {
     price = market.price
+    marketPlayers = market.players
     recordRate(price)
     return
   }

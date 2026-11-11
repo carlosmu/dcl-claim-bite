@@ -12,7 +12,9 @@ import { AUTH_SERVER_PEER_ID } from '@dcl/sdk/network/message-bus-sync'
 export const MARKET_ENTITY_ENUM_ID = 2
 
 export const OreMarket = engine.defineComponent('claimbite:OreMarket', {
-  price: Schemas.Number
+  price: Schemas.Number,
+  /** Players in the scene, as the market counts them: the bank's recovery estimate needs it. */
+  players: Schemas.Number
 })
 
 // Only the server prices ore. Otherwise a client could set the price to anything and then

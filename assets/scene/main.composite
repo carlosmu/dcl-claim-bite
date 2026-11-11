@@ -1640,16 +1640,16 @@
               "y": 0,
               "z": 0
             },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
             "rotation": {
               "x": 0,
               "y": 0,
               "z": 0,
               "w": 1
-            },
-            "scale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
             },
             "parent": 522
           }
@@ -1661,16 +1661,16 @@
               "y": 0.7473630905151367,
               "z": -2.750000476837158
             },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
             "rotation": {
               "x": 0,
               "y": 0,
               "z": 0,
               "w": 1
-            },
-            "scale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
             },
             "parent": 522
           }
@@ -3548,7 +3548,7 @@
       }
     },
     {
-      "name": "inspector::SceneMetadata-v5",
+      "name": "inspector::SceneMetadata-v6",
       "jsonSchema": {
         "type": "object",
         "properties": {
@@ -3881,6 +3881,26 @@
             "optionalJsonSchema": {
               "type": "boolean",
               "serializationType": "boolean"
+            }
+          },
+          "multiplayerServer": {
+            "type": "boolean",
+            "serializationType": "optional",
+            "optionalJsonSchema": {
+              "type": "boolean",
+              "serializationType": "boolean"
+            }
+          },
+          "logsPermissions": {
+            "type": "array",
+            "serializationType": "optional",
+            "optionalJsonSchema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "serializationType": "utf8-string"
+              },
+              "serializationType": "array"
             }
           }
         },
@@ -4973,7 +4993,11 @@
             },
             "creator": "0x4B538E1E044922aec2F428EC7E17A99f44205fF9",
             "disableNearbyVoiceChat": false,
-            "hideLandscapeTerrain": true
+            "hideLandscapeTerrain": true,
+            "multiplayerServer": true,
+            "logsPermissions": [
+              "0x4B538E1E044922aec2F428EC7E17A99f44205fF9"
+            ]
           }
         }
       }

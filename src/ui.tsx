@@ -8,6 +8,7 @@ import {
     getCarryCapacity,
     getMuleCount,
     getMuleFuelHours,
+    getMarketPlayers,
     getRateHistory,
     getSyncedRate,
     sendDebugCoins,
@@ -59,9 +60,7 @@ import {
     FUEL_PRICE_PER_GALLON,
     MULE_MAX_COUNT,
     MULE_ORE_PER_HOUR,
-    MARKET_WINDOW_SECONDS,
     RATE_BASE,
-    RATE_RECOVERY_PER_WINDOW,
     socialBonus
 } from './shared/economy/constants'
 import { getActiveMiners } from './shared/net/social-sync'
@@ -75,7 +74,7 @@ import { setupRollingCounters, shownCoins, shownOre } from './ui/rolling-counter
 import { getOrePopup, setupOrePopup } from './ui/ore-popup'
 import { DEBUG_ADD_COINS, DEBUG_ADD_ORE, DEBUG_RESET_PROGRESS, DEBUG_SERVER_STATUS, DEBUG_SHOW_MULE_ALERTS } from './shared/debug-flags'
 import { isLocalPreview } from './shared/local-preview'
-import { quotedRate } from './shared/state/market'
+import { quotedRate, secondsToRecover } from './shared/state/market'
 import { BitmapText } from './ui/bitmap-text'
 import { introScreen } from './ui/intro-screen'
 import { giveFeedback, reportBug } from './playtest'
@@ -535,14 +534,13 @@ function rateLevel(rate: number): number {
 }
 
 /**
- * How long until the rate is back at the base if nobody sells, at one recovery step per window.
- * An estimate: the client does not know how far into the current window the server is, so it
- * can be up to a minute early.
+ * How long until the rate is back at the base if nobody sells and the crowd stays as it is.
+ * An estimate: it assumes nobody sells in the meantime.
  */
 function recoveryText(rate: number): string {
-    const steps = Math.ceil((rate - RATE_BASE) / RATE_RECOVERY_PER_WINDOW - 1e-6)
-    if (steps <= 0) return `At equilibrium price (${RATE_BASE})`
-    const minutes = Math.ceil((steps * MARKET_WINDOW_SECONDS) / 60)
+    const seconds = secondsToRecover(rate, getMarketPlayers())
+    if (seconds <= 0) return `At equilibrium price (${RATE_BASE})`
+    const minutes = Math.ceil(seconds / 60)
     return `Back to equilibrium (${RATE_BASE}) in ~${minutes} min`
 }
 

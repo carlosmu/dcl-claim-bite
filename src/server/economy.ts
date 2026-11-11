@@ -29,7 +29,7 @@ import {
 import { SOCIAL_MINING_ENTITY_ENUM_ID, SocialMining } from '../shared/net/social-sync'
 import { housingTier, PLAYER_TIERS_ENTITY_ENUM_ID, PlayerTiers } from '../shared/net/tiers-sync'
 import { room } from '../shared/net/protocol'
-import { applySale, getRate, getSettledRate, oreForCoins, quotedRate, quoteSale, restoreRate, tickMarket } from '../shared/state/market'
+import { applySale, getRate, getSettledRate, oreForCoins, quotedRate, quoteSale, restoreRate, setMarketPlayers, tickMarket } from '../shared/state/market'
 import {
   loadMarketPrice,
   loadMuleYard,
@@ -103,6 +103,7 @@ type Purse = {
 const purses = new Map<string, Purse>()
 let marketEntity = engine.RootEntity
 let lastPublishedPrice = -1
+let lastPublishedPlayers = -1
 
 /** How often presence is diffed. Once a second: arrivals can wait a beat, and this walks
  * every player entity, so it has no business running at frame rate. */
@@ -1320,7 +1321,14 @@ function reportAbuse(dt: number) {
 }
 
 function publishRate(dt: number) {
+  // The crowd sets how deep the market is and how fast it heals.
+  setMarketPlayers(present.size)
   tickMarket(dt)
+
+  if (present.size !== lastPublishedPlayers) {
+    lastPublishedPlayers = present.size
+    OreMarket.getMutable(marketEntity).players = present.size
+  }
 
   // Only on a real change, and only to two decimals: syncing an unchanged rate every frame
   // would be 30 writes a second of noise.
@@ -1356,7 +1364,7 @@ export function setupEconomy(): void {
   loadLots()
 
   marketEntity = engine.addEntity()
-  OreMarket.create(marketEntity, { price: getRate() })
+  OreMarket.create(marketEntity, { price: getRate(), players: present.size })
   syncEntity(marketEntity, [OreMarket.componentId], MARKET_ENTITY_ENUM_ID)
 
   yardEntity = engine.addEntity()

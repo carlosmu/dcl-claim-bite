@@ -80,13 +80,36 @@ export const RATE_CAP = 12
 /** How long one market window lasts. */
 export const MARKET_WINDOW_SECONDS = 60
 
-/** Impact = IMPACT_SCALE × log2(1 + ore / IMPACT_VOLUME): 100 ore ≈ +0.5, 500 ≈ +1.3, a
- * full minute of ~1500 ore reaches the cap. Strong on purpose: the recovery brings it back. */
-export const MARKET_IMPACT_SCALE = 0.5
-export const MARKET_IMPACT_VOLUME = 100
+// The market is tuned for a crowd between MARKET_MIN_PLAYERS and MARKET_MAX_PLAYERS present in
+// the scene. Fewer than the minimum counts as the minimum, more than the maximum as the maximum;
+// in between, the depth and the recovery below slide linearly from their MIN to their MAX value.
 
-/** How far the rate walks back toward the base per window: 12 → 10 takes twenty minutes. */
-export const RATE_RECOVERY_PER_WINDOW = 0.1
+/** The smallest crowd the market is tuned for: below it, the market behaves as if this many. */
+export const MARKET_MIN_PLAYERS = 3
+/** The biggest crowd the market is tuned for: above it, the market behaves as if this many. */
+export const MARKET_MAX_PLAYERS = 30
+
+/** Impact = IMPACT_SCALE × log2(1 + ore / volume), where volume is the market's depth for the
+ * crowd. With a small crowd (volume 100): 100 ore ≈ +0.5, 500 ≈ +1.3, ~1500 reaches the cap.
+ * With a full crowd (volume 1000): 1000 ore ≈ +0.5, 3000 ≈ +1.0, ~15000 reaches the cap. */
+export const MARKET_IMPACT_SCALE = 0.5
+export const MARKET_IMPACT_VOLUME_MIN_PLAYERS = 100
+export const MARKET_IMPACT_VOLUME_MAX_PLAYERS = 1000
+
+/** Each minute the rate gives back this share of its distance above the base: fast when it is
+ * far, slow when it is close. 12 → 10 takes 20 minutes with a small crowd (12 → 11.66 in the
+ * first) and 5 with a full one (12 → 10.94 in the first). Applied in small steps every
+ * RATE_RECOVERY_STEP_SECONDS, so the fall is smooth; the totals stay per minute. */
+export const RATE_RECOVERY_SHARE_MIN_PLAYERS = 0.17
+export const RATE_RECOVERY_SHARE_MAX_PLAYERS = 0.53
+
+/** How often recovery takes a step. Sales still pool per MARKET_WINDOW_SECONDS: only the fall
+ * is finer, so splitting a dump across short steps buys nothing. */
+export const RATE_RECOVERY_STEP_SECONDS = 10
+
+/** Once the rate is this close to the base, it snaps to it: a share of the distance alone
+ * would never quite arrive. */
+export const RATE_RECOVERY_SNAP = 0.05
 
 /** The smallest sale that counts towards the Panic Seller title, so a handful of ore cannot take it. */
 export const PANIC_SELLER_MIN_ORE = 100
