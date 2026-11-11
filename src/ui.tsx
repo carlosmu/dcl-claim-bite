@@ -2,6 +2,7 @@ import { engine, UiCanvasInformation } from '@dcl/sdk/ecs'
 import ReactEcs, { ReactEcsRenderer, UiEntity, Label, Button, Input } from "@dcl/sdk/react-ecs"
 import { Color4 } from "@dcl/sdk/math"
 import { isMobile } from '@dcl/sdk/platform'
+import { copyToClipboard } from '~system/RestrictedActions'
 import { getCoins, getOre } from './shared/state/wallet'
 import { changeSellCoins, closeBankPanel, getSellAmount, getSellCoins, isBankPanelOpen, maxSellCoins, sellSelectedOre, setSellCoins } from './bank/bank'
 import {
@@ -22,8 +23,8 @@ import { getJackpot } from './shared/net/casino-sync'
 import { buyItem, closeStorePanel, currentPrice, getSelectedProduct, isStorePanelOpen, selectProduct, whyUnavailable } from './shop/shop'
 import { closeMulePanel, isMulePanelOpen } from './mule/mule'
 import { closeLandOfficePanel, getSelectedProperty, isLandOfficePanelOpen, selectProperty } from './land-office/land-office'
-import { canClaimGift, claimGift, closeClaimOfficePanel, getGiftClaimError, getGiftStatus, isClaimOfficePanelOpen } from './claim-office/claim-office'
-import { GIFT_WEARABLE } from './shared/gift'
+import { canClaimReward, claimReward, closeClaimOfficePanel, getRewardClaimError, getRewardStatus, isClaimOfficePanelOpen } from './claim-office/claim-office'
+import { REWARD_CAMPAIGNS, REWARD_STEP_LABELS, RewardCampaign } from './shared/rewards'
 import {
     canSendNote,
     clearMyNotes,
@@ -68,7 +69,7 @@ import { getTownTitles } from './shared/net/town-titles-sync'
 import { TitleId } from './shared/titles'
 import { getDurability, getEquipped, getOwned } from './shared/state/inventory'
 import { getServerTick, isServerOnline } from './net/server-link'
-import { getDeployStamp, getDeployStampUtc } from './net/deploy-stamp'
+import { getDeployStamp, getDeployStampFailure, getDeployStampUtc } from './net/deploy-stamp'
 import { getMiningStatus, getRingPulse, showMoveCloserHint } from './mining/rocks'
 import { setupRollingCounters, shownCoins, shownOre } from './ui/rolling-counter'
 import { getOrePopup, setupOrePopup } from './ui/ore-popup'
@@ -212,9 +213,9 @@ const STORAGE_FULL_BADGE_DROP = 10
  *
  * The four corners go bottom-left, top-left, top-right, bottom-right.
  */
-function atlasCell(column: number, row: number, src: string = ATLAS): Icon {
-    const w = 1 / ATLAS_COLUMNS
-    const h = 1 / ATLAS_ROWS
+function atlasCell(column: number, row: number, src: string = ATLAS, columns: number = ATLAS_COLUMNS, rows: number = ATLAS_ROWS): Icon {
+    const w = 1 / columns
+    const h = 1 / rows
     const u0 = (column - 1) * w
     const v0 = 1 - row * h
     return { src, uvs: [u0, v0, u0, v0 + h, u0 + w, v0 + h, u0 + w, v0] }
@@ -257,6 +258,14 @@ const ICON_DYNAMITE = atlasCell(4, 2, ATLAS_2) // D2
 const ICON_RATE = atlasCell(1, 3, ATLAS_2) // A3
 const ICON_GIFT = atlasCell(3, 4, ATLAS_2) // C4 — gift box
 const ICON_FEEDBACK = atlasCell(4, 4, ATLAS_2) // D4 — speech bubble with stars
+
+// Small icons: an 8x8 grid, named like the other atlases (letter = column, number = row).
+const SMALL_ICONS_ATLAS = 'assets/images/Small_icons.png'
+const SMALL_ICONS_GRID = 8
+const smallIcon = (column: number, row: number): Icon => atlasCell(column, row, SMALL_ICONS_ATLAS, SMALL_ICONS_GRID, SMALL_ICONS_GRID)
+
+const ICON_COPY = smallIcon(1, 1) // A1
+const ICON_COPIED = smallIcon(2, 1) // B1
 
 // Property icon by catalogue id.
 const PROPERTY_ICONS: Record<string, Icon> = {
@@ -975,7 +984,7 @@ const PICK_COPY: Record<string, { description: string; benefits: string[] }> = {
 
 // --- Products ---
 
-type ProductKey = ShopItemId | 'fuel' | 'storage' | 'horse' | 'revolver' | 'dynamite' | 'free-wearable' | 'credits'
+type ProductKey = ShopItemId | 'fuel' | 'storage' | 'horse' | 'revolver' | 'dynamite' | `reward:${string}` | 'credits'
 
 type Status = { text: string; color: Color4 }
 
@@ -1567,28 +1576,33 @@ const landOfficePanel = () => {
 
 // --- Claim Office -----------------------------------------------------------------------
 //
-// The Land Office's layout with a single card for now: the free wearable (shared/gift.ts), its
-// requirements as a checklist, and a Claim that comes alive once all three are met. The server
-// checks them again and asks the Rewards service; only its yes turns the button to Claimed.
+// The Land Office's layout with one card per reward campaign (shared/rewards.ts): its quest as a
+// checklist, and a Claim that comes alive once every step is met. The server checks them again
+// and asks the Rewards service; only its yes turns the button to Claimed.
 
-const GIFT_KEY: ProductKey = 'free-wearable'
 const GIFT_DONE_COLOR = PRICE_GOOD_COLOR
 const GIFT_TODO_COLOR = BANK_CREAM
 
+const rewardKey = (campaign: RewardCampaign): ProductKey => `reward:${campaign.id}`
+
+/** The card picked in Collectibles: the first campaign until the player picks another. */
+let selectedRewardId = REWARD_CAMPAIGNS[0].id
+
+function selectedReward(): RewardCampaign {
+    return REWARD_CAMPAIGNS.find((campaign) => campaign.id === selectedRewardId) ?? REWARD_CAMPAIGNS[0]
+}
+
 /** The item's thumbnail when one is set, else the gift box from the atlas. */
-function giftIcon(): Icon {
-    return GIFT_WEARABLE.thumbnail !== '' ? { src: GIFT_WEARABLE.thumbnail, uvs: [0, 0, 0, 1, 1, 1, 1, 0] } : ICON_GIFT
+function giftIcon(campaign: RewardCampaign): Icon {
+    return campaign.thumbnail !== '' ? { src: campaign.thumbnail, uvs: [0, 0, 0, 1, 1, 1, 1, 0] } : ICON_GIFT
 }
 
 /** No "Locked" while the quest is under way: the card's Quest x/3 already says where it stands. */
-function giftCardStatus(): Status | null {
-    const gift = getGiftStatus()
-    if (gift.claimed) return { text: 'Claimed', color: PRICE_GOOD_COLOR }
-    return canClaimGift() ? { text: 'Ready to claim', color: BANK_GOLD_LIGHT } : null
+function giftCardStatus(campaign: RewardCampaign): Status | null {
+    if (getRewardStatus(campaign.id).claimed) return { text: 'Claimed', color: PRICE_GOOD_COLOR }
+    return canClaimReward(campaign.id) ? { text: 'Ready to claim', color: BANK_GOLD_LIGHT } : null
 }
 
-/** The gift's card: short, the full name is in the detail. */
-const GIFT_CARD_TITLE = 'Jacket'
 const CREDITS_KEY: ProductKey = 'credits'
 /** The cards' column, a quarter narrower than the store's: the detail gets the room. */
 const CLAIM_LIST_WIDTH = Math.round(STORE_LIST_WIDTH * 0.75)
@@ -1604,9 +1618,11 @@ let claimTab: ClaimTab = 'collectibles'
 function claimOfficeProducts(): Product[] {
     if (claimTab === 'credits') return [{ key: CREDITS_KEY, title: 'Credits', icon: ICON_COINS, hint: '', status: STATUS_SOON, muted: true }]
     // Quest x/3 while under way; Ready to claim / Claimed take its place after.
-    const status = giftCardStatus()
-    const hint = status === null ? `Quest ${giftStepsDone()}/3` : ''
-    return [{ key: GIFT_KEY, title: GIFT_CARD_TITLE, icon: giftIcon(), hint, status, muted: false }]
+    return REWARD_CAMPAIGNS.map((campaign) => {
+        const status = giftCardStatus(campaign)
+        const hint = status === null ? `Quest ${giftStepsDone(campaign)}/${campaign.steps.length}` : ''
+        return { key: rewardKey(campaign), title: campaign.cardTitle, icon: giftIcon(campaign), hint, status, muted: false }
+    })
 }
 
 function creditsDetail(): Detail {
@@ -1620,26 +1636,27 @@ function creditsDetail(): Detail {
     }
 }
 
-/** How many of the gift's three steps are done. */
-function giftStepsDone(): number {
-    const gift = getGiftStatus()
-    return [gift.sold, gift.bought, gift.surveyed].filter((done) => done).length
+/** How many of the quest's steps are done. */
+function giftStepsDone(campaign: RewardCampaign): number {
+    const done = getRewardStatus(campaign.id).done
+    return campaign.steps.filter((step) => done.includes(step)).length
 }
 
 /** A reward has no price: the stat is the quest's progress, green once complete. */
-function giftQuestStat(): ReactEcs.JSX.Element {
-    const done = giftStepsDone()
-    return detailStat('Quest', done === 3 ? 'COMPLETE' : `${done}/3`, done === 3 ? GIFT_DONE_COLOR : BANK_GOLD_LIGHT)
+function giftQuestStat(campaign: RewardCampaign): ReactEcs.JSX.Element {
+    const done = giftStepsDone(campaign)
+    const total = campaign.steps.length
+    return detailStat('Quest', done === total ? 'COMPLETE' : `${done}/${total}`, done === total ? GIFT_DONE_COLOR : BANK_GOLD_LIGHT)
 }
 
 const giftRequirement = (done: boolean, text: string) => detailNote(`${done ? '✓' : '•'} ${text}`, done ? GIFT_DONE_COLOR : GIFT_TODO_COLOR)
 
-function giftDetail(): Detail {
-    const gift = getGiftStatus()
+function giftDetail(campaign: RewardCampaign): Detail {
+    const gift = getRewardStatus(campaign.id)
     let action: Action
     if (gift.claimed) action = { label: 'CLAIMED', kind: 'equipped' }
     else if (gift.claiming) action = { label: 'CLAIMING...', kind: 'off' }
-    else if (canClaimGift()) action = { label: 'CLAIM', kind: 'buy', onClick: claimGift }
+    else if (canClaimReward(campaign.id)) action = { label: 'CLAIM', kind: 'buy', onClick: () => claimReward(campaign.id) }
     else action = { label: 'LOCKED', kind: 'off' }
 
     const notes = gift.claimed
@@ -1649,18 +1666,14 @@ function giftDetail(): Detail {
               detailNote('It may take a few minutes', BANK_CAPTION),
               detailNote('Press I to open your backpack', BANK_CAPTION)
           ]
-        : [
-              giftRequirement(gift.sold, 'Sell ore at the Bank'),
-              giftRequirement(gift.bought, 'Buy at the General Store'),
-              giftRequirement(gift.surveyed, 'Answer a feedback survey')
-          ]
-    const error = getGiftClaimError()
+        : campaign.steps.map((step) => giftRequirement(gift.done.includes(step), REWARD_STEP_LABELS[step]))
+    const error = getRewardClaimError(campaign.id)
     if (error !== '') notes.push(detailNote(error, SHORT_COLOR))
     return {
-        title: GIFT_WEARABLE.name,
-        description: GIFT_WEARABLE.description,
-        icon: giftIcon(),
-        stats: [giftQuestStat()],
+        title: campaign.name,
+        description: campaign.description,
+        icon: giftIcon(campaign),
+        stats: [giftQuestStat(campaign)],
         notes,
         actions: [storeActionButton(action)],
         bigIcon: true
@@ -1670,13 +1683,17 @@ function giftDetail(): Detail {
 const claimOfficePanel = () => {
     const tabs = CLAIM_TABS.map((tab) => tabButton(tab.id, tab.label, tab.id === claimTab, () => (claimTab = tab.id)))
     const credits = claimTab === 'credits'
+    const reward = selectedReward()
     return counterPanel(
         'CLAIM REWARDS',
         closeClaimOfficePanel,
         claimOfficeProducts(),
-        credits ? CREDITS_KEY : GIFT_KEY,
-        () => {},
-        credits ? creditsDetail() : giftDetail(),
+        credits ? CREDITS_KEY : rewardKey(reward),
+        (key) => {
+            const picked = REWARD_CAMPAIGNS.find((campaign) => rewardKey(campaign) === key)
+            if (picked !== undefined) selectedRewardId = picked.id
+        },
+        credits ? creditsDetail() : giftDetail(reward),
         tabs,
         false,
         CLAIM_LIST_WIDTH
@@ -3768,18 +3785,42 @@ const feedbackMenu = () => (
     </UiEntity>
 )
 
-/** The deploy's date under the two choices, so a bug report can say which build it was. */
+/** How long the copy button shows the copied icon after a press. */
+const BUILD_COPIED_MS = 1500
+const BUILD_COPY_ICON_SIZE = 20
+let buildCopiedAt = 0
+
+/** The deploy's code and date under the two choices, so a bug report can say which build it was;
+ *  the copy button beside it puts that line on the clipboard to paste into the report. */
 const feedbackMenuBuild = () => {
-    const stamp = getDeployStampUtc() ?? (isLocalPreview() ? 'local preview' : undefined)
+    const failure = getDeployStampFailure()
+    const build = getDeployStampUtc()
+    const stamp = build ?? (isLocalPreview() ? 'Build local preview' : failure !== undefined ? `Build unknown (${failure})` : undefined)
     if (stamp === undefined) return null
+    const copied = Date.now() - buildCopiedAt < BUILD_COPIED_MS
     return (
-        <Label
-            value={`build ${stamp}`}
-            fontSize={14}
-            color={MUTED_COLOR}
-            textAlign="middle-center"
-            uiTransform={{ width: '100%', height: 18, margin: { top: FEEDBACK_MENU_GAP } }}
-        />
+        <UiEntity
+            uiTransform={{
+                width: '100%',
+                height: 22,
+                margin: { top: FEEDBACK_MENU_GAP },
+                flexDirection: 'row',
+                justifyContent: 'center',
+                alignItems: 'center'
+            }}
+        >
+            <Label value={stamp} fontSize={14} color={MUTED_COLOR} textAlign="middle-center" uiTransform={{ height: 18 }} />
+            {build !== undefined ? (
+                <UiEntity
+                    uiTransform={{ width: BUILD_COPY_ICON_SIZE, height: BUILD_COPY_ICON_SIZE, margin: { left: 6 } }}
+                    uiBackground={iconBackground(copied ? ICON_COPIED : ICON_COPY)}
+                    onMouseDown={() => {
+                        buildCopiedAt = Date.now()
+                        void copyToClipboard({ text: build })
+                    }}
+                />
+            ) : null}
+        </UiEntity>
     )
 }
 

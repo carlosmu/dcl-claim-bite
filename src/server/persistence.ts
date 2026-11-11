@@ -91,9 +91,16 @@ export type StoredPurse = {
    * the old `purchases` tally start over too. Missing means none since.
    */
   feedbackPurchases?: number
-  /** The Claim Office's free wearable: requirements met since it went live, and whether it was claimed. */
+  /**
+   * The Claim Office's rewards, by campaign id (shared/rewards.ts): the quest steps met since the
+   * campaign went live, and whether it was claimed.
+   */
+  rewards?: Record<string, StoredReward>
+  /** Read only: the one reward from before there were several. Folded into `rewards` on load, never written. */
   gift?: StoredGift
 }
+
+export type StoredReward = { steps: Record<string, boolean>; claimed: boolean }
 
 export type StoredGift = { sold: boolean; bought: boolean; surveyed: boolean; claimed: boolean }
 

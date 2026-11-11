@@ -2,14 +2,14 @@ import { ColliderLayer, engine, GltfContainer } from '@dcl/sdk/ecs'
 
 import { focusPanel, registerPanel } from '../world/panel-focus'
 import { createProximityZone, ProximityZone } from '../world/proximity-zone'
-import { GiftStatus } from '../shared/gift'
-import { sendClaimGift } from '../net/economy-link'
+import { findRewardCampaign, RewardStatus } from '../shared/rewards'
+import { sendClaimReward } from '../net/economy-link'
 
-// The Claim Office: where rewards are handed out, apart from anything that is sold. For now a
-// single item, the free wearable (shared/gift.ts), shown in the Land Office's layout with what it
-// takes to get it. Opens like the Land Office: walking up to the clerk, or clicking them.
+// The Claim Office: where rewards are handed out, apart from anything that is sold. One card per
+// campaign (shared/rewards.ts), shown in the Land Office's layout with the quest it takes to get
+// it. Opens like the Land Office: walking up to the clerk, or clicking them.
 //
-// The requirements are the server's word (`giftStatus`); this only mirrors them.
+// The quests' progress is the server's word (`rewardStatus`); this only mirrors it.
 
 /** The clerk behind the counter in the Creator Hub scene: walking up to them or clicking them opens the office. */
 const CLAIM_OFFICER_ENTITY_NAME = 'claim_officer'
@@ -18,9 +18,11 @@ export const CLAIM_OFFICE_RADIUS_METERS = 4
 let zone: ProximityZone | null = null
 let closed = false
 
-let status: GiftStatus = { sold: false, bought: false, surveyed: false, claimed: false, claiming: false }
-/** The last refusal of a claim, shown under the button until the next try. */
+/** Where the player stands with each campaign, by its id. Empty until the server says. */
+let statuses = new Map<string, RewardStatus>()
+/** The last refusal of a claim and the campaign it was for, shown under its button until the next try. */
 let claimError = ''
+let claimErrorFor = ''
 
 export function isClaimOfficePanelOpen(): boolean {
   return zone !== null && zone.isPlayerInside() && !closed
@@ -31,31 +33,37 @@ export function closeClaimOfficePanel(): void {
   zone?.release()
 }
 
-export function getGiftStatus(): GiftStatus {
-  return status
+/** Where the player stands with a campaign: nothing done until the server says otherwise. */
+export function getRewardStatus(campaignId: string): RewardStatus {
+  return statuses.get(campaignId) ?? { id: campaignId, done: [], claimed: false, claiming: false }
 }
 
-export function getGiftClaimError(): string {
-  return claimError
+export function getRewardClaimError(campaignId: string): string {
+  return claimErrorFor === campaignId ? claimError : ''
 }
 
-export function canClaimGift(): boolean {
-  return status.sold && status.bought && status.surveyed && !status.claimed && !status.claiming
+/** Every step of the campaign's quest is done and it has not been claimed yet. */
+export function canClaimReward(campaignId: string): boolean {
+  const campaign = findRewardCampaign(campaignId)
+  if (campaign === null) return false
+  const status = getRewardStatus(campaignId)
+  return !status.claimed && !status.claiming && campaign.steps.every((step) => status.done.includes(step))
 }
 
-export function claimGift(): void {
-  if (!canClaimGift()) return
+export function claimReward(campaignId: string): void {
+  if (!canClaimReward(campaignId)) return
   claimError = ''
-  sendClaimGift()
+  claimErrorFor = campaignId
+  sendClaimReward(campaignId)
 }
 
-/** Fed every `giftStatus` from the economy link. */
-export function applyGiftStatus(next: GiftStatus): void {
-  status = next
+/** Fed every `rewardStatus` from the economy link. */
+export function applyRewardStatus(next: RewardStatus[]): void {
+  statuses = new Map(next.map((status) => [status.id, status]))
 }
 
-/** Fed the `claimGift` action results. */
-export function onGiftClaimResult(ok: boolean, detail: string): void {
+/** Fed the `claimReward` action results: the answer to the last claim sent. */
+export function onRewardClaimResult(ok: boolean, detail: string): void {
   claimError = ok ? '' : detail
 }
 

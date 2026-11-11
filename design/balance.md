@@ -23,40 +23,77 @@ it.
 
 ## 1. Market
 
+Reworked 2026-11-11: the market now depends on how many players are in the scene. With 30
+players online the old market sat at the cap all the time, because everybody sold into a
+market sized for one.
+
 | | Value |
 |---|---|
 | Base rate | **1 coin = 10 ore** |
 | Cap (worst rate) | **1 coin = 12 ore** — never worse, so selling always pays something |
-| Selling | **+1% of base per 500 ore sold** (+0.1 ore per coin), up to **+20%** total (= 12) |
-| Recovery | **1% of base per hour** (−0.1 ore per coin) back toward 10 |
-| Full recovery cap → base | ~20 hours |
+| Crowd | players in the scene, counted between **3** and **30** (1–2 count as 3, more than 30 as 30) |
+| Selling | pooled per **minute**: `+0.5 × log2(1 + ore sold that minute / depth)` |
+| Depth | **100 ore** with 3 players, **1,000 ore** with 30, linear in between |
+| Recovery | every **10 seconds**, a share of the distance back to 10 |
+| Recovery share | **17% per minute** with 3 players, **53% per minute** with 30, linear in between |
+| Full recovery cap → base | **~20 min** with 3 players, **5 min** with 30 |
 
-Impact is by **amount of ore**, not by number of sales, and the rate slides ore by ore during a
-sale — so splitting a sale into pieces changes nothing, and neither does bundling it.
+Everything between 3 and 30 players slides linearly: 10 players have a depth of ~333 ore and
+give back ~26% per minute.
 
-What moves the market, at 500 ore per 1%:
+### Selling
 
-| Who | Ore sold | Rate move |
+Impact is by the **total ore sold in the minute**, on a log curve — so splitting a sale into
+pieces inside the minute changes nothing, and a whale moves the market less than
+proportionally. A sale is priced whole at the rate on the screen (to one decimal); the rate
+moves afterwards, so the dump costs the next sale, not this one.
+
+What one minute of selling does to the rate:
+
+| Ore sold in the minute | 3 players | 30 players |
 |---|---|---|
-| A typical daily haul | a few hundred to ~1,000 | 1–2% — barely visible |
-| A full tier-1 warehouse | 500 | 1% (10 → 10.1) |
-| A full tier-2 warehouse | 2,000 | 4% |
-| A full tier-3 warehouse | 5,000 | 10% |
-| **A whale** | **10,000** without the market recovering | **20% — the cap** |
+| 100 | +0.5 | +0.07 |
+| 500 | +1.3 | +0.3 |
+| 1,000 | +1.7 | +0.5 |
+| 3,000 | cap | +1.0 |
+| 5,000 | cap | +1.3 |
+| Ore to go from 10 to the cap | ~1,500 | ~15,000 |
 
-Recovery (1%/h) absorbs about 500 ore of selling per hour town-wide, so hitting the cap takes a
-whale, or many players dumping together faster than the market heals.
+The same 3,000 ore that floors a small town moves a full one by half the range: one seller is
+strong among 3 and weak among 30. The crowd is fixed for the minute once something has been
+sold in it, so a player walking out cannot move the rate without a sale.
 
-500 ore per 1% is kept on purpose after the 5-ore rock: the step is bounded by storage. A full
-tier-3 warehouse is 5,000 ore, so reaching the 20% cap needs two full top-tier dumps inside the
-recovery window — a whale by construction.
+### Recovery
 
-Recovery deliberately crosses sessions (a typical session is 5–15 min): waiting stays a real
-bet, and the sale log keeps its meaning — it proves what happened while you were away, even
-after the rate has recovered. At the cap, selling no longer moves the number; the sale log is
-the only visible evidence that someone sold at that moment.
+Proportional, not a fixed step: the further from 10, the faster it falls. From the cap with
+nobody selling:
 
-Superseded: the two-speed macro + slippage model and the 40-ore cap.
+| Minute | 3 players | 30 players |
+|---|---|---|
+| 0 | 12.00 | 12.00 |
+| 1 | 11.66 | 10.94 |
+| 2 | 11.38 | 10.44 |
+| 3 | 11.14 | 10.21 |
+| 5 | 10.79 | **10.00** |
+| 10 | 10.31 | |
+| 15 | 10.12 | |
+| 20 | **10.00** | |
+
+Within 0.05 of the base the rate snaps to 10: a share of the distance alone would never arrive.
+The fall is applied in small steps every 10 seconds so it reads as smooth; players see the rate
+to one decimal, and the price notification fires only when that decimal changes.
+
+Because recovery is a share of the distance, a steady stream of sales settles at a level
+instead of climbing to the cap and staying there: the busier the minute, the higher the level.
+
+Recovery now fits inside a session (5–20 min) instead of crossing sessions: waiting out a bad
+rate is a short bet a player can actually make before leaving.
+
+Constants: `MARKET_*` and `RATE_*` in `src/shared/economy/constants.ts`; the logic is
+`src/shared/state/market.ts`.
+
+Superseded: +1% per 500 ore with 1%/hour recovery (~20 hours cap → base); the two-speed macro
++ slippage model and the 40-ore cap.
 
 ## 2. Picks — manual mining
 
