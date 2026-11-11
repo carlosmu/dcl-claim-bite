@@ -10,10 +10,19 @@ import { getRealm, getSceneInformation } from '~system/Runtime'
 const DEPLOY_STAMP_UTC_OFFSET_HOURS = -3
 
 let stamp: string | undefined
+let deployedAt: number | undefined
 
 /** Like 2026_10_23_1130 (24 h), or undefined in preview and until the lookup lands. */
 export function getDeployStamp(): string | undefined {
   return stamp
+}
+
+/** Like 2026.11.10.12:00 UTC, for players to quote in bug reports; undefined like getDeployStamp. */
+export function getDeployStampUtc(): string | undefined {
+  if (deployedAt === undefined) return undefined
+  const d = new Date(deployedAt)
+  const two = (n: number) => `${n}`.padStart(2, '0')
+  return `${d.getUTCFullYear()}.${two(d.getUTCMonth() + 1)}.${two(d.getUTCDate())}.${two(d.getUTCHours())}:${two(d.getUTCMinutes())} UTC`
 }
 
 function format(timestamp: number): string {
@@ -32,7 +41,10 @@ export function setupDeployStamp(): void {
       if (!entityId) return
       const response = await fetch(`${scene.baseUrl}${entityId}`)
       const entity = await response.json()
-      if (typeof entity.timestamp === 'number') stamp = format(entity.timestamp)
+      if (typeof entity.timestamp === 'number') {
+        deployedAt = entity.timestamp
+        stamp = format(entity.timestamp)
+      }
     } catch (error) {
       console.log('deploy stamp unavailable', error)
     }

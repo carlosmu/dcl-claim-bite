@@ -69,7 +69,7 @@ import { getTownTitles } from './shared/net/town-titles-sync'
 import { TitleId } from './shared/titles'
 import { getDurability, getEquipped, getOwned } from './shared/state/inventory'
 import { getServerTick, isServerOnline } from './net/server-link'
-import { getDeployStamp } from './net/deploy-stamp'
+import { getDeployStamp, getDeployStampUtc } from './net/deploy-stamp'
 import { getMiningStatus, getRingPulse, showMoveCloserHint } from './mining/rocks'
 import { setupRollingCounters, shownCoins, shownOre } from './ui/rolling-counter'
 import { getOrePopup, setupOrePopup } from './ui/ore-popup'
@@ -3766,8 +3766,24 @@ const feedbackMenu = () => (
     >
         {feedbackMenuRow('GIVE FEEDBACK', true, giveFeedback)}
         {feedbackMenuRow('REPORT A BUG', false, reportBug)}
+        {feedbackMenuBuild()}
     </UiEntity>
 )
+
+/** The deploy's date under the two choices, so a bug report can say which build it was. */
+const feedbackMenuBuild = () => {
+    const stamp = getDeployStampUtc() ?? (isLocalPreview() ? 'local preview' : undefined)
+    if (stamp === undefined) return null
+    return (
+        <Label
+            value={`build ${stamp}`}
+            fontSize={14}
+            color={MUTED_COLOR}
+            textAlign="middle-center"
+            uiTransform={{ width: '100%', height: 18, margin: { top: FEEDBACK_MENU_GAP } }}
+        />
+    )
+}
 
 // --- Sound -------------------------------------------------------------------------------
 //
