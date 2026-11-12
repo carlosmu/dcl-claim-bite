@@ -42,6 +42,9 @@ export const Messages = {
   /** "Give me this Claim Office reward" (a campaign id from shared/rewards.ts). Granted once, to a player who has completed its quest. */
   claimReward: Schemas.Map({ id: Schemas.String }),
 
+  /** "Credit me this compensation" (an id from server/compensations.ts). Granted once, and only to the player it is for. */
+  claimCompensation: Schemas.Map({ id: Schemas.String }),
+
   /** "Throw away the notes left at my door." */
   clearNotes: Schemas.Map({ ready: Schemas.Boolean }),
 
@@ -98,6 +101,16 @@ export const Messages = {
         claiming: Schemas.Boolean
       })
     )
+  }),
+
+  // Server -> one client: coins owed to this player for something that went wrong, waiting to be
+  // credited. Sent on arrival and on hello while not credited, and once more with `claimed` true
+  // when it is. `date` is the day it happened, as the screen says it ("November 11").
+  compensation: Schemas.Map({
+    id: Schemas.String,
+    coins: Schemas.Number,
+    date: Schemas.String,
+    claimed: Schemas.Boolean
   }),
 
   // Server -> one client: what a finished rock paid. `bonus` is the Social Bonus part of `ore`,

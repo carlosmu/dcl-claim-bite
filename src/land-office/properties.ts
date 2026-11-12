@@ -47,6 +47,33 @@ const LOTS_TURNED: Record<PropertyKind, boolean> = {
   ranch: true
 }
 
+/**
+ * Kinds whose rows all face the same way as the first, each row standing right behind the one
+ * before instead of pairing up face to face or back to back.
+ */
+const ROWS_FACE_ONE_WAY: Record<PropertyKind, boolean> = {
+  cabin: false,
+  house: false,
+  ranch: true
+}
+
+/**
+ * Extra metres left free between one row and the next, on top of the lot spacing. The first
+ * row keeps its place on the area; each row after it is pushed further back by the gap.
+ */
+const ROW_GAP_METERS: Record<PropertyKind, number> = {
+  cabin: 0,
+  house: 0,
+  ranch: 11
+}
+
+/** How many metres forward (-Z) the first row stands from its place on the area; the rest follow it. */
+const FIRST_ROW_FORWARD_METERS: Record<PropertyKind, number> = {
+  cabin: 0,
+  house: 0,
+  ranch: 3
+}
+
 /** Where the sign stands from the lot's origin (a front corner), and which way it faces. */
 const OWNER_SIGN_OFFSET = Vector3.create(0, 0, 0)
 const OWNER_SIGN_YAW_DEGREES = 0
@@ -130,6 +157,9 @@ function buildArea(kind: PropertyKind): void {
   const rows = Math.max(1, Math.floor(depth / spacingZ))
   // No more lots than the server may hand out, so none stands for sale that cannot be bought.
   const lotCount = Math.min(columns * rows, PROPERTY_AREAS[kind].maxLots)
+  // The lots spread evenly over the rows they need, centred on the area, rather than filling
+  // every column of the first rows and leaving the last one short.
+  const rowLength = Math.ceil(lotCount / Math.ceil(lotCount / columns))
 
   const root = engine.addEntity()
   Transform.create(root, { parent: areaTransform.parent, position: areaTransform.position })
@@ -137,13 +167,14 @@ function buildArea(kind: PropertyKind): void {
   const lots: Lot[] = []
   for (let row = 0; row < rows && lots.length < lotCount; row++) {
     // Turning a lot round about its middle is the same as swapping which corner is its origin.
-    const facesBack = (row % 2 === 1) !== LOTS_TURNED[kind]
-    for (let column = 0; column < columns && lots.length < lotCount; column++) {
+    const facesBack = (!ROWS_FACE_ONE_WAY[kind] && row % 2 === 1) !== LOTS_TURNED[kind]
+    for (let column = 0; column < rowLength && lots.length < lotCount; column++) {
       // The lot's low corner on the area; a lot turned round has its origin there instead.
       // The first lots handed out are the nearest.
-      const place = LOTS_FROM_PLUS_X[kind] ? columns - 1 - column : column
-      const x = (-columns * spacingX) / 2 + spacingX * place
-      const z = (-rows * spacingZ) / 2 + spacingZ * row
+      const place = LOTS_FROM_PLUS_X[kind] ? rowLength - 1 - column : column
+      const x = (-rowLength * spacingX) / 2 + spacingX * place
+      const rowGap = ROW_GAP_METERS[kind]
+      const z = (-rows * spacingZ) / 2 - FIRST_ROW_FORWARD_METERS[kind] + (spacingZ + rowGap) * row
       lots.push({
         corner: facesBack ? Vector3.create(x + spacingX, 0, z) : Vector3.create(x, 0, z + spacingZ),
         yawDegrees: facesBack ? 180 : 0

@@ -91,6 +91,7 @@ import { getMiningStatus, getRingPulse, showMoveCloserHint } from './mining/rock
 import { setupRollingCounters, shownCoins, shownOre } from './ui/rolling-counter'
 import { getOrePopup, setupOrePopup } from './ui/ore-popup'
 import { DEBUG_ADD_COINS, DEBUG_ADD_ORE, DEBUG_RESET_PROGRESS, DEBUG_SERVER_STATUS, DEBUG_SHOW_MULE_ALERTS } from './shared/debug-flags'
+import { claimCompensation, closeCompensation, CompensationOffer, getCompensation, isClaimingCompensation } from './ui/compensation'
 import { isLocalPreview } from './shared/local-preview'
 import { quotedRate, secondsToRecover } from './shared/state/market'
 import { BitmapText } from './ui/bitmap-text'
@@ -929,7 +930,82 @@ const bankPanel = () => {
     )
 }
 
-const TILE_COLOR = Color4.create(0.16, 0.16, 0.18, 1)
+// Coins owed to the player for something that went wrong (server/compensations.ts), dressed as
+// The Bank. The button credits them; once it says CREDITED the screen can be closed, for good.
+const compensationPanel = (offer: CompensationOffer) => {
+    const claiming = isClaimingCompensation()
+    const label = offer.claimed ? 'CREDITED' : claiming ? 'CREDITING...' : `CLAIM ${offer.coins} COINS`
+    const live = !offer.claimed && !claiming
+
+    return (
+        <UiEntity
+            uiTransform={{
+                positionType: 'absolute',
+                width: '100%',
+                minWidth: PANEL_MIN_WIDTH,
+                flexDirection: 'column',
+                alignItems: 'center',
+                padding: BANK_PANEL_PADDING,
+                borderRadius: PANEL_RADIUS,
+                borderWidth: 3,
+                borderColor: BANK_TRIM
+            }}
+            uiBackground={{ color: BANK_WOOD_DARK }}
+        >
+            <UiEntity uiTransform={{ width: '100%', height: 96, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
+                {bankIcon(ICON_BANK, 72)}
+                <UiEntity uiTransform={{ flexDirection: 'column', alignItems: 'center' }}>
+                    <BitmapText value="THE BANK" fontSize={60} color={BANK_GOLD_LIGHT} />
+                    <Label value="A Note from the Bank" fontSize={18} color={BANK_CAPTION} textAlign="middle-center" uiTransform={{ height: 24 }} />
+                </UiEntity>
+            </UiEntity>
+
+            {bankSection('YOUR COINS ARE BACK!', [
+                <Label
+                    key="text"
+                    value={`We know you lost coins on ${offer.date} because of a mix-up in the bank's ledger. Sorry about that! Here are ${offer.coins} coins to make up for it.`}
+                    fontSize={20}
+                    color={BANK_CREAM}
+                    textAlign="middle-left"
+                    textWrap="wrap"
+                    uiTransform={{ width: '100%', minHeight: 60, margin: { top: 4, bottom: 8 } }}
+                />,
+                <UiEntity key="amount" uiTransform={{ width: '100%', height: 80, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
+                    {bankIcon(ICON_COINS, 56)}
+                    <BitmapText value={`${offer.coins} COINS`} fontSize={52} color={COIN_COLOR} />
+                </UiEntity>
+            ])}
+
+            <UiEntity uiTransform={{ width: '100%', height: BANK_BUTTON_GAP }} />
+            {bankButton(
+                label,
+                live ? claimCompensation : () => {},
+                { width: '100%', height: 72 },
+                44,
+                live ? BANK_GOLD : DISABLED_COLOR,
+                live ? BANK_INK : MUTED_COLOR
+            )}
+            {offer.claimed ? (
+                <Button
+                    value="X"
+                    fontSize={30}
+                    color={Color4.White()}
+                    uiTransform={{
+                        positionType: 'absolute',
+                        position: { top: BANK_PANEL_PADDING, right: BANK_PANEL_PADDING },
+                        width: 48,
+                        height: 48,
+                        borderRadius: PANEL_RADIUS
+                    }}
+                    uiBackground={{ color: MAP_CLOSE_COLOR }}
+                    onMouseDown={closeCompensation}
+                />
+            ) : null}
+        </UiEntity>
+    )
+}
+
+const TILE_COLOR =Color4.create(0.16, 0.16, 0.18, 1)
 const TILE_SELECTED_COLOR = Color4.create(0.28, 0.1, 0.24, 1)
 const TILE_BORDER_COLOR = Color4.create(0.32, 0.32, 0.34, 1)
 const TILE_WIDTH = 220
@@ -4521,6 +4597,8 @@ export const uiMenu = () => (
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isCasinoPanelOpen() ? casinoPanel() : null}
             {pickSelector()}
             {muleDropdown()}
+            {/* Over every other panel: it waits for its button and nothing else. */}
+            {getCompensation() !== null ? compensationPanel(getCompensation()!) : null}
         </UiEntity>
         {welcomeOverlay()}
         {introScreen()}

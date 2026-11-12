@@ -23,6 +23,7 @@ import { onNoteResult } from '../land-office/owner-card'
 import { onSlotRefused, onSlotResult } from '../casino/casino'
 import { notePurchaseCount } from '../playtest'
 import { applyRewardStatus, onRewardClaimResult } from '../claim-office/claim-office'
+import { applyCompensation, onCompensationRefused } from '../ui/compensation'
 
 const BANK_SOUND_CLIP = 'assets/sounds/bank.mp3'
 const BUY_SOUND_CLIP = 'assets/sounds/buy.mp3'
@@ -167,6 +168,12 @@ export function sendClaimReward(campaignId: string): void {
   room.send('claimReward', { id: campaignId })
 }
 
+/** Asks the server to credit a compensation it offered, by its id. */
+export function sendClaimCompensation(id: string): void {
+  if (!isStateSyncronized()) return
+  room.send('claimCompensation', { id })
+}
+
 /** Asks the mayor's free pick. The server only grants it to a player with none. */
 export function sendClaimPick(): void {
   if (!isStateSyncronized()) return
@@ -260,6 +267,8 @@ export function setupEconomyLink(): void {
   // Paces the feedback asks; only a purchase that went through is counted.
   room.onMessage('purchaseCount', (data) => notePurchaseCount(data.count))
 
+  room.onMessage('compensation', (data) => applyCompensation({ id: data.id, coins: data.coins, date: data.date, claimed: data.claimed }))
+
   room.onMessage('rewardStatus', (data) => applyRewardStatus(data.rewards.map((reward) => ({ ...reward, done: [...reward.done] }))))
 
   // The server may send the same arrival twice (on arrival and on hello): the same figure is
@@ -293,6 +302,10 @@ export function setupEconomyLink(): void {
     if (data.action === 'leaveNote') onNoteResult(data.ok, data.detail)
     if (data.action === 'slotSpin' && !data.ok) onSlotRefused(data.detail)
     if (data.action === 'claimReward') onRewardClaimResult(data.ok, data.detail)
+    if (data.action === 'claimCompensation') {
+      if (data.ok) playSfx(BANK_SOUND_CLIP, SOUND_VOLUME)
+      else onCompensationRefused()
+    }
     if (!data.ok) {
       console.log(`[economy] ${data.action} refused: ${data.detail}`)
       return

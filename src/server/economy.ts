@@ -80,6 +80,7 @@ import { advanceRock, getRockSeqs, hasFinishedRock, isRock, isRockStarted, markF
 import { requestReward } from './rewards'
 import { onResponseSaved } from '../scene-feedback/lib/server/hooks'
 import { findRewardCampaign, LEGACY_GIFT_CAMPAIGN_ID, REWARD_CAMPAIGNS, REWARD_SURVEY_QUESTIONS, RewardStepId } from '../shared/rewards'
+import { Compensation, compensationsFor } from './compensations'
 
 type Purse = {
   ore: number
@@ -98,6 +99,8 @@ type Purse = {
   purchases: number
   /** The Claim Office's rewards, by campaign id: see sendRewardStatus. */
   rewards: Record<string, StoredReward>
+  /** The ids of the compensations already credited: see sendCompensation. */
+  compensations: string[]
   /** Ore the rigs put in storage since it was last reported to the titles. Not saved. */
   rigOreTally: number
 }
@@ -235,6 +238,7 @@ function beginLoad(address: string): void {
         pickDurability: stored?.pickDurability ?? {},
         purchases: stored?.feedbackPurchases ?? 0,
         rewards: restoreRewards(stored),
+        compensations: stored?.compensations ?? [],
         rigOreTally: 0
       }
       grantStartingItems(purse)
@@ -252,6 +256,7 @@ function beginLoad(address: string): void {
       sendWallet(address)
       sendMuleAway(address)
       sendRewardStatus(address)
+      sendCompensation(address)
       console.log(`[Server] purse ${stored === null ? 'created for' : 'restored for'} ${address}`)
     })
     .catch((error) => {
@@ -440,6 +445,46 @@ function handleClaimReward(address: string, campaignId: string): void {
     sendRewardStatus(address)
     console.log(`[Server] ${campaign.id} reward claim for ${address}: ${result.ok ? 'assigned' : result.detail}`)
   })
+}
+
+/** The first compensation owed to this player and not credited yet, if any. */
+function pendingCompensation(purse: Purse, address: string): Compensation | null {
+  return compensationsFor(address).find((entry) => !purse.compensations.includes(entry.id)) ?? null
+}
+
+/** Offers the player the next compensation owed to them. Nothing is sent when none is. */
+function sendCompensation(address: string): void {
+  const purse = purses.get(address)
+  if (purse === undefined) return
+  const entry = pendingCompensation(purse, address)
+  if (entry === null) return
+  room.send('compensation', { id: entry.id, coins: entry.coins, date: entry.date, claimed: false }, { to: [address] })
+}
+
+function handleClaimCompensation(address: string, id: string): void {
+  const purse = purseOf(address)
+  if (purse === null) {
+    sendResult(address, 'claimCompensation', false, 'still loading')
+    return
+  }
+  // Only an entry written for this very wallet: a client cannot claim someone else's by its id.
+  const entry = compensationsFor(address).find((candidate) => candidate.id === id)
+  if (entry === undefined) {
+    sendResult(address, 'claimCompensation', false, 'nothing owed')
+    return
+  }
+  if (!purse.compensations.includes(entry.id)) {
+    purse.coins += entry.coins
+    purse.compensations.push(entry.id)
+    dirty.add(address)
+    // Written now: credited coins are exactly what must not be lost to a restart.
+    flushPurse(address)
+    sendWallet(address)
+    console.log(`[Server] credited compensation ${entry.id} to ${address}: +${entry.coins} coins · balance ${purse.coins}`)
+  }
+  // Answered as credited even on a repeat, so a client that missed the first answer stops asking.
+  room.send('compensation', { id: entry.id, coins: entry.coins, date: entry.date, claimed: true }, { to: [address] })
+  sendResult(address, 'claimCompensation', true, `+${entry.coins} coins`)
 }
 
 /** The player's purse, or null while it is still being read. */
@@ -929,6 +974,7 @@ function checkPresence(dt: number) {
       // The returning client starts from an empty mirror, and this wallet may stop its hellos
       // before one brings the rewards' status: it goes with the wallet.
       sendRewardStatus(address)
+      sendCompensation(address)
     }
   }
 
@@ -963,7 +1009,8 @@ function flushPurse(address: string): void {
     equipped: purse.equipped,
     pickDurability: purse.pickDurability,
     feedbackPurchases: purse.purchases,
-    rewards: purse.rewards
+    rewards: purse.rewards,
+    compensations: purse.compensations
   })
   // A failed write puts the purse back in the queue for the next flush rather than losing it.
   saved
@@ -1479,6 +1526,7 @@ export function setupEconomy(): void {
     if (purseOf(context.from) !== null) {
       sendWallet(context.from)
       sendRewardStatus(context.from)
+      sendCompensation(context.from)
       // The arrival's copy may have gone out before this client was listening.
       sendMuleAway(context.from)
       muleAwayOre.delete(context.from)
@@ -1557,6 +1605,11 @@ export function setupEconomy(): void {
   room.onMessage('claimReward', (data, context) => {
     if (!context) return
     handleClaimReward(context.from, data.id)
+  })
+
+  room.onMessage('claimCompensation', (data, context) => {
+    if (!context) return
+    handleClaimCompensation(context.from, data.id)
   })
 
   // A survey answered (not skipped) counts toward the rewards that ask for one.

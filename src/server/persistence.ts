@@ -111,6 +111,8 @@ export type StoredPurse = {
    * campaign went live, and whether it was claimed.
    */
   rewards?: Record<string, StoredReward>
+  /** The ids of the compensations already credited (server/compensations.ts). Missing means none. */
+  compensations?: string[]
   /** Read only: the one reward from before there were several. Folded into `rewards` on load, never written. */
   gift?: StoredGift
 }
