@@ -86,4 +86,5 @@ export enum EntityNames {
   slot_machine_glb_2 = "slot_machine.glb_2",
   slot_machine_glb_3 = "slot_machine.glb_3",
   store_officer = "store_officer",
+  tailor_officer = "tailor_officer",
 } 

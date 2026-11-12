@@ -51,6 +51,21 @@ const JACKPOT_KEY = seasonKey('casino-pot')
 /** Scene-wide key: the slot machines' figures per day, for the owner to read in the Storage export. */
 const CASINO_STATS_KEY = seasonKey('casino-stats')
 
+/**
+ * Scene-wide key: things the owner has to look at and maybe put right by hand (coins owed to a
+ * player, say), for reading in the Storage panel. Not per season: an alert outlives a reset.
+ */
+const ALERTS_KEY = 'alerts'
+
+/** How many alerts are kept, newest last. The oldest go once there are more. */
+const MAX_ALERTS = 200
+
+/**
+ * One alert. `at`: when, as an ISO date (UTC). `kind`: what happened, short and fixed, to scan the
+ * list by. `address`: the player it is about, if any. `coins`: owed to them, if any.
+ */
+export type StoredAlert = { at: string; kind: string; message: string; address?: string; coins?: number }
+
 export type StoredTitles = { days: TownDay[]; owners: NewOwner[] }
 
 /** One day of the slot machines. `won` is what left the game: bets, less wins, less the pot's growth. */
@@ -258,4 +273,28 @@ export async function saveMuleYard(mules: StoredMule[]): Promise<boolean> {
     console.log(`[Server] could not save mule yard: ${error}`)
     return false
   }
+}
+
+/** Alerts are written one at a time, each after the last, so two never read the same list and one is lost. */
+let alertQueue: Promise<void> = Promise.resolve()
+
+/**
+ * Adds an alert to the stored list (ALERTS_KEY) and to the log. Never throws. A list that cannot
+ * be read is not written over: the alert then stays in the log only.
+ */
+export function recordAlert(alert: Omit<StoredAlert, 'at'>): void {
+  const entry: StoredAlert = { at: new Date().toISOString(), ...alert }
+  console.log(`[Server] ALERT ${entry.kind}: ${entry.message}`)
+  alertQueue = alertQueue.then(async () => {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const alerts = (await readValue<StoredAlert[]>(`/values/${encodeURIComponent(ALERTS_KEY)}`)) ?? []
+        alerts.push(entry)
+        if (await Storage.set(ALERTS_KEY, alerts.slice(-MAX_ALERTS))) return
+      } catch (error) {
+        console.log(`[Server] could not read the alerts (try ${attempt}): ${error}`)
+      }
+    }
+    console.log(`[Server] ALERT NOT STORED, only in this log: ${JSON.stringify(entry)}`)
+  })
 }

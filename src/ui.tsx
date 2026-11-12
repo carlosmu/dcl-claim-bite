@@ -32,7 +32,16 @@ import {
     isClaimOfficePanelOpen,
     toggleClaimOfficeFromButton
 } from './claim-office/claim-office'
-import { REWARD_CAMPAIGNS, REWARD_STEP_LABELS, RewardCampaign } from './shared/rewards'
+import { REWARD_STEP_LABELS, RewardCampaign, rewardCampaignsAt } from './shared/rewards'
+import {
+    buyTailorItem,
+    canBuyTailorItem,
+    closeTailorShopPanel,
+    getSelectedTailorItem,
+    isTailorItemOwned,
+    isTailorShopPanelOpen,
+    selectTailorItem
+} from './tailor-shop/tailor-shop'
 import {
     canSendNote,
     clearMyNotes,
@@ -1593,16 +1602,24 @@ const GIFT_TODO_COLOR = BANK_CREAM
 
 const rewardKey = (campaign: RewardCampaign): ProductKey => `reward:${campaign.id}`
 
+const CLAIM_CAMPAIGNS = rewardCampaignsAt('claim')
+
 /** The card picked in Collectibles: the first campaign until the player picks another. */
-let selectedRewardId = REWARD_CAMPAIGNS[0].id
+let selectedRewardId = CLAIM_CAMPAIGNS[0].id
 
 function selectedReward(): RewardCampaign {
-    return REWARD_CAMPAIGNS.find((campaign) => campaign.id === selectedRewardId) ?? REWARD_CAMPAIGNS[0]
+    return CLAIM_CAMPAIGNS.find((campaign) => campaign.id === selectedRewardId) ?? CLAIM_CAMPAIGNS[0]
 }
 
-/** The item's thumbnail when one is set, else the gift box from the atlas. */
+/** Atlas icons for the items without a thumbnail of their own, by campaign id. */
+const REWARD_ICONS: Record<string, Icon> = {
+    'claim-bite-mining': ICON_ORE
+}
+
+/** The item's thumbnail when one is set, else its atlas icon, else the gift box. */
 function giftIcon(campaign: RewardCampaign): Icon {
-    return campaign.thumbnail !== '' ? { src: campaign.thumbnail, uvs: [0, 0, 0, 1, 1, 1, 1, 0] } : ICON_GIFT
+    if (campaign.thumbnail !== '') return { src: campaign.thumbnail, uvs: [0, 0, 0, 1, 1, 1, 1, 0] }
+    return REWARD_ICONS[campaign.id] ?? ICON_GIFT
 }
 
 /** No "Locked" while the quest is under way: the card's Quest x/3 already says where it stands. */
@@ -1626,7 +1643,7 @@ let claimTab: ClaimTab = 'collectibles'
 function claimOfficeProducts(): Product[] {
     if (claimTab === 'credits') return [{ key: CREDITS_KEY, title: 'Credits', icon: ICON_COINS, hint: '', status: STATUS_SOON, muted: true }]
     // Quest x/3 while under way; Ready to claim / Claimed take its place after.
-    return REWARD_CAMPAIGNS.map((campaign) => {
+    return CLAIM_CAMPAIGNS.map((campaign) => {
         const status = giftCardStatus(campaign)
         const hint = status === null ? `Quest ${giftStepsDone(campaign)}/${campaign.steps.length}` : ''
         return { key: rewardKey(campaign), title: campaign.cardTitle, icon: giftIcon(campaign), hint, status, muted: false }
@@ -1698,12 +1715,87 @@ const claimOfficePanel = () => {
         claimOfficeProducts(),
         credits ? CREDITS_KEY : rewardKey(reward),
         (key) => {
-            const picked = REWARD_CAMPAIGNS.find((campaign) => rewardKey(campaign) === key)
+            const picked = CLAIM_CAMPAIGNS.find((campaign) => rewardKey(campaign) === key)
             if (picked !== undefined) selectedRewardId = picked.id
         },
         credits ? creditsDetail() : giftDetail(reward),
         tabs,
         false,
+        CLAIM_LIST_WIDTH
+    )
+}
+
+// --- Tailor Shop ------------------------------------------------------------------------
+//
+// The store's layout selling wearables and emotes for coins: one card per Rewards campaign at the
+// Tailor Shop (shared/rewards.ts). Bought once each, through the same claim as the Claim Office:
+// the server takes the coins and asks the Rewards service. Coming Soon until the item is ready.
+
+const TAILOR_CAMPAIGNS = rewardCampaignsAt('tailor')
+
+function tailorItemOf(key: string): RewardCampaign | undefined {
+    return TAILOR_CAMPAIGNS.find((campaign) => rewardKey(campaign) === key)
+}
+
+function tailorCardStatus(campaign: RewardCampaign): Status | null {
+    if (campaign.comingSoon) return STATUS_SOON
+    if (isTailorItemOwned(campaign.id)) return { text: 'Owned', color: PRICE_GOOD_COLOR }
+    return null
+}
+
+function tailorProducts(): Product[] {
+    return TAILOR_CAMPAIGNS.map((campaign) => ({
+        key: rewardKey(campaign),
+        title: campaign.cardTitle,
+        icon: giftIcon(campaign),
+        hint: campaign.comingSoon || isTailorItemOwned(campaign.id) ? '' : `${withCommas(campaign.price)} Coins`,
+        status: tailorCardStatus(campaign),
+        muted: campaign.comingSoon
+    }))
+}
+
+function tailorDetail(campaign: RewardCampaign): Detail {
+    const status = getRewardStatus(campaign.id)
+    let action: Action
+    if (campaign.comingSoon) action = { label: 'COMING SOON', kind: 'off' }
+    else if (status.claimed) action = { label: 'OWNED', kind: 'equipped' }
+    else if (status.claiming) action = { label: 'BUYING...', kind: 'off' }
+    else action = { label: 'BUY', kind: canBuyTailorItem(campaign.id) ? 'buy' : 'off', onClick: () => buyTailorItem(campaign.id) }
+
+    const notes: ReactEcs.JSX.Element[] = []
+    if (status.claimed) {
+        // Minted on chain by the Rewards service when gas allows: it can take a while to show up.
+        notes.push(detailNote('On its way to your backpack', PRICE_GOOD_COLOR))
+        notes.push(detailNote('It may take a few minutes', BANK_CAPTION))
+        notes.push(detailNote('Press I to open your backpack', BANK_CAPTION))
+    }
+    const error = getRewardClaimError(campaign.id)
+    if (error !== '') notes.push(detailNote(error, SHORT_COLOR))
+    return {
+        title: campaign.name,
+        description: campaign.description,
+        icon: giftIcon(campaign),
+        stats: campaign.comingSoon ? [] : [priceStat(campaign.price)],
+        notes,
+        actions: [storeActionButton(action)],
+        bigIcon: true
+    }
+}
+
+const tailorShopPanel = () => {
+    const item = tailorItemOf(`reward:${getSelectedTailorItem()}`) ?? TAILOR_CAMPAIGNS[0]
+    return counterPanel(
+        'TAILOR SHOP',
+        closeTailorShopPanel,
+        tailorProducts(),
+        rewardKey(item),
+        (key) => {
+            const picked = tailorItemOf(key)
+            if (picked !== undefined) selectTailorItem(picked.id)
+        },
+        tailorDetail(item),
+        undefined,
+        true,
         CLAIM_LIST_WIDTH
     )
 }
@@ -4423,6 +4515,7 @@ export const uiMenu = () => (
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isStorePanelOpen() ? storePanel() : null}
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isLandOfficePanelOpen() ? landOfficePanel() : null}
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isClaimOfficePanelOpen() ? claimOfficePanel() : null}
+            {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isTailorShopPanelOpen() ? tailorShopPanel() : null}
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isMulePanelOpen() && getMuleCount() > 0 ? mulePanel() : null}
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isOwnerCardOpen() ? ownerCardPanel() : null}
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isCasinoPanelOpen() ? casinoPanel() : null}

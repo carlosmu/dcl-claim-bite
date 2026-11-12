@@ -42,7 +42,8 @@ import {
   StoredLot,
   StoredMule,
   StoredPurse,
-  StoredReward
+  StoredReward,
+  recordAlert
 } from './persistence'
 import {
   ORE_PER_ROCK,
@@ -294,9 +295,10 @@ function notePurchase(address: string, purse: Purse): void {
   noteRewardStep(address, purse, 'bought')
 }
 
-// --- The Claim Office's rewards ---
+// --- The Claim Office's rewards and the Tailor Shop's sales ---
 //
-// One quest per campaign (shared/rewards.ts). Each step is recorded in the purse, under the
+// One quest per campaign (shared/rewards.ts), empty for an item that is only sold; a sold item's
+// price is taken with the claim. Each step is recorded in the purse, under the
 // campaign's id, the first time it happens from the day the campaign is live: nothing is worked
 // out from older saves. Then one claim per campaign, passed on to the Rewards service
 // (rewards.ts); only its yes marks the reward claimed.
@@ -372,6 +374,10 @@ function handleClaimReward(address: string, campaignId: string): void {
     sendResult(address, 'claimReward', false, 'unknown reward')
     return
   }
+  if (campaign.comingSoon) {
+    sendResult(address, 'claimReward', false, 'coming soon')
+    return
+  }
   const reward = rewardOf(purse, campaign.id)
   if (reward.claimed) {
     sendResult(address, 'claimReward', false, 'already claimed')
@@ -383,7 +389,19 @@ function handleClaimReward(address: string, campaignId: string): void {
   }
   const key = claimKey(address, campaign.id)
   if (claimingReward.has(key)) return
+  const price = campaign.price
+  if (purse.coins < price) {
+    sendResult(address, 'claimReward', false, `needs ${price - purse.coins} more coins`)
+    return
+  }
   claimingReward.add(key)
+  // A sold item's coins are taken now, before the service answers, so they cannot be spent on
+  // something else meanwhile. Given back below if the item is not handed over.
+  if (price > 0) {
+    purse.coins -= price
+    dirty.add(address)
+    sendWallet(address)
+  }
   sendRewardStatus(address)
 
   void requestReward(address, campaign.dispenserKeyVar).then((result) => {
@@ -394,11 +412,30 @@ function handleClaimReward(address: string, campaignId: string): void {
     // A refusal for "already got it" counts as claimed too: the wallet has its wearable, only
     // this purse had lost the record of it.
     const claimedNow = result.ok || result.alreadyClaimed
+    // Paid for only what this claim handed over: a refusal, or an item the wallet already had,
+    // gets its coins back.
+    const refund = result.ok ? 0 : price
+    if (refund > 0) {
+      if (now !== undefined) {
+        now.coins += refund
+        dirty.add(address)
+        sendWallet(address)
+      } else {
+        // Purses stay in memory once read, so this should not happen; stored as an alert so the
+        // coins can be put right by hand if it ever does.
+        recordAlert({
+          kind: 'refund-lost',
+          message: `Paid ${refund} coins for ${campaign.id}, not handed over (${result.detail}), and the purse was gone to refund it`,
+          address,
+          coins: refund
+        })
+      }
+    }
     if (claimedNow && now !== undefined) {
       rewardOf(now, campaign.id).claimed = true
       dirty.add(address)
-      flushPurse(address)
     }
+    if (now !== undefined && (claimedNow || refund > 0)) flushPurse(address)
     sendResult(address, 'claimReward', claimedNow, result.ok ? result.detail : claimedNow ? 'already claimed' : result.detail)
     sendRewardStatus(address)
     console.log(`[Server] ${campaign.id} reward claim for ${address}: ${result.ok ? 'assigned' : result.detail}`)

@@ -1,7 +1,9 @@
-// The Claim Office's rewards: free wearables given to players who complete a short quest. Shared
-// by both halves: the server checks the steps and asks the Rewards service, the client shows them.
+// The items handed out through Decentraland Rewards campaigns: the Claim Office's free wearables,
+// given to players who complete a short quest, and the Tailor Shop's, sold for coins. Shared by
+// both halves: the server checks the steps (or takes the coins) and asks the Rewards service, the
+// client shows them.
 //
-// One entry of REWARD_CAMPAIGNS per reward. To add one: add an entry here, create its campaign at
+// One entry of REWARD_CAMPAIGNS per item. To add one: add an entry here, create its campaign at
 // rewards.decentraland.org and put the campaign's dispenser key in the environment variable the
 // entry names (decentraland.org/storage → Environment, or `.env` in a local preview).
 //
@@ -25,6 +27,9 @@ export const REWARD_STEP_LABELS: Record<RewardStepId, string> = {
   surveyed: 'Answer a feedback survey'
 }
 
+/** Where an item is handed out: the Claim Office for quests, the Tailor Shop for sales. */
+export type RewardVenue = 'claim' | 'tailor'
+
 export type RewardCampaign = {
   /**
    * The key the player's progress is stored under. Never change it once the campaign is live:
@@ -35,10 +40,18 @@ export type RewardCampaign = {
   cardTitle: string
   name: string
   description: string
-  /** The item's picture, the whole image (a scene path or a URL). Empty: the gift icon from the UI atlas instead. */
+  /** The item's picture, the whole image (a scene path or a URL). Empty: an icon from the UI atlas instead (ui.tsx, REWARD_ICONS, else the gift). */
   thumbnail: string
-  /** The quest, in the order it is listed. Each step counts from the day the campaign went live. */
+  venue: RewardVenue
+  /** The quest, in the order it is listed. Each step counts from the day the campaign went live. Empty for an item that is only sold. */
   steps: readonly RewardStepId[]
+  /**
+   * Coins taken when it is claimed, on top of the quest. Taken before the Rewards service is
+   * asked and given back if it says no, so a failed claim costs nothing. 0: free.
+   */
+  price: number
+  /** Shown but not claimable yet: the card says Coming Soon and the server turns claims down. */
+  comingSoon: boolean
   /** The server environment variable that holds the campaign's dispenser key. The key itself is a secret and never here. */
   dispenserKeyVar: string
 }
@@ -50,10 +63,32 @@ export const REWARD_CAMPAIGNS: readonly RewardCampaign[] = [
     name: 'Bug Catcher Gear',
     description: 'Suit up, catch bugs, and make games better!',
     thumbnail: 'assets/images/wearable.png',
+    venue: 'claim',
     steps: ['sold', 'bought', 'surveyed'],
+    price: 0,
+    comingSoon: false,
     dispenserKeyVar: 'REWARDS_DISPENSER_KEY'
+  },
+  {
+    // An emote. Until its campaign exists: no dispenser key, and Coming Soon at the Tailor Shop.
+    id: 'claim-bite-mining',
+    cardTitle: 'Mining Emote',
+    name: 'Claim Bite Mining',
+    description: 'Swing a pick wherever you go, like a true Claim Bite miner.',
+    // Empty: the UI shows the ore icon from its atlas (ui.tsx, REWARD_ICONS).
+    thumbnail: '',
+    venue: 'tailor',
+    steps: [],
+    price: 500,
+    comingSoon: true,
+    dispenserKeyVar: 'REWARDS_DISPENSER_KEY_MINING_EMOTE'
   }
 ]
+
+/** The items one place hands out, in the order they are listed. */
+export function rewardCampaignsAt(venue: RewardVenue): RewardCampaign[] {
+  return REWARD_CAMPAIGNS.filter((campaign) => campaign.venue === venue)
+}
 
 /** The campaign that saves from before there were several (the purse's old `gift`) belong to. */
 export const LEGACY_GIFT_CAMPAIGN_ID = 'bug-catcher'
