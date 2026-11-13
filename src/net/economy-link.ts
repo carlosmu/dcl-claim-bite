@@ -297,14 +297,6 @@ export function setupEconomyLink(): void {
     walletFresh = data.fresh
     walletServer = data.server
     walletCount += 1
-    // Once the server is answering: tells it which deploy this client runs, so a client left on
-    // an old one is asked to rejoin.
-    if (Date.now() - buildSentAt >= BUILD_RESEND_MS) {
-      buildSentAt = Date.now()
-      readSceneEntityId()
-        .then((entity) => room.send('clientBuild', { entity }))
-        .catch(() => (buildSentAt = -Infinity))
-    }
     capacity = data.capacity
     hitsPerRock = data.hitsPerRock
     muleCount = data.mules
@@ -328,6 +320,21 @@ export function setupEconomyLink(): void {
       `[economy] wallet from server: ${data.ore}/${data.capacity} ore, ${data.coins} coins, ` +
         `${data.hitsPerRock} hits per rock, owned "${data.owned}"`
     )
+
+    // Once the server is answering: tells it which deploy this client runs, so a client left on
+    // an old one is asked to rejoin. Last, and guarded: a throw here used to cut the handler short
+    // before the coins and the pick were applied, leaving a player with saved progress at 0.
+    if (Date.now() - buildSentAt >= BUILD_RESEND_MS) {
+      buildSentAt = Date.now()
+      try {
+        readSceneEntityId()
+          .then((entity) => room.send('clientBuild', { entity }))
+          .catch(() => (buildSentAt = -Infinity))
+      } catch (error) {
+        buildSentAt = -Infinity
+        console.log(`[economy] could not send clientBuild: ${error}`)
+      }
+    }
   })
 
   room.onMessage('slotResult', (data) => {
