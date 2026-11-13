@@ -61,6 +61,9 @@ let walletServer = ''
 let walletCount = 0
 /** Wallets dropped because they were not this player's. */
 let ignoredWallets = 0
+/** The last few wallets received, as `server:coins` (`+p` with a pick), for the title card. */
+let walletTrail: string[] = []
+const WALLET_TRAIL_LENGTH = 4
 /**
  * When this client last told the server which deploy it runs (clientBuild in protocol.ts). Told
  * again every so often, not once: after a deploy the client can be moved to the new server, which
@@ -140,8 +143,8 @@ export function getMuleAway(): { ore: number; count: number } {
 }
 
 /** How many wallets arrived this visit, and the coins in the last: for the title card's status line. */
-export function getWalletDebug(): { count: number; coins: number; ignored: number; server: string; fresh: boolean } {
-  return { count: walletCount, coins: serverCoins, ignored: ignoredWallets, server: walletServer, fresh: walletFresh }
+export function getWalletDebug(): { count: number; coins: number; ignored: number; server: string; fresh: boolean; address: string; trail: string } {
+  return { count: walletCount, coins: serverCoins, ignored: ignoredWallets, server: walletServer, fresh: walletFresh, address: walletAddress, trail: walletTrail.join(' ') }
 }
 
 /** Whether the purse that arrived has nothing in it: no coins, no ore, no pick, no rigs. */
@@ -280,6 +283,9 @@ function recordRate(rate: number): void {
 
 export function setupEconomyLink(): void {
   room.onMessage('wallet', (data) => {
+    // Every wallet that arrives, kept or not, by the server that sent it: every server still
+    // running in the room speaks as the same peer, so this is how a stray one shows itself.
+    walletTrail = [...walletTrail, `${data.server.slice(0, 8)}:${data.coins}c${data.hitsPerRock > 0 ? '+p' : ''}`].slice(-WALLET_TRAIL_LENGTH)
     // Only this player's own purse: anything else would be shown as theirs (see protocol.ts).
     const me = (getPlayer()?.userId ?? '').toLowerCase()
     if (me === '' || data.address !== me) {

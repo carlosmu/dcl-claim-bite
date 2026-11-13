@@ -9,6 +9,8 @@ import { setIntroChoice } from '../world/intro-state'
 import { getHitsPerRock, getWalletDebug, hasWallet, isWalletEmpty, isWalletFresh } from '../net/economy-link'
 import { getDeployStampUtc } from '../net/deploy-stamp'
 import { isServerOnline } from '../net/server-link'
+import { getPlayer } from '@dcl/sdk/players'
+import { isStateSyncronized } from '@dcl/sdk/network'
 
 // Title card shown when the game starts: scrolling backdrop, logo, Start Game button. Tapping the
 // button hides logo and button, then the backdrop fades to nothing and goes away.
@@ -52,6 +54,9 @@ const LOADING_RADIUS = 10
 const LOADING_CREEP_SECONDS = 2
 const LOADING_CREEP_MAX = 0.9
 const LOADING_FONT_SIZE = 28
+// The step line under the bar: what is being waited on (loadingStep).
+const LOADING_STEP_FONT_SIZE = 18
+const LOADING_DOTS_PER_SECOND = 2
 // The fill is the button's gradient, cut from inside its border so only the colour shows.
 // Bottom-left, top-left, top-right, bottom-right.
 const LOADING_FILL_UVS = [0.1, 0.12, 0.1, 0.88, 0.9, 0.88, 0.9, 0.12]
@@ -117,6 +122,20 @@ function isLoaded(): boolean {
  */
 function canSkip(): boolean {
     return isLoaded() && getHitsPerRock() > 0
+}
+
+/**
+ * What the Loading bar is waiting on right now, in the order it happens, so a long wait reads as
+ * steps going by rather than a bar that stopped. The dots tick so the line never looks frozen.
+ */
+function loadingStep(): string {
+    let step: string
+    if ((getPlayer()?.userId ?? '') === '') step = 'Loading your avatar'
+    else if (!isStateSyncronized()) step = 'Joining the town'
+    else if (!isServerOnline()) step = 'Waking up the town server'
+    else if (!hasWallet()) step = 'Reading your saved progress'
+    else step = 'Double-checking your saved progress'
+    return step + '.'.repeat(1 + (Math.floor(loadingElapsed * LOADING_DOTS_PER_SECOND) % 3))
 }
 
 function loadingProgress(): number {
@@ -222,6 +241,14 @@ export function introScreen() {
                             uiBackground={{ texture: { src: BUTTON_GRADIENT }, textureMode: 'stretch', uvs: LOADING_FILL_UVS }}
                         />
                     </UiEntity>
+                    {/* Absolute, so the line hangs below the slot without pushing the logo up. */}
+                    <Label
+                        value={loadingStep()}
+                        fontSize={LOADING_STEP_FONT_SIZE * scale}
+                        color={Color4.create(1, 1, 1, 0.85)}
+                        textAlign="middle-center"
+                        uiTransform={{ positionType: 'absolute', position: { top: '100%' }, width: '100%', height: 28 * scale, margin: { top: 8 } }}
+                    />
                 </UiEntity>
             ) : null}
             {phase === 'title' && isLoaded() ? (
@@ -262,7 +289,7 @@ export function introScreen() {
                 // Small print at the bottom, for bug reports from this screen: which build is
                 // running, whether the server answers, and whether the purse has arrived.
                 <Label
-                    value={`${getDeployStampUtc() ?? 'Build ?'} · server ${isServerOnline() ? 'on' : 'off'} · purse ${hasWallet() ? `yes (#${getWalletDebug().count}, ${getWalletDebug().coins} coins), ${getHitsPerRock() > 0 ? 'pick' : 'no pick'}` : 'no'} · ignored ${getWalletDebug().ignored} · from ${getWalletDebug().server || '?'}${getWalletDebug().fresh ? ' (new)' : ''}`}
+                    value={`${getDeployStampUtc() ?? 'Build ?'} · server ${isServerOnline() ? 'on' : 'off'} · purse ${hasWallet() ? `yes (#${getWalletDebug().count}, ${getWalletDebug().coins} coins), ${getHitsPerRock() > 0 ? 'pick' : 'no pick'}, ${getWalletDebug().address.slice(0, 6)}…${getWalletDebug().address.slice(-4)}` : 'no'} · ignored ${getWalletDebug().ignored} · from ${getWalletDebug().server || '?'}${getWalletDebug().fresh ? ' (new)' : ''} · got ${getWalletDebug().trail || '-'}`}
                     fontSize={14}
                     color={Color4.create(1, 1, 1, 0.6)}
                     textAlign="middle-center"
