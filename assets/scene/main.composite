@@ -1717,6 +1717,132 @@
             "parent": 0
           }
         },
+        "593": {
+          "json": {
+            "position": {
+              "x": -16.42546272277832,
+              "y": 2.930988785010413e-14,
+              "z": -12.685039520263672
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0.7470025420188904,
+              "z": 0,
+              "w": 0.6648211479187012
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
+            "parent": 0
+          }
+        },
+        "594": {
+          "json": {
+            "position": {
+              "x": 0,
+              "y": 2,
+              "z": 0
+            },
+            "rotation": {
+              "x": 0,
+              "y": 1,
+              "z": 0,
+              "w": 0
+            },
+            "scale": {
+              "x": 2.5,
+              "y": 1.7999999523162842,
+              "z": 2.5999999046325684
+            },
+            "parent": 593
+          }
+        },
+        "595": {
+          "json": {
+            "position": {
+              "x": 0,
+              "y": 2,
+              "z": 0
+            },
+            "rotation": {
+              "x": 0,
+              "y": 1,
+              "z": 0,
+              "w": 0
+            },
+            "scale": {
+              "x": 2.5,
+              "y": 1.7999999523162842,
+              "z": 2.5999999046325684
+            },
+            "parent": 596
+          }
+        },
+        "596": {
+          "json": {
+            "position": {
+              "x": 5.295483589172363,
+              "y": 3.019806626980426e-14,
+              "z": 0.2727900445461273
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0.9503598809242249,
+              "z": 0,
+              "w": -0.3111528158187866
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
+            "parent": 0
+          }
+        },
+        "597": {
+          "json": {
+            "position": {
+              "x": 0,
+              "y": 2,
+              "z": 0
+            },
+            "rotation": {
+              "x": 0,
+              "y": 1,
+              "z": 0,
+              "w": 0
+            },
+            "scale": {
+              "x": 2.5,
+              "y": 1.7999999523162842,
+              "z": 2.5999999046325684
+            },
+            "parent": 598
+          }
+        },
+        "598": {
+          "json": {
+            "position": {
+              "x": -16.874008178710938,
+              "y": 8.970602038971265e-14,
+              "z": -43.48508834838867
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0.7470025420188904,
+              "z": 0,
+              "w": 0.6648211479187012
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
+            "parent": 0
+          }
+        },
         "1558": {
           "json": {
             "position": {
@@ -2255,6 +2381,27 @@
             "invisibleMeshesCollisionMask": 3
           }
         },
+        "593": {
+          "json": {
+            "src": "assets/models/billboard.glb",
+            "visibleMeshesCollisionMask": 0,
+            "invisibleMeshesCollisionMask": 3
+          }
+        },
+        "596": {
+          "json": {
+            "src": "assets/models/billboard.glb",
+            "visibleMeshesCollisionMask": 0,
+            "invisibleMeshesCollisionMask": 3
+          }
+        },
+        "598": {
+          "json": {
+            "src": "assets/models/billboard.glb",
+            "visibleMeshesCollisionMask": 0,
+            "invisibleMeshesCollisionMask": 3
+          }
+        },
         "1558": {
           "json": {
             "src": "assets/animations/town-mayor.glb",
@@ -2267,6 +2414,104 @@
             "src": "assets/asset-packs/cactus_4/Cactus 4.glb",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
+          }
+        }
+      }
+    },
+    {
+      "name": "core::Material",
+      "jsonSchema": {
+        "type": "object",
+        "properties": {},
+        "serializationType": "protocol-buffer",
+        "protocolBuffer": "PBMaterial"
+      },
+      "data": {
+        "594": {
+          "json": {
+            "material": {
+              "$case": "unlit",
+              "unlit": {
+                "texture": {
+                  "tex": {
+                    "$case": "texture",
+                    "texture": {
+                      "src": "assets/images/billboard-texture.jpg",
+                      "wrapMode": 1,
+                      "filterMode": 1,
+                      "offset": {
+                        "x": 0,
+                        "y": 0
+                      },
+                      "tiling": {
+                        "x": 1,
+                        "y": 1
+                      }
+                    }
+                  }
+                },
+                "alphaTest": 0.6000000238418579,
+                "castShadows": false
+              }
+            }
+          }
+        },
+        "595": {
+          "json": {
+            "material": {
+              "$case": "unlit",
+              "unlit": {
+                "texture": {
+                  "tex": {
+                    "$case": "texture",
+                    "texture": {
+                      "src": "assets/images/billboard-texture.jpg",
+                      "wrapMode": 1,
+                      "filterMode": 1,
+                      "offset": {
+                        "x": 0,
+                        "y": 0
+                      },
+                      "tiling": {
+                        "x": 1,
+                        "y": 1
+                      }
+                    }
+                  }
+                },
+                "alphaTest": 0.6000000238418579,
+                "castShadows": false
+              }
+            }
+          }
+        },
+        "597": {
+          "json": {
+            "material": {
+              "$case": "unlit",
+              "unlit": {
+                "texture": {
+                  "tex": {
+                    "$case": "texture",
+                    "texture": {
+                      "src": "assets/images/billboard-texture.jpg",
+                      "wrapMode": 1,
+                      "filterMode": 1,
+                      "offset": {
+                        "x": 0,
+                        "y": 0
+                      },
+                      "tiling": {
+                        "x": 1,
+                        "y": 1
+                      }
+                    }
+                  }
+                },
+                "alphaTest": 0.6000000238418579,
+                "castShadows": false
+              }
+            }
           }
         }
       }
@@ -2331,6 +2576,36 @@
           }
         },
         "562": {
+          "json": {
+            "mesh": {
+              "$case": "plane",
+              "plane": {
+                "uvs": []
+              }
+            }
+          }
+        },
+        "594": {
+          "json": {
+            "mesh": {
+              "$case": "plane",
+              "plane": {
+                "uvs": []
+              }
+            }
+          }
+        },
+        "595": {
+          "json": {
+            "mesh": {
+              "$case": "plane",
+              "plane": {
+                "uvs": []
+              }
+            }
+          }
+        },
+        "597": {
           "json": {
             "mesh": {
               "$case": "plane",
@@ -2755,6 +3030,36 @@
             "value": "Admin Tools"
           }
         },
+        "593": {
+          "json": {
+            "value": "billboard.glb"
+          }
+        },
+        "594": {
+          "json": {
+            "value": "plane"
+          }
+        },
+        "595": {
+          "json": {
+            "value": "plane_2"
+          }
+        },
+        "596": {
+          "json": {
+            "value": "billboard.glb_2"
+          }
+        },
+        "597": {
+          "json": {
+            "value": "plane_3"
+          }
+        },
+        "598": {
+          "json": {
+            "value": "billboard.glb_3"
+          }
+        },
         "1558": {
           "json": {
             "value": "Town Mayor"
@@ -2914,7 +3219,10 @@
                   585,
                   586,
                   587,
-                  592
+                  592,
+                  593,
+                  598,
+                  596
                 ]
               },
               {
@@ -3348,6 +3656,37 @@
               {
                 "entity": 592,
                 "children": []
+              },
+              {
+                "entity": 593,
+                "open": true,
+                "children": [
+                  594
+                ]
+              },
+              {
+                "entity": 594,
+                "children": []
+              },
+              {
+                "entity": 596,
+                "children": [
+                  595
+                ]
+              },
+              {
+                "entity": 595,
+                "children": []
+              },
+              {
+                "entity": 598,
+                "children": [
+                  597
+                ]
+              },
+              {
+                "entity": 597,
+                "children": []
               }
             ]
           }
@@ -3609,6 +3948,24 @@
           "json": {}
         },
         "592": {
+          "json": {}
+        },
+        "593": {
+          "json": {}
+        },
+        "594": {
+          "json": {}
+        },
+        "595": {
+          "json": {}
+        },
+        "596": {
+          "json": {}
+        },
+        "597": {
+          "json": {}
+        },
+        "598": {
           "json": {}
         },
         "1558": {
