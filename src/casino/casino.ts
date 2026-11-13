@@ -159,6 +159,9 @@ function runReels(dt: number): void {
   if (result === null && elapsed >= ANSWER_TIMEOUT_SECONDS) {
     spinning = false
     message = 'The machine did not answer'
+    // Wherever the spin froze could read as a win (the reels turn in step, so three alike stay
+    // alike): show three different symbols, which pay nothing.
+    for (let index = 0; index < reels.length; index++) reels[index] = index
     return
   }
 

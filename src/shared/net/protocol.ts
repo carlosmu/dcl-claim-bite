@@ -105,11 +105,13 @@ export const Messages = {
 
   // Server -> one client: coins owed to this player for something that went wrong, waiting to be
   // credited. Sent on arrival and on hello while not credited, and once more with `claimed` true
-  // when it is. `date` is the day it happened, as the screen says it ("November 11").
+  // when it is. `date` is the day it happened, as the screen says it ("November 11"). `kind` is
+  // who apologises on screen: 'bank' or 'casino' (server/compensations.ts).
   compensation: Schemas.Map({
     id: Schemas.String,
     coins: Schemas.Number,
     date: Schemas.String,
+    kind: Schemas.String,
     claimed: Schemas.Boolean
   }),
 

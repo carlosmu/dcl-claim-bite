@@ -16,7 +16,11 @@ export type Compensation = {
   coins: number
   /** The day it happened, as the screen says it. */
   date: string
+  /** Who apologises on screen, and for what: the bank's ledger (the default) or a jammed slot machine. */
+  kind?: CompensationKind
 }
+
+export type CompensationKind = 'bank' | 'casino'
 
 export const COMPENSATIONS: readonly Compensation[] = [
   // 2026-11-11: an old deploy's server kept running and wrote stale purses over the real ones.
@@ -35,7 +39,11 @@ export const COMPENSATIONS: readonly Compensation[] = [
   { id: 'stale-server-2026-11-11', address: '0x53e22947510ad64ae85c96526bdbedb0b3e54f31', coins: 50, date: 'November 11' },
   { id: 'stale-server-2026-11-11', address: '0xc5b41422a7ebc00a2176d5283e8212950fe0ca35', coins: 50, date: 'November 11' },
   { id: 'stale-server-2026-11-11', address: '0x5c61f3a6bee08f43f886bf20adac296495ee77a2', coins: 50, date: 'November 11' },
-  { id: 'stale-server-2026-11-11', address: '0x598f8af1565003ae7456dac280a18ee826df7a2c', coins: 50, date: 'November 11' }
+  { id: 'stale-server-2026-11-11', address: '0x598f8af1565003ae7456dac280a18ee826df7a2c', coins: 50, date: 'November 11' },
+
+  // 2026-11-13: a slot spin timed out and the frozen reels showed three bells at a 5-coin bet.
+  // Not a real win (the pot was untouched), but paid as goodwill.
+  { id: 'slot-timeout-2026-11-13', address: '0x53e22947510ad64ae85c96526bdbedb0b3e54f31', coins: 411, date: 'November 13', kind: 'casino' }
 ]
 
 /** The compensations meant for this wallet, in list order. */

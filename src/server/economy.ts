@@ -458,7 +458,7 @@ function sendCompensation(address: string): void {
   if (purse === undefined) return
   const entry = pendingCompensation(purse, address)
   if (entry === null) return
-  room.send('compensation', { id: entry.id, coins: entry.coins, date: entry.date, claimed: false }, { to: [address] })
+  room.send('compensation', { id: entry.id, coins: entry.coins, date: entry.date, kind: entry.kind ?? 'bank', claimed: false }, { to: [address] })
 }
 
 function handleClaimCompensation(address: string, id: string): void {
@@ -483,7 +483,7 @@ function handleClaimCompensation(address: string, id: string): void {
     console.log(`[Server] credited compensation ${entry.id} to ${address}: +${entry.coins} coins · balance ${purse.coins}`)
   }
   // Answered as credited even on a repeat, so a client that missed the first answer stops asking.
-  room.send('compensation', { id: entry.id, coins: entry.coins, date: entry.date, claimed: true }, { to: [address] })
+  room.send('compensation', { id: entry.id, coins: entry.coins, date: entry.date, kind: entry.kind ?? 'bank', claimed: true }, { to: [address] })
   sendResult(address, 'claimCompensation', true, `+${entry.coins} coins`)
 }
 

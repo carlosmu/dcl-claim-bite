@@ -267,7 +267,7 @@ export function setupEconomyLink(): void {
   // Paces the feedback asks; only a purchase that went through is counted.
   room.onMessage('purchaseCount', (data) => notePurchaseCount(data.count))
 
-  room.onMessage('compensation', (data) => applyCompensation({ id: data.id, coins: data.coins, date: data.date, claimed: data.claimed }))
+  room.onMessage('compensation', (data) => applyCompensation({ id: data.id, coins: data.coins, date: data.date, kind: data.kind === 'casino' ? 'casino' : 'bank', claimed: data.claimed }))
 
   room.onMessage('rewardStatus', (data) => applyRewardStatus(data.rewards.map((reward) => ({ ...reward, done: [...reward.done] }))))
 

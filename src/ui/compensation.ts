@@ -4,7 +4,8 @@
 
 import { sendClaimCompensation } from '../net/economy-link'
 
-export type CompensationOffer = { id: string; coins: number; date: string; claimed: boolean }
+/** Who apologises on screen: the bank, for its ledger, or the casino, for a jammed machine. */
+export type CompensationOffer = { id: string; coins: number; date: string; kind: 'bank' | 'casino'; claimed: boolean }
 
 let offer: CompensationOffer | null = null
 let claiming = false

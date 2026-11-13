@@ -250,7 +250,7 @@ function candidates(): Objective[] {
 
   // Not to someone already at the machine.
   if (clock < casinoHintUntil && !isCasinoPanelOpen()) {
-    list.push(goal('casino', 'Try your luck at the Casino', `${getCoins()} coins`))
+    list.push(goal('casino', 'Try your luck at the Gambling Hall', `${getCoins()} coins`))
   }
 
   return list

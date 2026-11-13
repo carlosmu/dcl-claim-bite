@@ -930,12 +930,19 @@ const bankPanel = () => {
     )
 }
 
-// Coins owed to the player for something that went wrong (server/compensations.ts), dressed as
-// The Bank. The button credits them; once it says CREDITED the screen can be closed, for good.
+// Coins owed to the player for something that went wrong (server/compensations.ts), in the bank's
+// dress and signed by whoever owes them: The Bank or the Slot Machine. The button credits them; once it says CREDITED the screen can be closed, for good.
 const compensationPanel = (offer: CompensationOffer) => {
     const claiming = isClaimingCompensation()
     const label = offer.claimed ? 'CREDITED' : claiming ? 'CREDITING...' : `CLAIM ${offer.coins} COINS`
     const live = !offer.claimed && !claiming
+    const casino = offer.kind === 'casino'
+    const sender = casino
+        ? { icon: SLOT_SYMBOL_ICONS.bell, title: 'SLOT MACHINE', caption: 'A Note from the Gambling Hall', heading: 'SORRY FOR THE JAM!' }
+        : { icon: ICON_BANK, title: 'THE BANK', caption: 'A Note from the Bank', heading: 'YOUR COINS ARE BACK!' }
+    const apology = casino
+        ? `On ${offer.date} the slot machine jammed in the middle of your spin. Sorry about that! Here are ${offer.coins} coins to make up for it.`
+        : `We know you lost coins on ${offer.date} because of a mix-up in the bank's ledger. Sorry about that! Here are ${offer.coins} coins to make up for it.`
 
     return (
         <UiEntity
@@ -953,17 +960,17 @@ const compensationPanel = (offer: CompensationOffer) => {
             uiBackground={{ color: BANK_WOOD_DARK }}
         >
             <UiEntity uiTransform={{ width: '100%', height: 96, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
-                {bankIcon(ICON_BANK, 72)}
+                {bankIcon(sender.icon, 72)}
                 <UiEntity uiTransform={{ flexDirection: 'column', alignItems: 'center' }}>
-                    <BitmapText value="THE BANK" fontSize={60} color={BANK_GOLD_LIGHT} />
-                    <Label value="A Note from the Bank" fontSize={18} color={BANK_CAPTION} textAlign="middle-center" uiTransform={{ height: 24 }} />
+                    <BitmapText value={sender.title} fontSize={60} color={BANK_GOLD_LIGHT} />
+                    <Label value={sender.caption} fontSize={18} color={BANK_CAPTION} textAlign="middle-center" uiTransform={{ height: 24 }} />
                 </UiEntity>
             </UiEntity>
 
-            {bankSection('YOUR COINS ARE BACK!', [
+            {bankSection(sender.heading, [
                 <Label
                     key="text"
-                    value={`We know you lost coins on ${offer.date} because of a mix-up in the bank's ledger. Sorry about that! Here are ${offer.coins} coins to make up for it.`}
+                    value={apology}
                     fontSize={20}
                     color={BANK_CREAM}
                     textAlign="middle-left"
