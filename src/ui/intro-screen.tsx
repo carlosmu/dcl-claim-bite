@@ -1,12 +1,14 @@
 import { engine, UiCanvasInformation } from '@dcl/sdk/ecs'
-import ReactEcs, { UiEntity } from '@dcl/sdk/react-ecs'
+import ReactEcs, { Label, UiEntity } from '@dcl/sdk/react-ecs'
 import { BitmapText } from './bitmap-text'
 import { Color4 } from '@dcl/sdk/math'
 import { isMobile } from '@dcl/sdk/platform'
 import { startTownMusic, stopIntroMusic } from '../world/music'
 import { playWelcomeCinematic } from '../world/welcome-cinematic'
 import { setIntroChoice } from '../world/intro-state'
-import { getHitsPerRock, hasWallet } from '../net/economy-link'
+import { getHitsPerRock, getWalletDebug, hasWallet, isWalletEmpty, isWalletFresh } from '../net/economy-link'
+import { getDeployStampUtc } from '../net/deploy-stamp'
+import { isServerOnline } from '../net/server-link'
 
 // Title card shown when the game starts: scrolling backdrop, logo, Start Game button. Tapping the
 // button hides logo and button, then the backdrop fades to nothing and goes away.
@@ -40,8 +42,6 @@ const SKIP_HIT_PADDING = 14
 // On mobile the screen is only 720 high: the logo and the Start button shrink by this much so
 // the column fits with room to spare, and "Skip intro" stops hugging the bottom edge.
 const MOBILE_SCALE = 0.7
-// Seconds to wait for the server before showing Start Game anyway, as a first visit.
-const LOADING_TIMEOUT_SECONDS = 10
 // The Loading bar: its size, and how fast it creeps towards LOADING_CREEP_MAX while it waits
 // (seconds to cover about two thirds of the way). It never fills on its own.
 const LOADING_BAR_WIDTH = 360
@@ -84,17 +84,31 @@ function backdropUvs(): number[] {
     return [offset, 0, offset, 1, offset + across, 1, offset + across, 0]
 }
 
+/**
+ * An empty purse that storage did have (not a first visit) is believed only after this long: one
+ * has reached returning players before their real one, and greeting a veteran as new, with zero
+ * coins, is far worse than a longer Loading bar. A real first visit (the wallet says `fresh`)
+ * does not wait at all.
+ */
+const EMPTY_PURSE_WAIT_SECONDS = 25
+let emptyPurseFor = 0
+
 engine.addSystem(function introLoadingSystem(dt: number) {
     if (isLoaded()) {
         engine.removeSystem(introLoadingSystem)
         return
     }
     loadingElapsed += dt
+    emptyPurseFor = hasWallet() && isWalletEmpty() && !isWalletFresh() ? emptyPurseFor + dt : 0
 })
 
-/** Whether the server has said if the player owns a pick, or we gave up waiting. */
+/**
+ * Whether the server has said what the player owns. Waited for however long it takes: giving up
+ * would greet a returning player as a new one, tutorial and all. A wallet that never comes brings
+ * up the RECONNECT screen instead (ui/connection-watch.ts), drawn over this one.
+ */
 function isLoaded(): boolean {
-    return hasWallet() || loadingElapsed >= LOADING_TIMEOUT_SECONDS
+    return hasWallet() && (!isWalletEmpty() || isWalletFresh() || emptyPurseFor >= EMPTY_PURSE_WAIT_SECONDS)
 }
 
 /**
@@ -243,6 +257,17 @@ export function introScreen() {
                 >
                     <BitmapText value="Skip intro" fontSize={SKIP_FONT_SIZE} color={Color4.White()} align="center" />
                 </UiEntity>
+            ) : null}
+            {phase === 'title' ? (
+                // Small print at the bottom, for bug reports from this screen: which build is
+                // running, whether the server answers, and whether the purse has arrived.
+                <Label
+                    value={`${getDeployStampUtc() ?? 'Build ?'} · server ${isServerOnline() ? 'on' : 'off'} · purse ${hasWallet() ? `yes (#${getWalletDebug().count}, ${getWalletDebug().coins} coins), ${getHitsPerRock() > 0 ? 'pick' : 'no pick'}` : 'no'} · ignored ${getWalletDebug().ignored} · from ${getWalletDebug().server || '?'}${getWalletDebug().fresh ? ' (new)' : ''}`}
+                    fontSize={14}
+                    color={Color4.create(1, 1, 1, 0.6)}
+                    textAlign="middle-center"
+                    uiTransform={{ positionType: 'absolute', position: { bottom: 12 }, width: '100%', height: 20 }}
+                />
             ) : null}
         </UiEntity>
     )

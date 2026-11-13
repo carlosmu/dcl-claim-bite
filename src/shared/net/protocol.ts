@@ -45,6 +45,12 @@ export const Messages = {
   /** "Credit me this compensation" (an id from server/compensations.ts). Granted once, and only to the player it is for. */
   claimCompensation: Schemas.Map({ id: Schemas.String }),
 
+  /** "I run this deploy" (its entity id). A client on another deploy than the server is told to rejoin. */
+  clientBuild: Schemas.Map({ entity: Schemas.String }),
+
+  /** ADMIN: "start (or end) maintenance" before a deploy. Refused unless the sender is in shared/admins.ts. */
+  adminMaintenance: Schemas.Map({ on: Schemas.Boolean }),
+
   /** "Throw away the notes left at my door." */
   clearNotes: Schemas.Map({ ready: Schemas.Boolean }),
 
@@ -78,7 +84,14 @@ export const Messages = {
     // How many rigs the player owns. They dig straight into storage, so there is no load to show.
     mules: Schemas.Number,
     // Hours the rigs keep running on their fuel. Zero means they have stopped.
-    muleFuelHours: Schemas.Number
+    muleFuelHours: Schemas.Number,
+    // Whose purse this is, lower case. The client drops a wallet that is not its own: one with no
+    // pick and no coins once reached a client before its real one and greeted a veteran as new.
+    address: Schemas.String,
+    // Storage had no purse for this player: a real first visit, so an empty purse is believed at once.
+    fresh: Schemas.Boolean,
+    // The generation id of the server that sent it (server/generation.ts), for the title card's status line.
+    server: Schemas.String
   }),
 
   // Server -> one client: the ore the rigs put in storage while the player was away, worked out
@@ -116,9 +129,17 @@ export const Messages = {
   }),
 
   // Server -> everyone it serves: a newer server has started (server/generation.ts), so this one no
-  // longer saves anything. `entity` is the newest deploy's entity id: a client running another
-  // deploy is on an old version and is asked to rejoin; one running that deploy ignores it.
+  // longer saves anything. Every client that hears it is asked to rejoin, whatever code it runs:
+  // only a client attached to this outdated server hears it. `entity` is the newest deploy's id.
   serverOutdated: Schemas.Map({ entity: Schemas.String }),
+
+  // Server -> everyone: maintenance started or ended (an admin's doing, before a deploy). While on,
+  // nothing is saved and nothing is accepted: the screen asks players to wait for the new version.
+  maintenance: Schemas.Map({ on: Schemas.Boolean }),
+
+  // Server -> one client: its state is from another server (an old deploy's rocks, say), so what
+  // it does is not being counted. Answered with the rejoin screen. `reason` is for the log.
+  rejoinNeeded: Schemas.Map({ reason: Schemas.String }),
 
   // Server -> one client: what a finished rock paid. `bonus` is the Social Bonus part of `ore`,
   // already capped by the bag like the rest.

@@ -155,6 +155,13 @@ function save(): void {
     .catch(() => (boardDirty = true))
 }
 
+/** Saves the board now if it changed (maintenance, see economy.ts). True if there was something to save. */
+export function saveTitlesNow(): boolean {
+  const had = boardDirty
+  save()
+  return had
+}
+
 function publish(): void {
   const board = {
     titles: titleHolders(days).map(({ id, address, name, value }) => ({ id, address, name, value })),

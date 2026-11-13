@@ -1,4 +1,4 @@
-import { engine, UiCanvasInformation } from '@dcl/sdk/ecs'
+import { AvatarBase, engine, PlayerIdentityData, UiCanvasInformation } from '@dcl/sdk/ecs'
 import ReactEcs, { ReactEcsRenderer, UiEntity, Label, Button, Input } from "@dcl/sdk/react-ecs"
 import { Color4 } from "@dcl/sdk/math"
 import { isMobile } from '@dcl/sdk/platform'
@@ -15,6 +15,7 @@ import {
     sendDebugCoins,
     sendDebugOre,
     sendDebugReset,
+    sendAdminMaintenance,
     sendEquip
 } from './net/economy-link'
 import { canSpinSlot, closeCasinoPanel, getSlotBet, getSlotMessage, getSlotReels, getSlotTagline, isCasinoPanelOpen, isSlotInfoOpen, isSlotSpinning, setSlotBet, spinSlot, toggleSlotInfo } from './casino/casino'
@@ -92,7 +93,9 @@ import { setupRollingCounters, shownCoins, shownOre } from './ui/rolling-counter
 import { getOrePopup, setupOrePopup } from './ui/ore-popup'
 import { DEBUG_ADD_COINS, DEBUG_ADD_ORE, DEBUG_RESET_PROGRESS, DEBUG_SERVER_STATUS, DEBUG_SHOW_MULE_ALERTS } from './shared/debug-flags'
 import { claimCompensation, closeCompensation, CompensationOffer, getCompensation, isClaimingCompensation } from './ui/compensation'
-import { closeServerOutdated, isRejoining, isServerOutdatedOpen, rejoinWorld } from './ui/server-outdated'
+import { canEscapeMaintenance, closeServerOutdated, didRejoinFail, getRejoinReason, getUpdateScreen, isMaintenanceOn, isRejoining, rejoinWorld } from './ui/server-outdated'
+import { isAdmin } from './shared/admins'
+import { getPlayer } from '@dcl/sdk/players'
 import { isLocalPreview } from './shared/local-preview'
 import { quotedRate, secondsToRecover } from './shared/state/market'
 import { BitmapText } from './ui/bitmap-text'
@@ -1013,10 +1016,43 @@ const compensationPanel = (offer: CompensationOffer) => {
     )
 }
 
-// The player's server is left over from an old deploy and saves nothing any more
-// (server/generation.ts): rejoining the world loads the current version. In the bank's dress.
-const serverOutdatedPanel = () => {
+// The update screens (ui/server-outdated.ts), in the bank's dress. "Maintenance": an admin is about
+// to deploy and nothing is saved, so the player waits; it cannot be closed. "Rejoin": the player
+// is on an old version, and rejoining the world loads the current one.
+//
+// Rejoining differs by platform. On mobile the REJOIN button reconnects to the world. The desktop
+// explorer refuses that ("You are already in ..."), and only a full restart of the client is sure
+// to load the new version (deploy-scene skill: a scene reload keeps the cached one), so on desktop
+// the screen lists the steps instead of offering a button.
+const DESKTOP_REJOIN_STEPS = ['1. Close Decentraland completely.', '2. Open it again.', '3. Come back to claimbite.dcl.eth.']
+/** The screen's paragraph: room for three wrapped lines. Each step gets a line of its own. */
+const UPDATE_PARAGRAPH_HEIGHT = 84
+const UPDATE_STEP_HEIGHT = 32
+
+const updatePanel = (screen: 'maintenance' | 'rejoin') => {
     const rejoining = isRejoining()
+    const desktop = !isMobile()
+    const maintenance = screen === 'maintenance'
+    const lost = !maintenance && getRejoinReason() === 'lost'
+    // Up a minute and still waiting: the way out shows anyway, in case the new version's notice never arrives.
+    const offerRejoin = !maintenance || canEscapeMaintenance()
+    const why = maintenance
+        ? 'The town is being updated. Nothing you do now is saved.'
+        : lost
+          ? 'The connection to the town was lost, most likely because it was just updated. Nothing you do now is saved or counted.'
+          : 'A new version of the town is up. You are still on the old one, and nothing you do here is saved or counted.'
+    const what = !offerRejoin
+        ? desktop
+            ? 'Wait here a minute: when the new version is up, this screen will tell you how to get to it.'
+            : 'Wait here a minute: when the new version is up, a REJOIN button will show up to take you to it.'
+        : desktop
+          ? 'To play the new version:'
+          : didRejoinFail()
+            ? 'If nothing happened: close Decentraland, open it again and come back to claimbite.dcl.eth. Your progress is safe.'
+            : 'Rejoin to keep playing.'
+    // One Label per line: a Label does not grow to fit text with line breaks, so the steps would overlap.
+    const steps = offerRejoin && desktop ? DESKTOP_REJOIN_STEPS : []
+    const showRejoin = offerRejoin && !desktop
     return (
         <UiEntity
             uiTransform={{
@@ -1032,46 +1068,124 @@ const serverOutdatedPanel = () => {
             }}
             uiBackground={{ color: BANK_WOOD_DARK }}
         >
-            <UiEntity uiTransform={{ width: '100%', height: 96, flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-                <BitmapText value="NEW VERSION" fontSize={60} color={BANK_GOLD_LIGHT} />
-                <Label value="Claim Bite was updated" fontSize={18} color={BANK_CAPTION} textAlign="middle-center" uiTransform={{ height: 24 }} />
+            <UiEntity uiTransform={{ width: '100%', height: 124, flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                <BitmapText value={maintenance ? 'UPDATING' : lost ? 'RECONNECT' : 'NEW VERSION'} fontSize={60} color={BANK_GOLD_LIGHT} />
+                <Label value={maintenance ? 'Back in a minute' : lost ? 'The town stopped answering' : 'Claim Bite was updated'} fontSize={18} color={BANK_CAPTION} textAlign="middle-center" uiTransform={{ height: 24, margin: { top: 18 } }} />
             </UiEntity>
 
-            {bankSection('PLEASE REJOIN', [
+            {bankSection(!offerRejoin ? 'PLEASE WAIT' : desktop ? 'HOW TO REJOIN' : 'PLEASE REJOIN', [
                 <Label
                     key="text"
-                    value="A new version of the town is up. You are still on the old one, and nothing you do here is saved any more. Rejoin to keep your progress."
+                    value={`${why} ${what}`}
                     fontSize={20}
                     color={BANK_CREAM}
-                    textAlign="middle-left"
+                    textAlign="top-left"
                     textWrap="wrap"
-                    uiTransform={{ width: '100%', minHeight: 60, margin: { top: 4, bottom: 8 } }}
-                />
+                    uiTransform={{ width: '100%', height: UPDATE_PARAGRAPH_HEIGHT, margin: { top: 4 } }}
+                />,
+                ...steps.map((step) => (
+                    <Label
+                        key={step}
+                        value={step}
+                        fontSize={22}
+                        color={BANK_GOLD_LIGHT}
+                        textAlign="middle-left"
+                        textWrap="nowrap"
+                        uiTransform={{ width: '100%', height: UPDATE_STEP_HEIGHT, margin: { left: 12 } }}
+                    />
+                )),
+                steps.length > 0 ? (
+                    <Label
+                        key="safe"
+                        value="Your progress is safe."
+                        fontSize={18}
+                        color={BANK_CAPTION}
+                        textAlign="middle-left"
+                        uiTransform={{ width: '100%', height: UPDATE_STEP_HEIGHT, margin: { top: 6, bottom: 8 } }}
+                    />
+                ) : (
+                    <UiEntity key="gap" uiTransform={{ width: '100%', height: 8 }} />
+                )
             ])}
 
-            <UiEntity uiTransform={{ width: '100%', height: BANK_BUTTON_GAP }} />
-            {bankButton(
-                rejoining ? 'REJOINING...' : 'REJOIN',
-                rejoining ? () => {} : rejoinWorld,
-                { width: '100%', height: 72 },
-                44,
-                rejoining ? DISABLED_COLOR : BANK_GOLD,
-                rejoining ? MUTED_COLOR : BANK_INK
+            {showRejoin ? <UiEntity uiTransform={{ width: '100%', height: BANK_BUTTON_GAP }} /> : null}
+            {!showRejoin
+                ? null
+                : bankButton(
+                      rejoining ? 'REJOINING...' : 'REJOIN',
+                      rejoining ? () => {} : rejoinWorld,
+                      { width: '100%', height: 72 },
+                      44,
+                      rejoining ? DISABLED_COLOR : BANK_GOLD,
+                      rejoining ? MUTED_COLOR : BANK_INK
+                  )}
+            {maintenance && amAdmin() ? <UiEntity uiTransform={{ width: '100%', height: BANK_BUTTON_GAP }} /> : null}
+            {maintenance && amAdmin()
+                ? bankButton('END MAINTENANCE', () => sendAdminMaintenance(false), { width: '100%', height: 56 }, 28, STEP_BUTTON_COLOR, Color4.White())
+                : null}
+            {maintenance ? null : (
+                <Button
+                    value="X"
+                    fontSize={30}
+                    color={Color4.White()}
+                    uiTransform={{
+                        positionType: 'absolute',
+                        position: { top: BANK_PANEL_PADDING, right: BANK_PANEL_PADDING },
+                        width: 48,
+                        height: 48,
+                        borderRadius: PANEL_RADIUS
+                    }}
+                    uiBackground={{ color: MAP_CLOSE_COLOR }}
+                    onMouseDown={closeServerOutdated}
+                />
             )}
-            <Button
-                value="X"
-                fontSize={30}
-                color={Color4.White()}
-                uiTransform={{
-                    positionType: 'absolute',
-                    position: { top: BANK_PANEL_PADDING, right: BANK_PANEL_PADDING },
-                    width: 48,
-                    height: 48,
-                    borderRadius: PANEL_RADIUS
-                }}
-                uiBackground={{ color: MAP_CLOSE_COLOR }}
-                onMouseDown={closeServerOutdated}
-            />
+        </UiEntity>
+    )
+}
+
+// --- Admin: maintenance before a deploy ---------------------------------------------------
+//
+// Only for the wallets in shared/admins.ts (the server checks again), in the bug-report menu. Two
+// taps, like the reset tool: the first arms it for a few seconds, the second sends it.
+
+const MAINTENANCE_CONFIRM_SECONDS = 4
+let maintenanceArmedUntil = 0
+let myAddressForAdmin = ''
+
+function amAdmin(): boolean {
+    if (myAddressForAdmin === '') myAddressForAdmin = (getPlayer()?.userId ?? '').toLowerCase()
+    return myAddressForAdmin !== '' && isAdmin(myAddressForAdmin)
+}
+
+/** In the bug-report menu, under REPORT A BUG. Stays open on the first tap so the second can confirm. */
+const adminMaintenanceRow = () => {
+    if (!amAdmin() || isMaintenanceOn()) return null
+    const armed = uiClock < maintenanceArmedUntil
+    return (
+        <UiEntity
+            key="maintenance"
+            uiTransform={{
+                width: '100%',
+                height: FEEDBACK_MENU_ROW_HEIGHT,
+                margin: { top: FEEDBACK_MENU_GAP },
+                justifyContent: 'center',
+                alignItems: 'center',
+                borderRadius: 8,
+                borderWidth: 2,
+                borderColor: BANK_TRIM
+            }}
+            uiBackground={{ color: armed ? MAGENTA : STEP_BUTTON_COLOR }}
+            onMouseDown={() => {
+                if (!armed) {
+                    maintenanceArmedUntil = uiClock + MAINTENANCE_CONFIRM_SECONDS
+                    return
+                }
+                maintenanceArmedUntil = 0
+                feedbackMenuOpen = false
+                sendAdminMaintenance(true)
+            }}
+        >
+            <BitmapText value={armed ? 'TAP AGAIN' : 'MAINTENANCE'} fontSize={22} color={Color4.White()} />
         </UiEntity>
     )
 }
@@ -4029,6 +4143,7 @@ const feedbackMenu = () => (
     >
         {feedbackMenuRow('GIVE FEEDBACK', true, giveFeedback)}
         {feedbackMenuRow('REPORT A BUG', false, reportBug)}
+        {adminMaintenanceRow()}
         {feedbackMenuBuild()}
     </UiEntity>
 )
@@ -4222,6 +4337,11 @@ const TOWN_ARROW_SIZE = 64
 const TOWN_TITLE_PHOTO_SIZE = 170
 const TOWN_OWNER_PHOTO_SIZE = 110
 const TOWN_OWNER_WIDTH = 150
+/** The Active Users card: rows of three names, as many as fit the card; the rest are counted. */
+const TOWN_USERS_FONT = 14
+const TOWN_USERS_ROW_HEIGHT = 22
+const TOWN_USERS_MAX_ROWS = 10
+const TOWN_USERS_NAME_CHARS = 18
 
 let townBoardOpen = false
 let townBoardPage = 0
@@ -4301,6 +4421,47 @@ const townArrow = (label: string, onPress: () => void) => (
     />
 )
 
+/** Everyone in the scene now, as this client sees them: name, or a short address for a guest without one. */
+function activeUserNames(): string[] {
+    const names: string[] = []
+    for (const [entity, identity] of engine.getEntitiesWith(PlayerIdentityData)) {
+        const address = identity.address
+        if (address === '') continue
+        const name = AvatarBase.getOrNull(entity)?.name ?? ''
+        names.push(name !== '' ? name : `${address.slice(0, 6)}...${address.slice(-4)}`)
+    }
+    return names.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()))
+}
+
+const townActiveUsersCard = () => {
+    const names = activeUserNames()
+    const fits = TOWN_USERS_MAX_ROWS * 3
+    // With more than fit, the last slot says how many are left out.
+    const shown = names.length > fits ? names.slice(0, fits - 1) : names
+    const hidden = names.length - shown.length
+    const cell = (value: string, key: string, color: Color4) => (
+        <Label
+            key={key}
+            value={value.length > TOWN_USERS_NAME_CHARS ? `${value.slice(0, TOWN_USERS_NAME_CHARS - 1)}…` : value}
+            fontSize={TOWN_USERS_FONT}
+            color={color}
+            textAlign="middle-left"
+            textWrap="nowrap"
+            uiTransform={{ width: '33%', height: TOWN_USERS_ROW_HEIGHT }}
+        />
+    )
+    return (
+        <UiEntity key="active-users" uiTransform={{ width: '100%', height: '100%', flexDirection: 'column', alignItems: 'center' }}>
+            <BitmapText value="ACTIVE USERS" fontSize={34} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%' }} />
+            {townCardLine(`Active Users: ${names.length}`, 16, BANK_CAPTION)}
+            <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', flexWrap: 'wrap', margin: { top: 8 } }}>
+                {shown.map((name, index) => cell(name, `${index}`, BANK_CREAM))}
+                {hidden > 0 ? cell(`+${hidden} more`, 'more', BANK_CAPTION) : null}
+            </UiEntity>
+        </UiEntity>
+    )
+}
+
 /** Only what has someone to show: a title nobody holds gets no card at all. */
 function townBoardCards(): ReactEcs.JSX.Element[] {
     const board = getTownTitles()
@@ -4310,6 +4471,8 @@ function townBoardCards(): ReactEcs.JSX.Element[] {
         if (holder !== undefined) cards.push(townTitleCard(entry.title, holder.address, holder.name, `${entry.feat}: ${entry.value(holder.value)}`))
     }
     if (board !== null && board.owners.length > 0) cards.push(townOwnersCard(board.owners))
+    // Always last, and always there: whoever is in the scene right now.
+    cards.push(townActiveUsersCard())
     return cards
 }
 
@@ -4670,10 +4833,25 @@ export const uiMenu = () => (
             {muleDropdown()}
             {/* Over every other panel: it waits for its button and nothing else. */}
             {getCompensation() !== null ? compensationPanel(getCompensation()!) : null}
-            {/* Over everything, the compensation included: nothing else here is saved any more. */}
-            {isServerOutdatedOpen() ? serverOutdatedPanel() : null}
         </UiEntity>
         {welcomeOverlay()}
         {introScreen()}
+        {/* Over everything, the title card included: nothing else here is saved any more, and a
+            player stuck loading must still see RECONNECT. Centred and as wide as main-container. */}
+        {getUpdateScreen() !== null ? (
+            <UiEntity
+                uiTransform={{
+                    positionType: 'absolute',
+                    width: '100%',
+                    height: '100%',
+                    justifyContent: 'center',
+                    alignItems: 'center'
+                }}
+            >
+                <UiEntity uiTransform={{ width: MAIN_CONTAINER_WIDTH, height: '100%', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                    {updatePanel(getUpdateScreen()!)}
+                </UiEntity>
+            </UiEntity>
+        ) : null}
     </UiEntity>
 )

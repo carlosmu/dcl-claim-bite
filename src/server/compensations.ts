@@ -43,7 +43,10 @@ export const COMPENSATIONS: readonly Compensation[] = [
 
   // 2026-11-13: a slot spin timed out and the frozen reels showed three bells at a 5-coin bet.
   // Not a real win (the pot was untouched), but paid as goodwill.
-  { id: 'slot-timeout-2026-11-13', address: '0x53e22947510ad64ae85c96526bdbedb0b3e54f31', coins: 411, date: 'November 13', kind: 'casino' }
+  { id: 'slot-timeout-2026-11-13', address: '0x53e22947510ad64ae85c96526bdbedb0b3e54f31', coins: 411, date: 'November 13', kind: 'casino' },
+
+  // 2026-11-13: lost progress in the evening's run of deploys (two servers at once). 250 coins, as the bank.
+  { id: 'deploys-2026-11-13', address: '0xa988612376214e731de1d2cbe9c16515374caeb2', coins: 250, date: 'November 13' }
 ]
 
 /** The compensations meant for this wallet, in list order. */

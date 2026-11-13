@@ -97,6 +97,13 @@ function save(): void {
     .catch(() => (statsDirty = true))
 }
 
+/** Saves the figures now if they changed (maintenance, see economy.ts). True if there was something to save. */
+export function saveCasinoStatsNow(): boolean {
+  const had = statsDirty
+  save()
+  return had
+}
+
 function tick(dt: number): void {
   if (!loaded) {
     retryIn -= dt

@@ -43,6 +43,15 @@ export function isRock(seq: number): boolean {
   return finishers.has(seq)
 }
 
+/**
+ * Whether `seq` is a rock this server has not handed out yet. Only a client still showing another
+ * server's rocks sends one: an old deploy's state it kept across the update (see askToRejoin).
+ * Negative seqs (practice and offline rocks) are never this.
+ */
+export function isUnknownRock(seq: number): boolean {
+  return seq >= nextSeq
+}
+
 export function hasFinishedRock(address: string, seq: number): boolean {
   return finishers.get(seq)?.has(address) ?? false
 }

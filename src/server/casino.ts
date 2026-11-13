@@ -84,6 +84,13 @@ function save(): void {
     .catch(() => (potDirty = true))
 }
 
+/** Saves the pot now if it changed (maintenance, see economy.ts). True if there was something to save. */
+export function saveJackpotNow(): boolean {
+  const had = potDirty
+  save()
+  return had
+}
+
 function tick(dt: number): void {
   if (!loaded) {
     retryIn -= dt

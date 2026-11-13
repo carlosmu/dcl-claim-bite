@@ -71,9 +71,18 @@ export type StoredGeneration = { id: string; entity: string; startedAt: number }
  * as if it had gone through, rather than written over what the newer server keeps.
  */
 let writesStopped = false
+/** Outdated: for good. Paused: maintenance, which the admin can end (server/economy.ts). */
+let outdated = false
+let paused = false
 
 export function stopWrites(): void {
+  outdated = true
   writesStopped = true
+}
+
+export function setWritesPaused(on: boolean): void {
+  paused = on
+  writesStopped = outdated || paused
 }
 
 export function areWritesStopped(): boolean {

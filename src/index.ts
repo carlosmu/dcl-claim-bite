@@ -36,6 +36,7 @@ import { setupTumbleweeds } from './world/tumbleweeds'
 import { setupIsometricCamera } from './world/isometric-camera'
 import { setupTouchControls } from './world/touch-controls'
 import { setupServerLink } from './net/server-link'
+import { setupConnectionWatch } from './ui/connection-watch'
 import { setupDeployStamp } from './net/deploy-stamp'
 import { setupEconomyLink } from './net/economy-link'
 import { setupPlaytest } from './playtest'
@@ -58,6 +59,7 @@ export async function main() {
     }
 
     setupServerLink()
+    setupConnectionWatch()
     setupDeployStamp()
     setupEconomyLink()
     setupMusic()

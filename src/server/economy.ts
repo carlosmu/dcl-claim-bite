@@ -43,7 +43,8 @@ import {
   StoredMule,
   StoredPurse,
   StoredReward,
-  recordAlert
+  recordAlert,
+  setWritesPaused
 } from './persistence'
 import {
   ORE_PER_ROCK,
@@ -72,15 +73,19 @@ import {
 } from '../shared/economy/catalogue'
 import { addFuelGallons, fuelGallons, fuelHoursLeft, settleMule } from './mule'
 import { clearNotes, leaveNote, sendNotes, setupNotes } from './notes'
-import { noteMined, noteNewOwner, noteSale, noteSlotWin, setupTitles } from './titles'
-import { isCasinoReady, setupCasino, spin } from './casino'
+import { noteMined, noteNewOwner, noteSale, noteSlotWin, saveTitlesNow, setupTitles } from './titles'
+import { isCasinoReady, saveJackpotNow, setupCasino, spin } from './casino'
+import { saveCasinoStatsNow } from './casino-stats'
 import { SLOT_BETS, SLOT_MIN_SECONDS_BETWEEN_SPINS } from '../shared/economy/slots'
 import { TUTORIAL_ROCK_SEQS } from '../shared/net/rock-sync'
-import { advanceRock, getRockSeqs, hasFinishedRock, isRock, isRockStarted, markFinished } from './rock'
+import { advanceRock, getRockSeqs, hasFinishedRock, isRock, isRockStarted, isUnknownRock, markFinished } from './rock'
 import { requestReward } from './rewards'
 import { onResponseSaved } from '../scene-feedback/lib/server/hooks'
 import { findRewardCampaign, LEGACY_GIFT_CAMPAIGN_ID, REWARD_CAMPAIGNS, REWARD_SURVEY_QUESTIONS, RewardStepId } from '../shared/rewards'
 import { Compensation, compensationsFor } from './compensations'
+import { isAdmin } from '../shared/admins'
+import { getGenerationId, getNewestEntity } from './generation'
+import { readSceneEntityId } from '../shared/scene-entity'
 
 type Purse = {
   ore: number
@@ -103,6 +108,8 @@ type Purse = {
   compensations: string[]
   /** Ore the rigs put in storage since it was last reported to the titles. Not saved. */
   rigOreTally: number
+  /** Storage had no purse for this player when it was read: a first visit. Not saved. */
+  fresh: boolean
 }
 
 const purses = new Map<string, Purse>()
@@ -245,7 +252,8 @@ function beginLoad(address: string): void {
         purchases: stored?.feedbackPurchases ?? 0,
         rewards: restoreRewards(stored),
         compensations: stored?.compensations ?? [],
-        rigOreTally: 0
+        rigOreTally: 0,
+        fresh: stored === null
       }
       grantStartingItems(purse)
       const owned = (id: ShopItemId) => purse.owned[id] ?? 0
@@ -266,7 +274,11 @@ function beginLoad(address: string): void {
       sendMuleAway(address)
       sendRewardStatus(address)
       sendCompensation(address)
-      console.log(`[Server] purse ${stored === null ? 'created for' : 'restored for'} ${address}`)
+      sendMaintenanceState(address)
+      // What was read, so a wrong purse on a client can be told apart from a wrong read here.
+      console.log(
+        `[Server] purse ${stored === null ? 'created for' : 'restored for'} ${address}: ${purse.coins} coins, ${purse.ore} ore, pick ${activePick((id) => purse.owned[id] ?? 0, purse.equipped)?.id ?? 'none'}`
+      )
     })
     .catch((error) => {
       // Nothing is put in `purses`: the player waits, and the presence check tries again.
@@ -570,7 +582,10 @@ function sendWallet(address: string): void {
       equipped: activePick(owned, purse.equipped)?.id ?? '',
       pickDurability: encodeDurability(purse),
       mules: muleCount(owned),
-      muleFuelHours: fuelHoursLeft(purse, muleCount(owned))
+      muleFuelHours: fuelHoursLeft(purse, muleCount(owned)),
+      address: address.toLowerCase(),
+      fresh: purse.fresh,
+      server: getGenerationId()
     },
     { to: [address] }
   )
@@ -602,6 +617,10 @@ function handleRockDone(address: string, seq: number): void {
   // reached by a modified client or a message racing a move — as is a rock that is not there.
   // A practice rock is nobody else's, and pays once.
   const tutorial = TUTORIAL_ROCK_SEQS.includes(seq)
+  if (!tutorial && isUnknownRock(seq)) {
+    askToRejoin(address, `finished rock ${seq}, which this server never put up`)
+    return
+  }
   if (tutorial ? tutorialPaid.get(address)?.has(seq) : !isRock(seq) || hasFinishedRock(address, seq)) return
 
   // Dropped silently: an honest client cannot finish a rock faster than its swings allow, and
@@ -985,6 +1004,7 @@ function checkPresence(dt: number) {
       // before one brings the rewards' status: it goes with the wallet.
       sendRewardStatus(address)
       sendCompensation(address)
+      sendMaintenanceState(address)
     }
   }
 
@@ -1516,6 +1536,126 @@ function loadMarket(): void {
     })
 }
 
+// --- Maintenance and stale clients ---
+//
+// A deploy does not move the players who are in the scene: their client keeps the old server's
+// state (its rocks, say), so what they do afterwards is lost or never counted. Maintenance is
+// the admin's way to get ready for one: everything is saved, then nothing more is written or
+// accepted, and every player is asked to wait. Once the new server is up this one finds out it
+// is outdated (generation.ts) and the waiting screen becomes the rejoin screen.
+
+/** How often a running maintenance repeats its notice, for the players who arrive meanwhile. */
+const MAINTENANCE_NOTICE_SECONDS = 30
+/** How often maintenance saves what is still unsaved, until a pass finds nothing. */
+const MAINTENANCE_DRAIN_PERIOD_SECONDS = 2
+/** Writes stop once a drain pass finds nothing left to save, or after this long regardless. */
+const MAINTENANCE_DRAIN_MAX_SECONDS = 20
+/** A client is told to rejoin at most this often, however many stale messages it sends. */
+const REJOIN_ASK_SECONDS = 30
+
+let maintenance = false
+/** Seconds draining so far, or -1 when not draining. */
+let drainingFor = -1
+let sinceLastDrain = 0
+let sinceLastMaintenanceNotice = 0
+const rejoinAskedAt = new Map<string, number>()
+
+/** Whether actions are refused: maintenance is on, and nothing done now would be saved. */
+function inMaintenance(): boolean {
+  return maintenance
+}
+
+/**
+ * Tells one client whether maintenance is on, on or off: a client that waited out maintenance on
+ * another server and was moved here still shows its waiting screen until told otherwise.
+ */
+function sendMaintenanceState(address: string): void {
+  // An outdated server has nothing to wait for: whoever reaches it is told to rejoin instead.
+  const newest = getNewestEntity()
+  if (newest !== null) {
+    room.send('serverOutdated', { entity: newest }, { to: [address] })
+    return
+  }
+  room.send('maintenance', { on: maintenance }, { to: [address] })
+}
+
+/** Tells one client its state belongs to another server, and logs why. Rate limited per address. */
+function askToRejoin(address: string, reason: string): void {
+  const last = rejoinAskedAt.get(address)
+  if (last !== undefined && serverClock - last < REJOIN_ASK_SECONDS) return
+  rejoinAskedAt.set(address, serverClock)
+  console.log(`[Server] asked ${address} to rejoin: ${reason}`)
+  room.send('rejoinNeeded', { reason }, { to: [address] })
+}
+
+function handleAdminMaintenance(address: string, on: boolean): void {
+  if (!isAdmin(address)) {
+    console.log(`[Server] maintenance ${on ? 'start' : 'end'} refused for ${address}: not an admin`)
+    return
+  }
+  if (on === maintenance) {
+    room.send('maintenance', { on }, { to: [address] })
+    return
+  }
+  maintenance = on
+  console.log(`[Server] maintenance ${on ? 'started' : 'ended'} by ${address}`)
+  if (on) {
+    drainingFor = 0
+    sinceLastDrain = MAINTENANCE_DRAIN_PERIOD_SECONDS
+  } else {
+    drainingFor = -1
+    setWritesPaused(false)
+  }
+  sinceLastMaintenanceNotice = 0
+  room.send('maintenance', { on })
+}
+
+/** Starts saving everything unsaved, purses and town alike. True if there was anything. */
+function saveEverythingNow(): boolean {
+  let any = dirty.size > 0
+  for (const address of [...dirty]) flushPurse(address)
+  if (marketLoaded && marketDirty) {
+    marketDirty = false
+    saveMarketPrice(getSettledRate())
+    any = true
+  }
+  if (lotsLoaded && lotsDirty) {
+    saveLots()
+    any = true
+  }
+  if (yardLoaded && yardDirty) {
+    saveYard()
+    any = true
+  }
+  if (saveJackpotNow()) any = true
+  if (saveCasinoStatsNow()) any = true
+  if (saveTitlesNow()) any = true
+  return any
+}
+
+function runMaintenance(dt: number): void {
+  if (!maintenance) return
+
+  sinceLastMaintenanceNotice += dt
+  if (sinceLastMaintenanceNotice >= MAINTENANCE_NOTICE_SECONDS) {
+    sinceLastMaintenanceNotice = 0
+    room.send('maintenance', { on: true })
+  }
+
+  if (drainingFor < 0) return
+  drainingFor += dt
+  sinceLastDrain += dt
+  if (sinceLastDrain < MAINTENANCE_DRAIN_PERIOD_SECONDS) return
+  sinceLastDrain = 0
+  // A write that fails marks its data unsaved again, so a pass that saved anything is followed
+  // by another: writes stop only after one that finds nothing left.
+  const saved = saveEverythingNow()
+  if (saved && drainingFor < MAINTENANCE_DRAIN_MAX_SECONDS) return
+  drainingFor = -1
+  setWritesPaused(true)
+  console.log(`[Server] maintenance: ${saved ? 'gave up waiting for the last saves' : 'everything saved'}, writes stopped`)
+}
+
 export function setupEconomy(): void {
   loadMarket()
   loadLots()
@@ -1558,6 +1698,22 @@ export function setupEconomy(): void {
     }
     // Whatever was left at their door while they were away.
     sendNotes(context.from)
+    sendMaintenanceState(context.from)
+  })
+
+  room.onMessage('clientBuild', (data, context) => {
+    if (!context) return
+    const from = context.from
+    readSceneEntityId()
+      .then((entity) => {
+        if (data.entity !== entity) askToRejoin(from, `client runs deploy ${data.entity}, this server ${entity}`)
+      })
+      .catch(() => {})
+  })
+
+  room.onMessage('adminMaintenance', (data, context) => {
+    if (!context) return
+    handleAdminMaintenance(context.from, data.on)
   })
 
   room.onMessage('askOwnerCard', (data, context) => {
@@ -1566,17 +1722,17 @@ export function setupEconomy(): void {
   })
 
   room.onMessage('leaveNote', (data, context) => {
-    if (!context) return
+    if (!context || inMaintenance()) return
     handleLeaveNote(context.from, data.owner, data.text)
   })
 
   room.onMessage('clearNotes', (_data, context) => {
-    if (!context) return
+    if (!context || inMaintenance()) return
     clearNotes(context.from)
   })
 
   room.onMessage('claimPick', (_data, context) => {
-    if (!context) return
+    if (!context || inMaintenance()) return
     handleClaimPick(context.from)
   })
 
@@ -1596,7 +1752,7 @@ export function setupEconomy(): void {
   })
 
   room.onMessage('rockDone', (data, context) => {
-    if (!context) return
+    if (!context || inMaintenance()) return
     handleRockDone(context.from, data.seq)
   })
 
@@ -1608,32 +1764,32 @@ export function setupEconomy(): void {
   })
 
   room.onMessage('sell', (data, context) => {
-    if (!context) return
+    if (!context || inMaintenance()) return
     handleSell(context.from, data.amount)
   })
 
   room.onMessage('buy', (data, context) => {
-    if (!context) return
+    if (!context || inMaintenance()) return
     handleBuy(context.from, data.itemId)
   })
 
   room.onMessage('slotSpin', (data, context) => {
-    if (!context) return
+    if (!context || inMaintenance()) return
     handleSlotSpin(context.from, data.bet)
   })
 
   room.onMessage('equip', (data, context) => {
-    if (!context) return
+    if (!context || inMaintenance()) return
     handleEquip(context.from, data.itemId)
   })
 
   room.onMessage('claimReward', (data, context) => {
-    if (!context) return
+    if (!context || inMaintenance()) return
     handleClaimReward(context.from, data.id)
   })
 
   room.onMessage('claimCompensation', (data, context) => {
-    if (!context) return
+    if (!context || inMaintenance()) return
     handleClaimCompensation(context.from, data.id)
   })
 
@@ -1650,6 +1806,7 @@ export function setupEconomy(): void {
   engine.addSystem(publishRate, undefined, 'server:market-rate')
   engine.addSystem(reportAbuse, undefined, 'server:abuse-report')
   engine.addSystem(flushSaves, undefined, 'server:save')
+  engine.addSystem(runMaintenance, undefined, 'server:maintenance')
   engine.addSystem(settlePresentMules, undefined, 'server:mule-settle')
   engine.addSystem(checkPresence, undefined, 'server:presence')
   engine.addSystem(publishYard, undefined, 'server:mule-yard')

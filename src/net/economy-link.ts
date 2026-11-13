@@ -6,6 +6,7 @@
 // be edited by the player holding it.
 
 import { engine } from '@dcl/sdk/ecs'
+import { getPlayer } from '@dcl/sdk/players'
 import { triggerEmote } from '~system/RestrictedActions'
 import { isStateSyncronized } from '@dcl/sdk/network'
 
@@ -24,7 +25,8 @@ import { onSlotRefused, onSlotResult } from '../casino/casino'
 import { notePurchaseCount } from '../playtest'
 import { applyRewardStatus, onRewardClaimResult } from '../claim-office/claim-office'
 import { applyCompensation, onCompensationRefused } from '../ui/compensation'
-import { noteServerOutdated } from '../ui/server-outdated'
+import { noteMaintenance, noteRejoinNeeded, noteServerOutdated } from '../ui/server-outdated'
+import { readSceneEntityId } from '../shared/scene-entity'
 
 const BANK_SOUND_CLIP = 'assets/sounds/bank.mp3'
 const BUY_SOUND_CLIP = 'assets/sounds/buy.mp3'
@@ -50,6 +52,22 @@ let hitsPerRock = 0
 let muleCount = 0
 let muleFuelHours = 0
 let walletReceived = false
+/** Whose purse the last wallet was: if the player's identity changes, it no longer counts. */
+let walletAddress = ''
+/** Whether the last wallet was a first visit's, and which server sent it (generation id). */
+let walletFresh = false
+let walletServer = ''
+/** Wallets received this visit, for the title card's status line. */
+let walletCount = 0
+/** Wallets dropped because they were not this player's. */
+let ignoredWallets = 0
+/**
+ * When this client last told the server which deploy it runs (clientBuild in protocol.ts). Told
+ * again every so often, not once: after a deploy the client can be moved to the new server, which
+ * has never heard it, and that is exactly when the answer matters.
+ */
+let buildSentAt = -Infinity
+const BUILD_RESEND_MS = 20 * 1000
 /** The id of the last pick that broke, and how many have broken this visit (so a repeat is news). */
 let brokenPick = ''
 let brokenPickCount = 0
@@ -121,6 +139,21 @@ export function getMuleAway(): { ore: number; count: number } {
   return { ore: muleAwayOre, count: muleAwayCount }
 }
 
+/** How many wallets arrived this visit, and the coins in the last: for the title card's status line. */
+export function getWalletDebug(): { count: number; coins: number; ignored: number; server: string; fresh: boolean } {
+  return { count: walletCount, coins: serverCoins, ignored: ignoredWallets, server: walletServer, fresh: walletFresh }
+}
+
+/** Whether the purse that arrived has nothing in it: no coins, no ore, no pick, no rigs. */
+export function isWalletEmpty(): boolean {
+  return walletReceived && serverCoins === 0 && serverOre === 0 && hitsPerRock <= 0 && muleCount === 0
+}
+
+/** Whether the server said this purse is a first visit's (nothing in storage). */
+export function isWalletFresh(): boolean {
+  return walletFresh
+}
+
 /** Whether the server has sent this player's purse yet. Until then every figure above is a placeholder. */
 export function hasWallet(): boolean {
   return walletReceived
@@ -170,6 +203,12 @@ export function sendClaimReward(campaignId: string): void {
 }
 
 /** Asks the server to credit a compensation it offered, by its id. */
+/** ADMIN: starts or ends maintenance before a deploy. The server refuses anyone not in shared/admins.ts. */
+export function sendAdminMaintenance(on: boolean): void {
+  if (!isStateSyncronized()) return
+  room.send('adminMaintenance', { on })
+}
+
 export function sendClaimCompensation(id: string): void {
   if (!isStateSyncronized()) return
   room.send('claimCompensation', { id })
@@ -208,6 +247,12 @@ export function sendDebugReset(): void {
  * fixed by asking again a second later. It stops the moment a wallet lands.
  */
 function announce(dt: number) {
+  // The explorer can present the player under one address and switch to their real one a few
+  // seconds later: a wallet for the first is not theirs, so it is asked for again.
+  if (walletReceived && (getPlayer()?.userId ?? '').toLowerCase() !== walletAddress) {
+    walletReceived = false
+    sinceLastHello = HELLO_RETRY_SECONDS
+  }
   if (walletReceived || !isStateSyncronized()) return
 
   sinceLastHello += dt
@@ -235,7 +280,25 @@ function recordRate(rate: number): void {
 
 export function setupEconomyLink(): void {
   room.onMessage('wallet', (data) => {
+    // Only this player's own purse: anything else would be shown as theirs (see protocol.ts).
+    const me = (getPlayer()?.userId ?? '').toLowerCase()
+    if (me === '' || data.address !== me) {
+      ignoredWallets += 1
+      return
+    }
     walletReceived = true
+    walletAddress = me
+    walletFresh = data.fresh
+    walletServer = data.server
+    walletCount += 1
+    // Once the server is answering: tells it which deploy this client runs, so a client left on
+    // an old one is asked to rejoin.
+    if (Date.now() - buildSentAt >= BUILD_RESEND_MS) {
+      buildSentAt = Date.now()
+      readSceneEntityId()
+        .then((entity) => room.send('clientBuild', { entity }))
+        .catch(() => (buildSentAt = -Infinity))
+    }
     capacity = data.capacity
     hitsPerRock = data.hitsPerRock
     muleCount = data.mules
@@ -271,6 +334,8 @@ export function setupEconomyLink(): void {
   room.onMessage('compensation', (data) => applyCompensation({ id: data.id, coins: data.coins, date: data.date, kind: data.kind === 'casino' ? 'casino' : 'bank', claimed: data.claimed }))
 
   room.onMessage('serverOutdated', (data) => noteServerOutdated(data.entity))
+  room.onMessage('rejoinNeeded', () => noteRejoinNeeded())
+  room.onMessage('maintenance', (data) => noteMaintenance(data.on))
 
   room.onMessage('rewardStatus', (data) => applyRewardStatus(data.rewards.map((reward) => ({ ...reward, done: [...reward.done] }))))
 

@@ -13,7 +13,7 @@ import { engine, executeTask } from '@dcl/sdk/ecs'
 
 import { room } from '../shared/net/protocol'
 import { readSceneEntityId } from '../shared/scene-entity'
-import { areWritesStopped, loadGeneration, saveGeneration, StoredGeneration, stopWrites } from './persistence'
+import { loadGeneration, saveGeneration, StoredGeneration, stopWrites } from './persistence'
 
 /** How often the record is read back, and how often an outdated server repeats its notice. */
 const GENERATION_CHECK_PERIOD_SECONDS = 30
@@ -23,6 +23,16 @@ let mine: StoredGeneration | null = null
 let newestEntity: string | null = null
 let checking = false
 let sinceLastCheck = 0
+
+/** This server's generation id ('' until it is known), for the wallet's `server` field. */
+export function getGenerationId(): string {
+  return mine?.id ?? ''
+}
+
+/** The newest deploy's entity id once this server knows it is outdated, else null. */
+export function getNewestEntity(): string | null {
+  return newestEntity
+}
 
 export function setupGeneration(): void {
   executeTask(async () => {
@@ -61,7 +71,8 @@ function checkGeneration(dt: number): void {
         await claimNewest()
         return
       }
-      if (stored.id === mine.id || areWritesStopped()) return
+      // A server in maintenance has stopped writing too, and must still find out it is outdated.
+      if (stored.id === mine.id || newestEntity !== null) return
       stopWrites()
       newestEntity = stored.entity
       console.log(`[Server] OUTDATED: server ${stored.id} (${stored.entity}) started after this one (${mine.id}, ${mine.entity}); saving stopped`)
