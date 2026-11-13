@@ -57,6 +57,44 @@ const CASINO_STATS_KEY = seasonKey('casino-stats')
  */
 const ALERTS_KEY = 'alerts'
 
+/**
+ * Scene-wide key: the newest server to start (server/generation.ts). Not per season: it is about
+ * deploys, not progress.
+ */
+const GENERATION_KEY = 'server-generation'
+
+export type StoredGeneration = { id: string; entity: string; startedAt: number }
+
+/**
+ * Set once a newer server has started (server/generation.ts). From then on this one is a leftover
+ * of an old deploy: whatever it holds in memory is out of date, so every save below is skipped,
+ * as if it had gone through, rather than written over what the newer server keeps.
+ */
+let writesStopped = false
+
+export function stopWrites(): void {
+  writesStopped = true
+}
+
+export function areWritesStopped(): boolean {
+  return writesStopped
+}
+
+/** The newest server's record, or null if none was ever written. Throws if the read failed. */
+export function loadGeneration(): Promise<StoredGeneration | null> {
+  return readValue<StoredGeneration>(`/values/${encodeURIComponent(GENERATION_KEY)}`)
+}
+
+/** Resolves true once the write is confirmed. Not stopped by stopWrites: only a newer server writes it. */
+export async function saveGeneration(generation: StoredGeneration): Promise<boolean> {
+  try {
+    return await Storage.set(GENERATION_KEY, generation)
+  } catch (error) {
+    console.log(`[Server] could not save the server generation: ${error}`)
+    return false
+  }
+}
+
 /** How many alerts are kept, newest last. The oldest go once there are more. */
 const MAX_ALERTS = 200
 
@@ -152,6 +190,7 @@ export function loadPurse(address: string): Promise<StoredPurse | null> {
  * resolves false, so the caller has to look at the result to know the purse is still unsaved.
  */
 export async function savePurse(address: string, purse: StoredPurse): Promise<boolean> {
+  if (writesStopped) return true
   try {
     const ok = await Storage.player.set(address, PURSE_KEY, purse)
     if (!ok) console.log(`[Server] could not save purse for ${address}`)
@@ -168,6 +207,7 @@ export function loadMarketPrice(): Promise<number | null> {
 }
 
 export function saveMarketPrice(price: number): void {
+  if (writesStopped) return
   Storage.set(MARKET_PRICE_KEY, price)
     .then((ok) => {
       if (!ok) console.log('[Server] could not save market price')
@@ -182,6 +222,7 @@ export function loadPropertyLots(): Promise<StoredLot[] | null> {
 
 /** Resolves true once the write is confirmed, like savePurse. */
 export async function savePropertyLots(lots: StoredLot[]): Promise<boolean> {
+  if (writesStopped) return true
   try {
     const ok = await Storage.set(PROPERTY_LOTS_KEY, lots)
     if (!ok) console.log('[Server] could not save property lots')
@@ -199,6 +240,7 @@ export function loadNotes(address: string): Promise<Note[] | null> {
 
 /** Resolves true once the write is confirmed, like savePurse. */
 export async function saveNotes(address: string, notes: Note[]): Promise<boolean> {
+  if (writesStopped) return true
   try {
     const ok = await Storage.player.set(address, NOTES_KEY, notes)
     if (!ok) console.log(`[Server] could not save notes for ${address}`)
@@ -216,6 +258,7 @@ export function loadJackpot(): Promise<number | null> {
 
 /** Resolves true once the write is confirmed, like savePurse. */
 export async function saveJackpot(pot: number): Promise<boolean> {
+  if (writesStopped) return true
   try {
     const ok = await Storage.set(JACKPOT_KEY, pot)
     if (!ok) console.log('[Server] could not save the jackpot')
@@ -233,6 +276,7 @@ export function loadCasinoStats(): Promise<StoredCasinoStats | null> {
 
 /** Resolves true once the write is confirmed, like savePurse. */
 export async function saveCasinoStats(stats: StoredCasinoStats): Promise<boolean> {
+  if (writesStopped) return true
   try {
     const ok = await Storage.set(CASINO_STATS_KEY, stats)
     if (!ok) console.log('[Server] could not save the casino stats')
@@ -250,6 +294,7 @@ export function loadTitles(): Promise<StoredTitles | null> {
 
 /** Resolves true once the write is confirmed, like savePurse. */
 export async function saveTitles(titles: StoredTitles): Promise<boolean> {
+  if (writesStopped) return true
   try {
     const ok = await Storage.set(TITLES_KEY, titles)
     if (!ok) console.log('[Server] could not save titles')
@@ -267,6 +312,7 @@ export function loadMuleYard(): Promise<StoredMule[] | null> {
 
 /** Resolves true once the write is confirmed, like savePurse. */
 export async function saveMuleYard(mules: StoredMule[]): Promise<boolean> {
+  if (writesStopped) return true
   try {
     const ok = await Storage.set(MULE_YARD_KEY, mules)
     if (!ok) console.log('[Server] could not save mule yard')

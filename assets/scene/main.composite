@@ -1556,16 +1556,16 @@
               "y": 0.75,
               "z": -17.75
             },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
             "rotation": {
               "x": 0,
               "y": -0.7288837432861328,
               "z": 0,
               "w": 0.6846374869346619
-            },
-            "scale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
             },
             "parent": 0
           }
@@ -1577,16 +1577,16 @@
               "y": 0.75,
               "z": -19.25
             },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
             "rotation": {
               "x": 0,
               "y": -0.7288837432861328,
               "z": 0,
               "w": 0.6846374869346619
-            },
-            "scale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
             },
             "parent": 0
           }
@@ -1598,16 +1598,16 @@
               "y": 0.75,
               "z": -20.75
             },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
             "rotation": {
               "x": 0,
               "y": -0.6861573457717896,
               "z": 0,
               "w": 0.7274531722068787
-            },
-            "scale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
             },
             "parent": 0
           }
@@ -1694,6 +1694,27 @@
               "w": 1
             },
             "parent": 528
+          }
+        },
+        "592": {
+          "json": {
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "w": 1
+            },
+            "parent": 0
           }
         },
         "1558": {
@@ -2729,6 +2750,11 @@
             "value": "tailor_officer"
           }
         },
+        "592": {
+          "json": {
+            "value": "Admin Tools"
+          }
+        },
         "1558": {
           "json": {
             "value": "Town Mayor"
@@ -2887,7 +2913,8 @@
                   583,
                   585,
                   586,
-                  587
+                  587,
+                  592
                 ]
               },
               {
@@ -3317,6 +3344,10 @@
               {
                 "entity": 591,
                 "children": []
+              },
+              {
+                "entity": 592,
+                "children": []
               }
             ]
           }
@@ -3575,6 +3606,9 @@
           "json": {}
         },
         "591": {
+          "json": {}
+        },
+        "592": {
           "json": {}
         },
         "1558": {
@@ -5351,6 +5385,74 @@
           "json": {
             "id": 0,
             "value": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "asset-packs::Script",
+      "jsonSchema": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "serializationType": "utf8-string"
+                },
+                "priority": {
+                  "type": "number",
+                  "serializationType": "float32"
+                },
+                "layout": {
+                  "type": "string",
+                  "serializationType": "optional",
+                  "optionalJsonSchema": {
+                    "type": "string",
+                    "serializationType": "utf8-string"
+                  }
+                }
+              },
+              "serializationType": "map"
+            },
+            "serializationType": "array"
+          }
+        },
+        "serializationType": "map"
+      },
+      "data": {
+        "592": {
+          "json": {
+            "value": [
+              {
+                "path": "assets/asset-packs/admin_tools/AdminTools.ts",
+                "priority": 0,
+                "layout": "{\"params\":{\"adminPermissions\":{\"type\":\"enum\",\"value\":\"PRIVATE\",\"options\":[\"PUBLIC\",\"PRIVATE\"],\"optional\":true,\"tooltip\":\"Who is allowed to open the admin panel.\"},\"authorizedAdminUsers\":{\"type\":\"object\",\"value\":{\"me\":true,\"sceneOwners\":true,\"allowList\":true,\"adminAllowList\":[]},\"fields\":{\"me\":{\"type\":\"boolean\",\"value\":false},\"sceneOwners\":{\"type\":\"boolean\",\"value\":false},\"allowList\":{\"type\":\"boolean\",\"value\":false},\"adminAllowList\":{\"type\":\"array\",\"value\":[],\"item\":{\"type\":\"string\",\"value\":\"\",\"format\":\"wallet\"}}},\"optional\":true,\"tooltip\":\"Which groups (you, scene owners, an allow-list) count as admins.\"},\"moderationControl\":{\"type\":\"object\",\"value\":{\"isEnabled\":true,\"kickCoordinates\":{\"x\":0,\"y\":0,\"z\":0},\"allowNonOwnersManageAdminAllowList\":false},\"fields\":{\"isEnabled\":{\"type\":\"boolean\",\"value\":false},\"kickCoordinates\":{\"type\":\"object\",\"value\":{\"x\":0,\"y\":0,\"z\":0},\"fields\":{\"x\":{\"type\":\"number\",\"value\":0},\"y\":{\"type\":\"number\",\"value\":0},\"z\":{\"type\":\"number\",\"value\":0}}},\"allowNonOwnersManageAdminAllowList\":{\"type\":\"boolean\",\"value\":false}},\"optional\":true,\"tooltip\":\"Kick players and manage the admin allow-list.\"},\"textAnnouncementControl\":{\"type\":\"object\",\"value\":{\"isEnabled\":true,\"playSoundOnEachAnnouncement\":true,\"showAuthorOnEachAnnouncement\":true},\"fields\":{\"isEnabled\":{\"type\":\"boolean\",\"value\":false},\"playSoundOnEachAnnouncement\":{\"type\":\"boolean\",\"value\":false},\"showAuthorOnEachAnnouncement\":{\"type\":\"boolean\",\"value\":false}},\"optional\":true,\"tooltip\":\"Scene-wide text announcements.\"},\"videoControl\":{\"type\":\"object\",\"value\":{\"isEnabled\":true,\"disableVideoPlayersSound\":false,\"showAuthorOnVideoPlayers\":true,\"linkAllVideoPlayers\":false,\"videoPlayers\":[]},\"fields\":{\"isEnabled\":{\"type\":\"boolean\",\"value\":false},\"disableVideoPlayersSound\":{\"type\":\"boolean\",\"value\":false},\"showAuthorOnVideoPlayers\":{\"type\":\"boolean\",\"value\":false},\"linkAllVideoPlayers\":{\"type\":\"boolean\",\"value\":false},\"videoPlayers\":{\"type\":\"array\",\"value\":[],\"item\":{\"type\":\"object\",\"value\":{\"entity\":0,\"customName\":\"\"},\"fields\":{\"entity\":{\"type\":\"entity\",\"value\":0,\"components\":[\"asset-packs::VideoScreen\"]},\"customName\":{\"type\":\"string\",\"value\":\"\"}}}}},\"optional\":true,\"tooltip\":\"Video and stream screens the admin can control.\"},\"smartItemsControl\":{\"type\":\"object\",\"value\":{\"isEnabled\":true,\"linkAllSmartItems\":false,\"smartItems\":[]},\"fields\":{\"isEnabled\":{\"type\":\"boolean\",\"value\":false},\"linkAllSmartItems\":{\"type\":\"boolean\",\"value\":false},\"smartItems\":{\"type\":\"array\",\"value\":[],\"item\":{\"type\":\"object\",\"value\":{\"entity\":0,\"customName\":\"\",\"defaultAction\":\"\"},\"fields\":{\"entity\":{\"type\":\"entity\",\"value\":0,\"components\":[\"asset-packs::Actions\"]},\"customName\":{\"type\":\"string\",\"value\":\"\"},\"defaultAction\":{\"type\":\"string\",\"value\":\"\",\"actionsOf\":\"entity\"}}}}},\"optional\":true,\"tooltip\":\"Other smart items whose actions the admin can trigger.\"}},\"actions\":[],\"events\":[]}"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "asset-packs::Placeholder",
+      "jsonSchema": {
+        "type": "object",
+        "properties": {
+          "src": {
+            "type": "string",
+            "serializationType": "utf8-string"
+          }
+        },
+        "serializationType": "map"
+      },
+      "data": {
+        "592": {
+          "json": {
+            "src": "assets/asset-packs/admin_tools/admin_toolkit.glb"
           }
         }
       }

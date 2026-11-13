@@ -115,6 +115,11 @@ export const Messages = {
     claimed: Schemas.Boolean
   }),
 
+  // Server -> everyone it serves: a newer server has started (server/generation.ts), so this one no
+  // longer saves anything. `entity` is the newest deploy's entity id: a client running another
+  // deploy is on an old version and is asked to rejoin; one running that deploy ignores it.
+  serverOutdated: Schemas.Map({ entity: Schemas.String }),
+
   // Server -> one client: what a finished rock paid. `bonus` is the Social Bonus part of `ore`,
   // already capped by the bag like the rest.
   rockPaid: Schemas.Map({ ore: Schemas.Number, bonus: Schemas.Number }),

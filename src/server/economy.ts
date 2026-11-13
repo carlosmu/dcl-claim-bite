@@ -141,7 +141,13 @@ const SAVE_PERIOD_SECONDS = 5
 // has actually been read, so "present in the map" means "safe to spend from".
 const loading = new Set<string>()
 
-/** Purses changed since the last flush. */
+/**
+ * Purses changed since the last flush, by something the player did on this server (or a one-off
+ * upgrade of an old save). Never just for having been read or for the rigs being settled: that
+ * is worked out again from the stored timestamp at the next read, and a server that writes a
+ * purse its player never touched is how a leftover server from an old deploy wrote hours-old
+ * purses over the real ones (server/generation.ts).
+ */
 const dirty = new Set<string>()
 
 let marketDirty = false
@@ -246,13 +252,16 @@ function beginLoad(address: string): void {
 
       // A rig bought before fuel existed has never been filled. It gets the day every new
       // rig comes with, so the update does not greet its owner with a stalled rig.
-      if (stored !== null && stored.muleFuel === undefined) addFuelGallons(purse, muleCount(owned), muleCount(owned))
+      // Saved, so the day is given once and not again at every read.
+      if (stored !== null && stored.muleFuel === undefined) {
+        addFuelGallons(purse, muleCount(owned), muleCount(owned))
+        dirty.add(address)
+      }
 
       // Settled the moment it is read, so the wallet the player is about to be shown already
       // includes everything the rigs dug while they were away.
       settleArrival(address, purse)
       purses.set(address, purse)
-      dirty.add(address)
       sendWallet(address)
       sendMuleAway(address)
       sendRewardStatus(address)
@@ -426,8 +435,8 @@ function handleClaimReward(address: string, campaignId: string): void {
         dirty.add(address)
         sendWallet(address)
       } else {
-        // Purses stay in memory once read, so this should not happen; stored as an alert so the
-        // coins can be put right by hand if it ever does.
+        // A purse is kept while its claim is out (releasePurse), so this should not happen;
+        // stored as an alert so the coins can be put right by hand if it ever does.
         recordAlert({
           kind: 'refund-lost',
           message: `Paid ${refund} coins for ${campaign.id}, not handed over (${result.detail}), and the purse was gone to refund it`,
@@ -441,6 +450,8 @@ function handleClaimReward(address: string, campaignId: string): void {
       dirty.add(address)
     }
     if (now !== undefined && (claimedNow || refund > 0)) flushPurse(address)
+    // Held only for this answer if the player has gone meanwhile.
+    releasePurse(address)
     sendResult(address, 'claimReward', claimedNow, result.ok ? result.detail : claimedNow ? 'already claimed' : result.detail)
     sendRewardStatus(address)
     console.log(`[Server] ${campaign.id} reward claim for ${address}: ${result.ok ? 'assigned' : result.detail}`)
@@ -968,7 +979,6 @@ function checkPresence(dt: number) {
     if (purse !== undefined) {
       // Back while the purse was still held: the rigs were not settled while they were gone.
       settleArrival(address, purse)
-      dirty.add(address)
       sendWallet(address)
       sendMuleAway(address)
       // The returning client starts from an empty mirror, and this wallet may stop its hellos
@@ -982,15 +992,16 @@ function checkPresence(dt: number) {
     if (here.has(address)) continue
     present.delete(address)
     muleAwayOre.delete(address)
-    // The purse stays in `purses` — only the greeting is forgotten, so the next arrival is
-    // treated as new and gets told what it holds.
+    // The greeting is forgotten, so the next arrival is treated as new and gets told what it
+    // holds. The purse goes too once it is saved (releasePurse), to be read afresh next time.
     lastRockAt.delete(address)
     // Gone from the scene is gone from the crowd, without waiting out the active window.
     lastMinedAt.delete(address)
     lastSwing.delete(address)
     // Written out now rather than at the next flush: leaving is exactly when a player is
-    // most likely to not come back before the server stops.
-    flushPurse(address)
+    // most likely to not come back before the server stops. Then let go (releasePurse).
+    if (dirty.has(address)) flushPurse(address)
+    else releasePurse(address)
     console.log(`[Server] ${address} left`)
   }
 }
@@ -1016,8 +1027,22 @@ function flushPurse(address: string): void {
   saved
     .then((ok) => {
       if (!ok) dirty.add(address)
+      else releasePurse(address)
     })
     .catch(() => dirty.add(address))
+}
+
+/**
+ * Forgets the purse of a player who has gone, once nothing in it is unsaved, so their next visit
+ * reads it from storage again. A purse kept in memory goes out of date the moment the player
+ * plays on another server (a newer deploy's), and this server would then save it over the
+ * newer one: kept for the length of a visit, never longer. Kept while a claim with the Rewards
+ * service is still out: its answer may have coins to give back.
+ */
+function releasePurse(address: string): void {
+  if (present.has(address) || dirty.has(address) || !purses.has(address)) return
+  for (const key of claimingReward) if (key.startsWith(`${address}:`)) return
+  purses.delete(address)
 }
 
 function flushSaves(dt: number) {
@@ -1075,7 +1100,7 @@ function settlePresentMules(dt: number) {
     settleMule(purse, mules, carryCapacity(owned))
     if (purse.ore === before && Math.ceil(fuelHoursLeft(purse, mules)) === hoursBefore) continue
 
-    dirty.add(address)
+    // Not marked dirty: see `dirty`. It rides along with the player's next real change.
     sendWallet(address)
   }
 }

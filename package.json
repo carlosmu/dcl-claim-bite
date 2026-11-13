@@ -24,5 +24,13 @@
     "singleQuote": true,
     "printWidth": 120,
     "trailingComma": "none"
+  },
+  "devDependencies": {
+    "@dcl/asset-packs": "2.27.0"
+  },
+  "overrides": {
+    "@dcl/asset-packs": {
+      "@dcl/ecs": "$@dcl/sdk"
+    }
   }
 }

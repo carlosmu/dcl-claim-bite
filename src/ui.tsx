@@ -92,6 +92,7 @@ import { setupRollingCounters, shownCoins, shownOre } from './ui/rolling-counter
 import { getOrePopup, setupOrePopup } from './ui/ore-popup'
 import { DEBUG_ADD_COINS, DEBUG_ADD_ORE, DEBUG_RESET_PROGRESS, DEBUG_SERVER_STATUS, DEBUG_SHOW_MULE_ALERTS } from './shared/debug-flags'
 import { claimCompensation, closeCompensation, CompensationOffer, getCompensation, isClaimingCompensation } from './ui/compensation'
+import { closeServerOutdated, isRejoining, isServerOutdatedOpen, rejoinWorld } from './ui/server-outdated'
 import { isLocalPreview } from './shared/local-preview'
 import { quotedRate, secondsToRecover } from './shared/state/market'
 import { BitmapText } from './ui/bitmap-text'
@@ -1008,6 +1009,69 @@ const compensationPanel = (offer: CompensationOffer) => {
                     onMouseDown={closeCompensation}
                 />
             ) : null}
+        </UiEntity>
+    )
+}
+
+// The player's server is left over from an old deploy and saves nothing any more
+// (server/generation.ts): rejoining the world loads the current version. In the bank's dress.
+const serverOutdatedPanel = () => {
+    const rejoining = isRejoining()
+    return (
+        <UiEntity
+            uiTransform={{
+                positionType: 'absolute',
+                width: '100%',
+                minWidth: PANEL_MIN_WIDTH,
+                flexDirection: 'column',
+                alignItems: 'center',
+                padding: BANK_PANEL_PADDING,
+                borderRadius: PANEL_RADIUS,
+                borderWidth: 3,
+                borderColor: BANK_TRIM
+            }}
+            uiBackground={{ color: BANK_WOOD_DARK }}
+        >
+            <UiEntity uiTransform={{ width: '100%', height: 96, flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                <BitmapText value="NEW VERSION" fontSize={60} color={BANK_GOLD_LIGHT} />
+                <Label value="Claim Bite was updated" fontSize={18} color={BANK_CAPTION} textAlign="middle-center" uiTransform={{ height: 24 }} />
+            </UiEntity>
+
+            {bankSection('PLEASE REJOIN', [
+                <Label
+                    key="text"
+                    value="A new version of the town is up. You are still on the old one, and nothing you do here is saved any more. Rejoin to keep your progress."
+                    fontSize={20}
+                    color={BANK_CREAM}
+                    textAlign="middle-left"
+                    textWrap="wrap"
+                    uiTransform={{ width: '100%', minHeight: 60, margin: { top: 4, bottom: 8 } }}
+                />
+            ])}
+
+            <UiEntity uiTransform={{ width: '100%', height: BANK_BUTTON_GAP }} />
+            {bankButton(
+                rejoining ? 'REJOINING...' : 'REJOIN',
+                rejoining ? () => {} : rejoinWorld,
+                { width: '100%', height: 72 },
+                44,
+                rejoining ? DISABLED_COLOR : BANK_GOLD,
+                rejoining ? MUTED_COLOR : BANK_INK
+            )}
+            <Button
+                value="X"
+                fontSize={30}
+                color={Color4.White()}
+                uiTransform={{
+                    positionType: 'absolute',
+                    position: { top: BANK_PANEL_PADDING, right: BANK_PANEL_PADDING },
+                    width: 48,
+                    height: 48,
+                    borderRadius: PANEL_RADIUS
+                }}
+                uiBackground={{ color: MAP_CLOSE_COLOR }}
+                onMouseDown={closeServerOutdated}
+            />
         </UiEntity>
     )
 }
@@ -4606,6 +4670,8 @@ export const uiMenu = () => (
             {muleDropdown()}
             {/* Over every other panel: it waits for its button and nothing else. */}
             {getCompensation() !== null ? compensationPanel(getCompensation()!) : null}
+            {/* Over everything, the compensation included: nothing else here is saved any more. */}
+            {isServerOutdatedOpen() ? serverOutdatedPanel() : null}
         </UiEntity>
         {welcomeOverlay()}
         {introScreen()}

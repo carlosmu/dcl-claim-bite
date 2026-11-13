@@ -24,6 +24,7 @@ import { onSlotRefused, onSlotResult } from '../casino/casino'
 import { notePurchaseCount } from '../playtest'
 import { applyRewardStatus, onRewardClaimResult } from '../claim-office/claim-office'
 import { applyCompensation, onCompensationRefused } from '../ui/compensation'
+import { noteServerOutdated } from '../ui/server-outdated'
 
 const BANK_SOUND_CLIP = 'assets/sounds/bank.mp3'
 const BUY_SOUND_CLIP = 'assets/sounds/buy.mp3'
@@ -268,6 +269,8 @@ export function setupEconomyLink(): void {
   room.onMessage('purchaseCount', (data) => notePurchaseCount(data.count))
 
   room.onMessage('compensation', (data) => applyCompensation({ id: data.id, coins: data.coins, date: data.date, kind: data.kind === 'casino' ? 'casino' : 'bank', claimed: data.claimed }))
+
+  room.onMessage('serverOutdated', (data) => noteServerOutdated(data.entity))
 
   room.onMessage('rewardStatus', (data) => applyRewardStatus(data.rewards.map((reward) => ({ ...reward, done: [...reward.done] }))))
 
