@@ -67,7 +67,7 @@ const PRICE_ALERT_SECONDS = 6
 const PICK_BROKEN_SECONDS = 8
 
 /** How long the news of what the rigs dug while the player was away stays up. */
-const MULE_AWAY_SECONDS = 15
+const MULE_AWAY_SECONDS = 60
 
 /** How long the news of a note left at the player's door stays up. */
 const NOTE_ALERT_SECONDS = 8
