@@ -3,6 +3,7 @@ import {
   engine,
   GltfContainer,
   InputAction,
+  inputSystem,
   Material,
   MaterialTransparencyMode,
   MeshCollider,
@@ -379,6 +380,20 @@ function stopSwinging(): void {
   stopMineEmote()
 }
 
+const MOVEMENT_KEYS = [
+  InputAction.IA_FORWARD,
+  InputAction.IA_BACKWARD,
+  InputAction.IA_LEFT,
+  InputAction.IA_RIGHT,
+  InputAction.IA_JUMP
+]
+
+/** Whether any key that moves the avatar is down this frame. */
+function movementKeyHeld(): boolean {
+  for (const key of MOVEMENT_KEYS) if (inputSystem.isPressed(key)) return true
+  return false
+}
+
 /** Whether the player has stopped, measured from how far they moved since the last frame. */
 function trackStanding(dt: number): void {
   const player = Transform.getOrNull(engine.PlayerEntity)
@@ -392,6 +407,11 @@ function trackStanding(dt: number): void {
 
   // A drift since the loop started counts as moving, however slow it was.
   if (swingAnchor !== null && Vector3.distance(player.position, swingAnchor) > SWING_DRIFT_METERS) stillSeconds = 0
+
+  // So does any movement key, even a tap too short to move the avatar past the drift: the
+  // explorer cancels the emote on the input itself, which left the hits and sparks going on an
+  // idle avatar. Counting it as a move stops the loop and triggers it afresh once they settle.
+  if (movementKeyHeld()) stillSeconds = 0
 
   if (stillSeconds === 0 && !movingIn && !settlingAfterMoveIn) standWarningSeconds = STAND_WARNING_HOLD_SECONDS
   else standWarningSeconds = Math.max(0, standWarningSeconds - dt)
