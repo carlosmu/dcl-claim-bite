@@ -9,9 +9,10 @@ import { AUTH_SERVER_PEER_ID } from '@dcl/sdk/network/message-bus-sync'
 /** Pairs the server's yard entity with its client-side counterpart. */
 export const MULE_YARD_ENTITY_ENUM_ID = 4
 
-/** Spots across the area (X) and along it (Z); the spacing stretches to fill `Mule_Area`. */
-export const MULE_YARD_COLUMNS = 8
-export const MULE_YARD_ROWS = 8
+/** Spots across the area (X) and along it (Z), laid over `Mule_Area`.
+ *  They stand in blocks three wide and four deep, with aisles between blocks (see mule.ts buildGrid). */
+export const MULE_YARD_COLUMNS = 12
+export const MULE_YARD_ROWS = 12
 
 /** How many slots the server may hand out: one per spot of the grid. */
 export const MULE_YARD_MAX_SLOTS = MULE_YARD_COLUMNS * MULE_YARD_ROWS

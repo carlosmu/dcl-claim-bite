@@ -1,6 +1,8 @@
 import {
   Animator,
   AudioSource,
+  Billboard,
+  BillboardMode,
   EasingFunction,
   ColliderLayer,
   engine,
@@ -41,6 +43,10 @@ const PANEL_OFFSET_Z_METERS = -0.3
 
 /** Where the owner's panel stands, from the rig's origin. */
 const PANEL_POSITION = Vector3.create(0, PANEL_HEIGHT_METERS, PANEL_OFFSET_Z_METERS)
+
+/** How big the owner's panel is drawn, against the sizes below; the player's own is this times OWN_PANEL_SCALE. */
+const PANEL_SCALE = 0.75
+const PANEL_SCALE_VECTOR = Vector3.create(PANEL_SCALE, PANEL_SCALE, PANEL_SCALE)
 
 /** How far the owner's panel is tilted around X. */
 const PANEL_TILT_X_DEGREES = 0
@@ -119,7 +125,16 @@ const LAYER_TEXT_Z = -0.12
 const PANEL_BACKGROUND = Color4.create(0.35, 0.29, 0.23, 1)
 const PANEL_CREAM = Color4.create(0.96, 0.9, 0.78, 1)
 
-type ParkedMule = { root: Entity; panel: Entity; label: Entity; face: Entity; faceResolved: boolean }
+type ParkedMule = {
+  root: Entity
+  panel: Entity
+  label: Entity
+  face: Entity
+  faceResolved: boolean
+  panelShown: boolean
+  /** Which model the rig wears now: the full one, the low-detail one, or none yet. */
+  model: 'full' | 'lod' | null
+}
 
 const parked = new Map<string, ParkedMule>()
 let spots: Vector3[] = []
@@ -133,6 +148,40 @@ let myAddress = ''
 let ownMule: Entity | null = null
 let atOwnMule = false
 
+// Across the area the rigs sit like airplane seats: a block of rigs side by side, an aisle, the
+// next block... Across, the outer blocks sit right against the area's edges; the rigs keep a
+// fixed spacing and the aisles share what is left, so narrowing `Mule_Area` narrows the aisles.
+// Front to back too: four rows, an aisle, four rows..., with aisles as wide as the ones across,
+// centred in the area's depth.
+/** Rigs side by side in one block, across the area (X). */
+const MULE_BLOCK_COLUMNS = 3
+/** Rows one behind the other in one block, along the area (Z). */
+const MULE_BLOCK_ROWS = 4
+/** Distance between neighbouring rigs of one block across the area (X), centre to centre, in metres. */
+const MULE_SEAT_METERS = 1.05
+/** Distance between neighbouring rows of one block along the area (Z), centre to centre, in metres. */
+const MULE_ROW_METERS = 1.05
+
+/**
+ * Where each of `count` rigs stands along an axis `length` long, centred on 0, in blocks of
+ * `blockSize` with aisles between. With no `aisleWidth` the aisles share what the rigs leave, so
+ * the outer blocks touch the ends; with one, the yard keeps those aisles and sits centred, unless
+ * that would not fit.
+ */
+function blockLayout(length: number, count: number, pitch: number, blockSize: number, aisleWidth?: number): { positions: number[]; aisle: number } {
+  const aisles = Math.ceil(count / blockSize) - 1
+  // An area too short for the rigs in a line squeezes them, with no aisles left.
+  const spacing = Math.min(pitch, length / count)
+  const fill = aisles > 0 ? (length - spacing * count) / aisles : 0
+  const aisle = aisleWidth === undefined ? fill : Math.min(aisleWidth, fill)
+  const span = spacing * count + aisle * aisles
+  const positions: number[] = []
+  for (let i = 0; i < count; i++) {
+    positions.push(-span / 2 + spacing * (i + 0.5) + aisle * Math.floor(i / blockSize))
+  }
+  return { positions, aisle }
+}
+
 // The area is a plane turned flat: its X scale is the width, its Y scale the depth (Z).
 function buildGrid(): void {
   const area = engine.getEntityOrNullByName(MULE_AREA_ENTITY_NAME)
@@ -143,16 +192,17 @@ function buildGrid(): void {
   const areaTransform = Transform.get(area)
   const width = areaTransform.scale.x
   const depth = areaTransform.scale.y
-  const spacingX = width / MULE_YARD_COLUMNS
-  const spacingZ = depth / MULE_YARD_ROWS
+  const across = blockLayout(width, MULE_YARD_COLUMNS, MULE_SEAT_METERS, MULE_BLOCK_COLUMNS)
+  // Front to back the aisles are as wide as the ones across, and the rows sit centred in the depth.
+  const along = blockLayout(depth, MULE_YARD_ROWS, MULE_ROW_METERS, MULE_BLOCK_ROWS, across.aisle)
+  const xs = across.positions
+  const zs = along.positions
 
   yardRoot = engine.addEntity()
   Transform.create(yardRoot, { parent: areaTransform.parent, position: areaTransform.position })
 
-  for (let row = 0; row < MULE_YARD_ROWS; row++) {
-    for (let column = 0; column < MULE_YARD_COLUMNS; column++) {
-      spots.push(Vector3.create(-width / 2 + spacingX * (column + 0.5), 0, -depth / 2 + spacingZ * (row + 0.5)))
-    }
+  for (const z of zs) {
+    for (const x of xs) spots.push(Vector3.create(x, 0, z))
   }
 }
 
@@ -207,22 +257,16 @@ function fitName(name: string): string {
 function park(address: string): ParkedMule {
   const root = engine.addEntity()
   Transform.create(root, { parent: yardRoot ?? undefined })
-  if (muleModel !== '') {
-    // Visible meshes on the pointer layer only, so the rig can be clicked; physics stays on the
-    // invisible collision meshes as before.
-    GltfContainer.create(root, {
-      src: muleModel,
-      visibleMeshesCollisionMask: ColliderLayer.CL_POINTER,
-      invisibleMeshesCollisionMask: ColliderLayer.CL_POINTER | ColliderLayer.CL_PHYSICS
-    })
-    Animator.create(root, { states: [{ clip: MULE_ANIMATION_CLIP, playing: true, loop: true }] })
-  }
+  // The model goes on in syncModel, full or low-detail by how near the player is.
   const panel = engine.addEntity()
   Transform.create(panel, {
     parent: root,
     position: Vector3.clone(PANEL_POSITION),
-    rotation: { ...PANEL_ROTATION }
+    rotation: { ...PANEL_ROTATION },
+    scale: Vector3.clone(PANEL_SCALE_VECTOR)
   })
+  // Always turned to face the player, upright: only around Y, so it never leans back.
+  Billboard.create(panel, { billboardMode: BillboardMode.BM_Y })
   panelBackground(panel)
 
   // The owner's face. The avatar texture is fetched by address, so it works for an owner who is
@@ -242,7 +286,9 @@ function park(address: string): ParkedMule {
     panel,
     label: panelText(panel, LABEL_Y, NAME_SIZE),
     face,
-    faceResolved: false
+    faceResolved: false,
+    panelShown: true,
+    model: null
   }
   parked.set(address, mule)
   return mule
@@ -297,12 +343,96 @@ const MULE_SHOW_RADIUS_METERS = 40
 const MULE_HIDE_RADIUS_METERS = 45
 
 function isNearPlayer(spot: Vector3, player: Vector3 | undefined, shown: boolean): boolean {
+  return isWithin(spot, player, shown ? MULE_HIDE_RADIUS_METERS : MULE_SHOW_RADIUS_METERS)
+}
+
+function isWithin(spot: Vector3, player: Vector3 | undefined, radius: number): boolean {
   // Until the player's position arrives, nothing is put up.
   if (player === undefined) return false
   const world = yardPointToWorld(spot)
   if (world === null) return false
-  const radius = shown ? MULE_HIDE_RADIUS_METERS : MULE_SHOW_RADIUS_METERS
   return Vector3.distanceSquared(world, player) <= radius * radius
+}
+
+// The owner's panel only shows on rigs close to the player and in front of them (where the
+// camera looks), so a full yard is not a wall of signs; the player's own panel always shows, so
+// their rig is easy to find. Same give as the rigs: it hides a little further out than it shows.
+/** A panel shows once the player comes this close to its rig. */
+const PANEL_SHOW_RADIUS_METERS = 6
+/** And hides once they are this far from it. */
+const PANEL_HIDE_RADIUS_METERS = 7
+/** A panel shows once its rig is within this angle either side of where the camera looks. */
+const PANEL_SHOW_HALF_ANGLE_DEGREES = 45
+/** And hides once the rig is further off to the side than this. */
+const PANEL_HIDE_HALF_ANGLE_DEGREES = 55
+
+/** Whether the spot lies within `halfAngleDegrees` of the camera's heading, on the ground plane. */
+function isInFront(spot: Vector3, player: Vector3 | undefined, halfAngleDegrees: number): boolean {
+  if (player === undefined) return false
+  const camera = Transform.getOrNull(engine.CameraEntity)
+  const world = yardPointToWorld(spot)
+  if (camera === null || world === null) return false
+  const forward = Vector3.rotate(Vector3.Forward(), camera.rotation)
+  const toSpot = Vector3.create(world.x - player.x, 0, world.z - player.z)
+  const heading = Vector3.create(forward.x, 0, forward.z)
+  const lengths = Vector3.length(toSpot) * Vector3.length(heading)
+  // Standing on the spot, or looking straight down: counts as in front.
+  if (lengths < 1e-4) return true
+  return Vector3.dot(toSpot, heading) / lengths >= Math.cos((halfAngleDegrees * Math.PI) / 180)
+}
+
+// Rigs further off wear a low-detail model with no animation, so a full yard stays cheap. Same
+// give as the rest: a rig goes back to the low-detail one a little further out than it leaves it.
+const MULE_LOD_MODEL = 'assets/animations/mule-LOD.glb'
+/** A rig wears the full model once the player comes this close to it. */
+const MULE_FULL_RADIUS_METERS = 5
+/** And the low-detail one once they are this far from it. */
+const MULE_LOD_RADIUS_METERS = 6
+
+function syncModel(mule: ParkedMule, spot: Vector3, player: Vector3 | undefined): void {
+  if (muleModel === '') return
+  const wantFull = isWithin(spot, player, mule.model === 'full' ? MULE_LOD_RADIUS_METERS : MULE_FULL_RADIUS_METERS)
+  const model = wantFull ? 'full' : 'lod'
+  if (model === mule.model) return
+  mule.model = model
+  if (model === 'full') {
+    // Visible meshes on the pointer layer only, so the rig can be clicked; physics stays on the
+    // invisible collision meshes as before.
+    GltfContainer.createOrReplace(mule.root, {
+      src: muleModel,
+      visibleMeshesCollisionMask: ColliderLayer.CL_POINTER,
+      invisibleMeshesCollisionMask: ColliderLayer.CL_POINTER | ColliderLayer.CL_PHYSICS
+    })
+    Animator.createOrReplace(mule.root, { states: [{ clip: MULE_ANIMATION_CLIP, playing: true, loop: true }] })
+  } else {
+    // The low-detail model has no collision meshes, so its visible ones take the pointer: your own
+    // rig can still be clicked from afar. Nobody walks into a rig this far off.
+    GltfContainer.createOrReplace(mule.root, {
+      src: MULE_LOD_MODEL,
+      visibleMeshesCollisionMask: ColliderLayer.CL_POINTER,
+      invisibleMeshesCollisionMask: 0
+    })
+    Animator.deleteFrom(mule.root)
+  }
+}
+
+// Hidden by scaling the panel to zero, which takes the face and the text with it: the Explorer
+// does not carry VisibilityComponent down to a child TextShape.
+function syncPanelVisibility(mule: ParkedMule, spot: Vector3, player: Vector3 | undefined, own: boolean): void {
+  const shown = mule.panelShown
+  const show =
+    own ||
+    (isWithin(spot, player, shown ? PANEL_HIDE_RADIUS_METERS : PANEL_SHOW_RADIUS_METERS) &&
+      isInFront(spot, player, shown ? PANEL_HIDE_HALF_ANGLE_DEGREES : PANEL_SHOW_HALF_ANGLE_DEGREES))
+  const wasShown = mule.panelShown
+  mule.panelShown = show
+  const scale = Transform.get(mule.panel).scale
+  if (!show) {
+    // Checked every frame: putting a panel back in line (raiseOwnPanel) resets its scale.
+    if (!Vector3.equals(scale, Vector3.Zero())) Transform.getMutable(mule.panel).scale = Vector3.Zero()
+  } else if (!wasShown) {
+    Transform.getMutable(mule.panel).scale = Vector3.clone(PANEL_SCALE_VECTOR)
+  }
 }
 
 function syncYard(): void {
@@ -333,7 +463,10 @@ function syncYard(): void {
     const labelText = `${fitName(entry.name)}\n${levelText}`
     if (TextShape.get(mule.label).text !== labelText) TextShape.getMutable(mule.label).text = labelText
 
-    if (entry.address.toLowerCase() === myAddress) {
+    const own = entry.address.toLowerCase() === myAddress
+    syncPanelVisibility(mule, spot, player?.position, own)
+    syncModel(mule, spot, player?.position)
+    if (own) {
       ownMule = mule.root
       ownParked = mule
     }
@@ -390,7 +523,7 @@ function raiseOwnPanel(panel: Entity | null): void {
     const transform = Transform.getMutable(raisedPanel)
     transform.position = Vector3.clone(PANEL_POSITION)
     transform.rotation = { ...PANEL_ROTATION }
-    transform.scale = Vector3.One()
+    transform.scale = Vector3.clone(PANEL_SCALE_VECTOR)
   }
   raisedPanel = panel
   if (panel === null) return
@@ -400,7 +533,7 @@ function raiseOwnPanel(panel: Entity | null): void {
   const transform = Transform.getMutable(panel)
   transform.position = low
   transform.rotation = { ...OWN_PANEL_ROTATION }
-  transform.scale = Vector3.create(OWN_PANEL_SCALE, OWN_PANEL_SCALE, OWN_PANEL_SCALE)
+  transform.scale = Vector3.scale(PANEL_SCALE_VECTOR, OWN_PANEL_SCALE)
   Tween.setMove(panel, low, high, OWN_PANEL_BOB_MS, EasingFunction.EF_EASESINE)
   TweenSequence.createOrReplace(panel, { sequence: [], loop: TweenLoop.TL_YOYO })
 }
