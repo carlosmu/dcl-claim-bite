@@ -39,6 +39,7 @@ import { setupServerLink } from './net/server-link'
 import { setupConnectionWatch } from './ui/connection-watch'
 import { setupDeployStamp } from './net/deploy-stamp'
 import { setupEconomyLink } from './net/economy-link'
+import { setupLanguageLink } from './net/language-link'
 import { setupPlaytest } from './playtest'
 import { skipTitleCard } from './ui/intro-screen'
 import { DEBUG_SKIP_INTRO } from './shared/debug-flags'
@@ -62,6 +63,7 @@ export async function main() {
     setupConnectionWatch()
     setupDeployStamp()
     setupEconomyLink()
+    setupLanguageLink()
     setupMusic()
     if (DEBUG_SKIP_INTRO) skipTitleCard()
     setupIsometricCamera()

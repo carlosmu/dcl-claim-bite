@@ -15,7 +15,8 @@ export type { StringKey } from './en'
 // mid-session change of the client language too. The UI is redrawn every frame, so the new
 // language shows at once.
 
-export type Language = 'en' | 'es' | 'pt' | 'fr'
+export type { Language } from '../shared/languages'
+import { Language } from '../shared/languages'
 
 /** The languages in the selector, in order, each named in itself. */
 export const LANGUAGES: { id: Language; name: string }[] = [
@@ -42,6 +43,14 @@ export function getLanguage(): Language {
 
 export function setLanguage(language: Language) {
     picked = language
+}
+
+/**
+ * The language the player picked on an earlier visit, as the server kept it. It takes the place
+ * of the client's language, but not of a pick made this visit before it arrived.
+ */
+export function restoreLanguage(language: Language) {
+    if (picked === null) picked = language
 }
 
 /** A catalogue item's name ('item.<id>'), or its catalogue label when there is no key for it. */

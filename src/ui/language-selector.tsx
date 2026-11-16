@@ -1,6 +1,7 @@
 import ReactEcs, { Label, UiEntity } from '@dcl/sdk/react-ecs'
 import { Color4 } from '@dcl/sdk/math'
-import { getLanguage, Language, LANGUAGES, setLanguage } from '../i18n'
+import { getLanguage, Language, LANGUAGES } from '../i18n'
+import { pickLanguage } from '../net/language-link'
 
 // The language selector on the title card, up top and centred: a pill with the current flag and
 // language name; tapping it drops a list of every language, the current one ticked.
@@ -39,15 +40,17 @@ const FLAG_SIZE = 28
 const NAME_FONT_SIZE = 20
 const NAME_WIDTH = 120
 const MENU_GAP = 8
-const MENU_WIDTH = 230
+// The open list: half as wide again as it was (230), rows 30% taller (48), on solid black so it reads over the logo.
+const MENU_WIDTH = 345
 const MENU_PADDING = 6
 const MENU_RADIUS = 12
-const ROW_HEIGHT = 48
+const ROW_HEIGHT = Math.round(48 * 1.3)
 const ROW_RADIUS = 8
 const TICK_SIZE = 22
 
 const GOLD = Color4.create(1, 0.76, 0.2, 1)
 const PANEL_COLOR = Color4.create(0.13, 0.09, 0.06, 0.92)
+const MENU_COLOR = Color4.Black()
 const SELECTED_ROW_COLOR = Color4.create(1, 1, 1, 0.12)
 const NAME_COLOR = Color4.White()
 
@@ -77,7 +80,7 @@ export function LanguageRow(props: { key: string; language: Language; name: stri
             }}
             uiBackground={selected ? { color: SELECTED_ROW_COLOR } : undefined}
             onMouseDown={() => {
-                setLanguage(props.language)
+                pickLanguage(props.language)
                 props.onPicked()
             }}
         >
@@ -144,7 +147,7 @@ export function LanguageSelector() {
                         flexDirection: 'column',
                         borderRadius: MENU_RADIUS
                     }}
-                    uiBackground={{ color: PANEL_COLOR }}
+                    uiBackground={{ color: MENU_COLOR }}
                 >
                     {LANGUAGES.map((l) => (
                         <LanguageRow

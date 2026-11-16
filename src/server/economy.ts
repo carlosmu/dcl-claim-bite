@@ -73,6 +73,7 @@ import {
 } from '../shared/economy/catalogue'
 import { addFuelGallons, fuelGallons, fuelHoursLeft, settleMule } from './mule'
 import { clearNotes, leaveNote, sendNotes, setupNotes } from './notes'
+import { sendPrefs, setLanguagePref } from './prefs'
 import { noteMined, noteNewOwner, noteSale, noteSlotWin, saveTitlesNow, setupTitles } from './titles'
 import { isCasinoReady, saveJackpotNow, setupCasino, spin } from './casino'
 import { saveCasinoStatsNow } from './casino-stats'
@@ -1698,7 +1699,13 @@ export function setupEconomy(): void {
     }
     // Whatever was left at their door while they were away.
     sendNotes(context.from)
+    sendPrefs(context.from)
     sendMaintenanceState(context.from)
+  })
+
+  room.onMessage('setLanguage', (data, context) => {
+    if (!context || inMaintenance()) return
+    setLanguagePref(context.from, data.language)
   })
 
   room.onMessage('clientBuild', (data, context) => {

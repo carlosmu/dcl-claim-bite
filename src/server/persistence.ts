@@ -32,6 +32,12 @@ const PURSE_KEY = seasonKey('purse')
 /** Per-player key: the notes left at their door. Apart from the purse, so a note never rewrites it. */
 const NOTES_KEY = seasonKey('notes')
 
+/**
+ * Per-player key: their preferences (the language they picked). Not per season: a new season
+ * resets progress, not how the player likes the game shown.
+ */
+const PREFS_KEY = 'prefs'
+
 /** Scene-wide key: the town's ore price, which belongs to the world and not to anyone, so it
  * carries over from season to season. */
 const MARKET_PRICE_KEY = 'market-price'
@@ -238,6 +244,26 @@ export async function savePropertyLots(lots: StoredLot[]): Promise<boolean> {
     return ok
   } catch (error) {
     console.log(`[Server] could not save property lots: ${error}`)
+    return false
+  }
+}
+
+export type StoredPrefs = { language?: string }
+
+/** A player's preferences, or null if they never set any. Throws if the read failed. */
+export function loadPrefs(address: string): Promise<StoredPrefs | null> {
+  return readValue<StoredPrefs>(`/players/${encodeURIComponent(address)}/values/${encodeURIComponent(PREFS_KEY)}`)
+}
+
+/** Resolves true once the write is confirmed, like savePurse. */
+export async function savePrefs(address: string, prefs: StoredPrefs): Promise<boolean> {
+  if (writesStopped) return true
+  try {
+    const ok = await Storage.player.set(address, PREFS_KEY, prefs)
+    if (!ok) console.log(`[Server] could not save prefs for ${address}`)
+    return ok
+  } catch (error) {
+    console.log(`[Server] could not save prefs for ${address}: ${error}`)
     return false
   }
 }
