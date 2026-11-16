@@ -1,9 +1,11 @@
 import { Strings } from './en'
 
 // Russian ("ты"). The M.U.L.E. is the М.У.Л. here, a мул (mule, masculine), spelled out as
-// "Машина Универсальной Ломки". Drawn in Kelly Slab, not BouWeste, which has no Cyrillic (ui/bitmap-text.tsx).
+// "Машина Универсальной Ломки". Drawn in the built-in face, not BouWeste, which has no Cyrillic (ui/bitmap-text.tsx).
 // t() has no plural rules, so numbers take the genitive plural ("5 монет") or the line is worded
 // around the count ("Монет: 5").
+// Bite Coins are Укус-монеты (bite coins) and Claim Bite is Золотой Укус (the golden bite), declined
+// like any name (Золотого Укуса); the logo image stays in English.
 export const ru: Strings = {
     // Title card
     'intro.loading': 'Загрузка',
@@ -19,7 +21,7 @@ export const ru: Strings = {
     'hud.ore': 'Руда',
     'hud.storageFull': 'СКЛАД ПОЛОН',
     'hud.orePrice': 'Цена',
-    'hud.coins': 'Bite Coins',
+    'hud.coins': 'Укус-монеты',
 
     // Ore price verdict
     'price.best': 'ЛУЧШАЯ',
@@ -84,7 +86,7 @@ export const ru: Strings = {
     'update.newVersion': 'НОВАЯ ВЕРСИЯ',
     'update.backSoon': 'Вернёмся через минуту',
     'update.stoppedAnswering': 'Город перестал отвечать',
-    'update.wasUpdated': 'Claim Bite обновился',
+    'update.wasUpdated': '«Золотой Укус» обновился',
     'update.pleaseWait': 'ПОДОЖДИ',
     'update.howToRejoin': 'КАК ВОЙТИ СНОВА',
     'update.pleaseRejoin': 'ВОЙДИ СНОВА',
@@ -226,8 +228,8 @@ export const ru: Strings = {
     'reward.bug-catcher.name': 'Костюм Ловца Багов',
     'reward.bug-catcher.description': 'Надевай, лови баги и делай игры лучше!',
     'reward.claim-bite-mining.cardTitle': 'Эмоция добычи',
-    'reward.claim-bite-mining.name': 'Claim Bite Mining',
-    'reward.claim-bite-mining.description': 'Махай киркой где угодно, как настоящий шахтёр Claim Bite.',
+    'reward.claim-bite-mining.name': 'Добыча «Золотого Укуса»',
+    'reward.claim-bite-mining.description': 'Махай киркой где угодно, как настоящий шахтёр «Золотого Укуса».',
 
     // Mining
     'mining.moveCloser': 'Подойди к камню, чтобы копать',
@@ -465,7 +467,7 @@ export const ru: Strings = {
     'mayor.wellDone': 'Молодец, чужак!',
     'mayor.headToRock': 'А теперь иди к тому камню\nи добудь свои первые самородки!',
     'welcome.howdy': 'Привет, чужак!',
-    'welcome.welcomeTown': 'Добро пожаловать в Claim Bite Town,\nгде мечты сбываются!',
+    'welcome.welcomeTown': 'Добро пожаловать в городок «Золотой Укус»,\nгде мечты сбываются!',
     'welcome.takePickaxe': 'Держи, эта кирка бесплатно!',
     'welcome.welcomeBack': 'С возвращением, чужак!'
 }

@@ -20,8 +20,9 @@ export const WESTERN_FONT_SRC = 'assets/fonts/BouWeste.ttf'
  * DEBUG_CJK_FONT_TEST, desktop.
  */
 const FONT_BY_LANGUAGE: Partial<Record<Language, string | null>> = {
-    // Cyrillic. OFL, Reserved Font Names "Kelly" / "Kelly Slab": used unmodified.
-    ru: 'assets/fonts/KellySlab-Regular.ttf',
+    // Cyrillic: the built-in face, like Chinese and Japanese, checked in preview. Kelly Slab (Google
+    // Fonts, OFL) was tried first and dropped: one more ~700 KB bundle for little gain.
+    ru: null,
     zh: null,
     ja: null
 }
