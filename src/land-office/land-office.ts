@@ -49,7 +49,7 @@ export function setupLandOffice(): void {
   zone = createProximityZone({
     entityName: LAND_OFFICER_ENTITY_NAME,
     radiusMeters: LAND_OFFICE_RADIUS_METERS,
-    click: officer !== null ? { entity: officer, hoverText: 'Open Land & Claim Office' } : undefined,
+    click: officer !== null ? { entity: officer, hoverText: 'hover.landOffice' } : undefined,
     onEnter: () => {
       closed = false
       selected = null

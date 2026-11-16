@@ -33,9 +33,10 @@ import { getActiveMiners } from '../shared/net/social-sync'
 import { socialBonus } from '../shared/economy/constants'
 import { getNoteNews } from '../land-office/owner-card'
 import { getMiningStatus } from '../mining/rocks'
+import { itemName, t } from '../i18n'
 
-/** The Social Bonus note's title, which the tracker paints in the bonus's own green. */
-export const SOCIAL_BONUS_TITLE = 'SOCIAL BONUS'
+/** The Social Bonus note's id: the tracker paints its title in the bonus's own green. */
+export const SOCIAL_BONUS_ID = 'social'
 
 export type Objective = {
   /** Which entry this is, steady while its lines change: what closing and stacking go by. */
@@ -165,7 +166,7 @@ function alert(id: string, title: string, message: string, detail: string = ''):
 }
 
 function goal(id: string, message: string, detail: string = '', progress: number | null = null): Objective {
-  return { id, title: 'OBJECTIVE', message, detail, progress, alert: false }
+  return { id, title: t('obj.objective'), message, detail, progress, alert: false }
 }
 
 function fuelGallons(): number {
@@ -183,74 +184,74 @@ function candidates(): Objective[] {
   // A pick just wore out. Said even when another pick took over, so the switch is not a mystery.
   if (clock < pickBrokenUntil) {
     const broken = findItem(getBrokenPick().id as ShopItemId)
-    const next = getHitsPerRock() > 0 ? 'Using your next best pick' : 'The Mayor has a free one for you'
-    list.push(alert('pick-broken', 'PICK BROKEN', `${broken?.label ?? 'Your pick'} is worn out`, next))
+    const next = getHitsPerRock() > 0 ? t('obj.nextBestPick') : t('obj.mayorHasOne')
+    list.push(alert('pick-broken', t('obj.pickBroken'), t('obj.wornOut', { pick: itemName(broken, t('obj.yourPick')) }), next))
   }
 
   // What the rigs dug while the player was away: the moment it sinks in that their ore lands in
   // storage by itself, with nothing to collect. Good news, so the gold of an objective.
   if (clock < muleAwayUntil) {
     const away = getMuleAway()
-    const who = mules === 1 ? 'Your M.U.L.E.' : 'Your M.U.L.E.s'
-    list.push({ id: 'mule-away', title: 'WHILE YOU WERE AWAY', message: `${who} dug ${away.ore} ore`, detail: 'Added to your Storage', progress: null, alert: false })
+    const message = mules === 1 ? t('obj.muleDugOne', { ore: away.ore }) : t('obj.muleDugMany', { ore: away.ore })
+    list.push({ id: 'mule-away', title: t('obj.whileAway'), message, detail: t('obj.addedToStorage'), progress: null, alert: false })
   }
 
   // Somebody left a note at the door, while the player was here or away.
   if (clock < noteAlertUntil) {
     const news = getNoteNews()
-    const message = news.waiting === 1 ? `${news.from} left you a note` : `${news.waiting} notes at your door`
-    list.push(alert('note', 'NEW NOTE', message, 'Click your property to read them'))
+    const message = news.waiting === 1 ? t('obj.leftNote', { from: news.from }) : t('obj.notesAtDoor', { count: news.waiting })
+    list.push(alert('note', t('obj.newNote'), message, t('obj.clickProperty')))
   }
 
   // Nothing to mine with: the mayor is the whole first step.
   const hasPick = getHitsPerRock() > 0
-  if (!hasPick) list.push(goal('talk-mayor', 'Talk to the Mayor', 'He has a free pick for you'))
+  if (!hasPick) list.push(goal('talk-mayor', t('obj.talkMayor'), t('obj.freePick')))
 
   const full = capacity > 0 && ore >= capacity
-  if (full) list.push(alert('storage-full', 'STORAGE FULL', 'Sell ore at the Bank', `${ore} ore ready`))
+  if (full) list.push(alert('storage-full', t('hud.storageFull'), t('obj.sellAtBank'), t('obj.oreReady', { ore })))
 
-  if (mules > 0 && getMuleFuelHours() <= 0) list.push(alert('mule-stopped', 'M.U.L.E. STOPPED', 'Out of fuel', 'Buy fuel at the Store'))
+  if (mules > 0 && getMuleFuelHours() <= 0) list.push(alert('mule-stopped', t('obj.muleStopped'), t('obj.outOfFuel'), t('obj.buyFuel')))
 
   const tank = fuelTankGallons(mules)
   const gallons = fuelGallons()
   if (mules > 0 && tank > 0 && gallons > 0 && gallons / tank < FUEL_LOW_SHARE) {
-    list.push(alert('fuel-low', 'FUEL LOW', 'Refuel at the Store', `${Math.ceil(getMuleFuelHours())}h left`))
+    list.push(alert('fuel-low', t('obj.fuelLow'), t('obj.refuel'), t('obj.hoursLeft', { n: Math.ceil(getMuleFuelHours()) })))
   }
 
   // How the bonus works, while it is news: the crowd's bonus when two or more are mining, or
   // what it is on the first rock of someone mining alone.
   const miners = getActiveMiners()
   if (clock < socialAlertUntil) {
-    if (miners >= 2) list.push(alert('social', SOCIAL_BONUS_TITLE, `${miners} miners: +${socialBonus(miners)} ore per rock`, 'More miners, more ore · up to +10 at 4'))
-    else list.push(alert('social', SOCIAL_BONUS_TITLE, 'Mine at the same time as others', `+${socialBonus(2)} ore with 2 · +${socialBonus(3)} with 3 · +${socialBonus(4)} with 4`))
+    if (miners >= 2) list.push(alert(SOCIAL_BONUS_ID, t('obj.socialBonus'), t('obj.minersBonus', { miners, bonus: socialBonus(miners) }), t('obj.moreMiners')))
+    else list.push(alert(SOCIAL_BONUS_ID, t('obj.socialBonus'), t('obj.mineTogether'), t('obj.bonusTable', { b2: socialBonus(2), b3: socialBonus(3), b4: socialBonus(4) })))
   }
 
   // Only news to someone with enough ore to make a sale.
   if (clock < priceAlertUntil && ore >= rate) {
     const good = Math.round(rate * 10) <= PRICE_GOOD_MAX_TENTHS
-    list.push(alert('price', 'ORE PRICE CHANGED', `Now ${rate.toFixed(1)} ore / coin`, good ? 'Good time to sell' : ''))
+    list.push(alert('price', t('obj.priceChanged'), t('obj.priceNow', { rate: rate.toFixed(1) }), good ? t('obj.goodTimeToSell') : ''))
   }
 
   const nextPick = nextTier('pick', (id) => getOwned(id))
   if (nextPick !== null && canBuy(nextPick)) {
-    list.push(alert('upgrade-pick', 'UPGRADE AVAILABLE', `${nextPick.label} at the Store`, `${currentPrice(nextPick)} coins`))
+    list.push(alert('upgrade-pick', t('obj.upgradeAvailable'), t('obj.atStore', { item: itemName(nextPick) }), t('obj.coins', { coins: currentPrice(nextPick) ?? 0 })))
   }
   const mule = findItem('mule')
   if (mules <= 0 && mule !== null && canBuy(mule)) {
-    list.push(alert('upgrade-mule', 'UPGRADE AVAILABLE', 'M.U.L.E. at the Store', `${currentPrice(mule)} coins`))
+    list.push(alert('upgrade-mule', t('obj.upgradeAvailable'), t('obj.atStore', { item: itemName(mule) }), t('obj.coins', { coins: currentPrice(mule) ?? 0 })))
   }
 
   // Onboarding: a first-pick miner who has not sold yet. Not before the pick, and the sale not
   // twice when STORAGE FULL already says it.
   const beginner = hasPick && getCoins() === 0 && getOwned('steel-pick') <= 0 && mules <= 0
   if (beginner && ore < FIRST_ORE_GOAL) {
-    list.push(goal('first-ore', `Mine ${FIRST_ORE_GOAL} ore at the rocks`, `${ore}/${FIRST_ORE_GOAL}`, ore / FIRST_ORE_GOAL))
+    list.push(goal('first-ore', t('obj.mineFirstOre', { goal: FIRST_ORE_GOAL }), `${ore}/${FIRST_ORE_GOAL}`, ore / FIRST_ORE_GOAL))
   }
-  if (beginner && !full && ore >= rate) list.push(goal('first-sell', 'Sell your ore at the Bank', `${ore} ore ready`))
+  if (beginner && !full && ore >= rate) list.push(goal('first-sell', t('obj.sellYourOre'), t('obj.oreReady', { ore })))
 
   // Not to someone already at the machine.
   if (clock < casinoHintUntil && !isCasinoPanelOpen()) {
-    list.push(goal('casino', 'Try your luck at the Gambling Hall', `${getCoins()} coins`))
+    list.push(goal('casino', t('obj.tryLuck'), t('obj.coins', { coins: getCoins() })))
   }
 
   return list

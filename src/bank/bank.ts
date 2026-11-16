@@ -90,7 +90,7 @@ export function setupBank(): void {
     entityName: BANK_OFFICER_ENTITY_NAME,
     radiusMeters: BANK_RADIUS_METERS,
     // Walking in with a full bag, the common move is to sell it — so it starts selected.
-    click: officer !== null ? { entity: officer, hoverText: 'Open Bank' } : undefined,
+    click: officer !== null ? { entity: officer, hoverText: 'hover.bank' } : undefined,
     onEnter: () => {
       panelClosed = false
       setSellCoins(maxSellCoins())

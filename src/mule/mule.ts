@@ -28,6 +28,7 @@ import { focusPanel, registerPanel } from '../world/panel-focus'
 import { MULE_YARD_COLUMNS, MULE_YARD_ROWS, MuleYard } from '../shared/net/mule-yard-sync'
 import { DEBUG_FILL_MULE_YARD } from '../shared/debug-flags'
 import { sfxVolume } from '../world/volume'
+import { hoverText, t } from '../i18n'
 
 // The idle rigs standing in the world. They dig straight into the player's storage; walking up
 // to your rig is where you check on it. Fuel is bought at the General Store.
@@ -459,7 +460,7 @@ function syncYard(): void {
     const transform = Transform.getMutable(mule.root)
     if (!Vector3.equals(transform.position, spot)) transform.position = Vector3.clone(spot)
 
-    const levelText = `${entry.level} ${entry.level === 1 ? 'M.U.L.E.' : 'M.U.L.E.s'}`
+    const levelText = entry.level === 1 ? t('muleSign.one') : t('muleSign.many', { count: entry.level })
     const labelText = `${fitName(entry.name)}\n${levelText}`
     if (TextShape.get(mule.label).text !== labelText) TextShape.getMutable(mule.label).text = labelText
 
@@ -548,7 +549,7 @@ function makeClickable(mule: Entity | null): void {
   clickable = mule
   if (mule === null) return
   pointerEventsSystem.onPointerDown(
-    { entity: mule, opts: { button: InputAction.IA_POINTER, hoverText: 'Open M.U.L.E.', maxDistance: CLICK_REACH_METERS } },
+    { entity: mule, opts: { button: InputAction.IA_POINTER, hoverText: hoverText(mule, 'hover.mule'), maxDistance: CLICK_REACH_METERS } },
     () => {
       openedByClick = true
       panelClosed = false

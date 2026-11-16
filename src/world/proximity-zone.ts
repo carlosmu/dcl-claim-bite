@@ -1,5 +1,6 @@
 import { engine, Entity, getWorldPosition, InputAction, pointerEventsSystem, Transform } from '@dcl/sdk/ecs'
 import { Vector3 } from '@dcl/sdk/math'
+import { hoverText as localizedHover, StringKey } from '../i18n'
 
 // A radius around an entity authored in the Creator Hub, found here by name.
 //
@@ -26,8 +27,8 @@ export type ProximityZoneOptions = {
    */
   entity?: Entity | Entity[]
   radiusMeters: number
-  /** Something to click to count as there, with its hover text. Given several, any of them will do. */
-  click?: { entity: Entity | Entity[]; hoverText: string }
+  /** Something to click to count as there, with its hover text's key. Given several, any of them will do. */
+  click?: { entity: Entity | Entity[]; hoverText: StringKey }
   onEnter?: () => void
   onLeave?: () => void
   /** A click while the player already counts as there, walking or clicked. */
@@ -77,7 +78,7 @@ export function createProximityZone(options: ProximityZoneOptions): ProximityZon
     const { entity: clickEntity, hoverText } = options.click
     for (const entity of Array.isArray(clickEntity) ? clickEntity : [clickEntity]) {
       pointerEventsSystem.onPointerDown(
-        { entity, opts: { button: InputAction.IA_POINTER, hoverText, maxDistance: CLICK_REACH_METERS } },
+        { entity, opts: { button: InputAction.IA_POINTER, hoverText: localizedHover(entity, hoverText), maxDistance: CLICK_REACH_METERS } },
         () => {
           clicked = true
           if (inside) options.onClick?.()

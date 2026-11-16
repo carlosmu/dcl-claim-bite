@@ -11,6 +11,8 @@ import { getDeployStampUtc } from '../net/deploy-stamp'
 import { isServerOnline } from '../net/server-link'
 import { getPlayer } from '@dcl/sdk/players'
 import { isStateSyncronized } from '@dcl/sdk/network'
+import { t } from '../i18n'
+import { LanguageSelector } from './language-selector'
 
 // Title card shown when the game starts: scrolling backdrop, logo, Start Game button. Tapping the
 // button hides logo and button, then the backdrop fades to nothing and goes away.
@@ -28,6 +30,8 @@ const BACKDROP_IMAGE = 'assets/images/intro_background.jpg'
 // How long the backdrop takes to drift one image width.
 const BACKDROP_SCROLL_SECONDS = 15
 const LOGO_SIZE = 520
+/** How far below the screen's top edge the language selector sits. */
+const LANGUAGE_TOP = '10vh'
 const BUTTON_WIDTH = 360
 const BUTTON_HEIGHT = 90
 const FADE_SECONDS = 2
@@ -130,11 +134,11 @@ function canSkip(): boolean {
  */
 function loadingStep(): string {
     let step: string
-    if ((getPlayer()?.userId ?? '') === '') step = 'Loading your avatar'
-    else if (!isStateSyncronized()) step = 'Joining the town'
-    else if (!isServerOnline()) step = 'Waking up the town server'
-    else if (!hasWallet()) step = 'Reading your saved progress'
-    else step = 'Double-checking your saved progress'
+    if ((getPlayer()?.userId ?? '') === '') step = t('intro.step.avatar')
+    else if (!isStateSyncronized()) step = t('intro.step.joining')
+    else if (!isServerOnline()) step = t('intro.step.server')
+    else if (!hasWallet()) step = t('intro.step.reading')
+    else step = t('intro.step.doubleCheck')
     return step + '.'.repeat(1 + (Math.floor(loadingElapsed * LOADING_DOTS_PER_SECOND) % 3))
 }
 
@@ -223,7 +227,7 @@ export function introScreen() {
                         alignItems: 'center'
                     }}
                 >
-                    <BitmapText value="Loading" fontSize={LOADING_FONT_SIZE * scale} color={Color4.White()} align="center" />
+                    <BitmapText value={t('intro.loading')}fontSize={LOADING_FONT_SIZE * scale} color={Color4.White()} align="center" />
                     <UiEntity
                         uiTransform={{
                             width: LOADING_BAR_WIDTH * scale,
@@ -273,7 +277,7 @@ export function introScreen() {
                     uiBackground={{ textureMode: 'stretch', texture: { src: BUTTON_GRADIENT } }}
                     onMouseDown={() => startGame(true)}
                 >
-                    <BitmapText value="Start Game" fontSize={BUTTON_FONT_SIZE * scale} color={Color4.Black()} align="center" uiTransform={{ width: '100%' }} />
+                    <BitmapText value={t('intro.start')}fontSize={BUTTON_FONT_SIZE * scale} color={Color4.Black()} align="center" uiTransform={{ width: '100%' }} />
                 </UiEntity>
                 </UiEntity>
             ) : null}
@@ -282,7 +286,7 @@ export function introScreen() {
                     uiTransform={{ margin: { top: SKIP_MARGIN_TOP - SKIP_HIT_PADDING }, padding: SKIP_HIT_PADDING }}
                     onMouseDown={() => startGame(false)}
                 >
-                    <BitmapText value="Skip intro" fontSize={SKIP_FONT_SIZE} color={Color4.White()} align="center" />
+                    <BitmapText value={t('intro.skip')}fontSize={SKIP_FONT_SIZE} color={Color4.White()} align="center" />
                 </UiEntity>
             ) : null}
             {phase === 'title' ? (
@@ -295,6 +299,22 @@ export function introScreen() {
                     textAlign="middle-center"
                     uiTransform={{ positionType: 'absolute', position: { bottom: 12 }, width: '100%', height: 20 }}
                 />
+            ) : null}
+            {phase === 'title' ? (
+                // Up top, centred, LANGUAGE_TOP below the screen's edge. Last, so its open list
+                // draws over the logo instead of pushing anything down.
+                <UiEntity
+                    uiTransform={{
+                        positionType: 'absolute',
+                        position: { top: 0, left: 0 },
+                        margin: { top: LANGUAGE_TOP },
+                        width: '100%',
+                        flexDirection: 'column',
+                        alignItems: 'center'
+                    }}
+                >
+                    <LanguageSelector />
+                </UiEntity>
             ) : null}
         </UiEntity>
     )

@@ -6,6 +6,7 @@ import { movePlayerTo } from '~system/RestrictedActions'
 import { MAYOR_ENTITY_NAME } from '../mayor/mayor'
 import { setWelcomePlaying } from './intro-state'
 import { sfxVolume } from './volume'
+import { t as translate } from '../i18n'
 
 // The welcome shot, played once when the title card has faded: a camera just behind the
 // player looks over their shoulder at the town mayor, black bars come in, and after a beat
@@ -50,14 +51,15 @@ const CAMERA_LINGER_SECONDS = 2
  * Times are from the start of the greeting, in seconds. Each line holds until the next; a `\n`
  * breaks it onto two rows.
  */
-const SUBTITLES: { at: number; text: string }[] = [
-  { at: 0, text: 'Howdy, stranger!' },
-  { at: 2, text: 'Welcome to Claim Bite Town, \nwhere dreams come true!' },
-  { at: 5, text: 'Here, take this free pickaxe!' }
+// Getters: the line is read as it shows, in the language of that moment.
+const SUBTITLES: { at: number; readonly text: string }[] = [
+  { at: 0, get text() { return translate('welcome.howdy') } },
+  { at: 2, get text() { return translate('welcome.welcomeTown') } },
+  { at: 5, get text() { return translate('welcome.takePickaxe') } }
 ]
 
 /** The welcome back's lines, timed the same way. */
-const WELCOME_BACK_SUBTITLES: { at: number; text: string }[] = [{ at: 0, text: 'Welcome back, stranger!' }]
+const WELCOME_BACK_SUBTITLES: { at: number; readonly text: string }[] = [{ at: 0, get text() { return translate('welcome.welcomeBack') } }]
 
 type Greeting = { audio: string; seconds: number; subtitles: { at: number; text: string }[] }
 const FIRST_VISIT: Greeting = { audio: WELCOME_AUDIO, seconds: AUDIO_SECONDS, subtitles: SUBTITLES }

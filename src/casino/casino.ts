@@ -6,6 +6,7 @@ import { getCoins } from '../shared/state/wallet'
 import { focusPanel, registerPanel } from '../world/panel-focus'
 import { createProximityZone, ProximityZone } from '../world/proximity-zone'
 import { playSfx } from '../world/sfx'
+import { StringKey, t } from '../i18n'
 
 // The casino: slot machines in the building across from the bank, placed in the Creator Hub, all
 // playing the one machine in this file. A spin is a request like any other. The reels start at
@@ -29,14 +30,14 @@ const JACKPOT_SOUND_CLIP = 'assets/sounds/match.mp3'
 const SOUND_VOLUME = 0.8
 
 /** The line under the panel's title, drawn anew each time the panel opens. */
-const SLOT_TAGLINES = [
-  'Fingers crossed!',
-  'May luck be on your side!',
-  'Feeling lucky?',
-  'Go for the jackpot!',
-  'Lady Luck is smiling on you!',
-  'You win some, you lose some.',
-  'May the odds be in your favor!'
+const SLOT_TAGLINES: StringKey[] = [
+  'slots.tagline1',
+  'slots.tagline2',
+  'slots.tagline3',
+  'slots.tagline4',
+  'slots.tagline5',
+  'slots.tagline6',
+  'slots.tagline7'
 ]
 
 type SlotResult = { reels: number[]; bet: number; win: number; jackpot: boolean }
@@ -52,7 +53,8 @@ let elapsed = 0
 let sinceReelChange = 0
 let reelsStopped = 0
 let result: SlotResult | null = null
-let message = 'Pull the lever'
+/** A function, so the line follows the language; a refusal is the server's own words. */
+let message: () => string = () => t('slots.pullLever')
 let tagline = SLOT_TAGLINES[0]
 const reels = [0, 1, 2]
 
@@ -63,7 +65,7 @@ function pickTagline(): void {
 }
 
 export function getSlotTagline(): string {
-  return tagline
+  return t(tagline)
 }
 
 export function isCasinoPanelOpen(): boolean {
@@ -105,7 +107,7 @@ export function getSlotReels(): readonly number[] {
 }
 
 export function getSlotMessage(): string {
-  return spinning ? 'Spinning...' : message
+  return spinning ? t('slots.spinningDots') : message()
 }
 
 /** Pulls the lever. The bet is taken, and the win paid, when the server says so. */
@@ -131,7 +133,7 @@ export function onSlotResult(data: SlotResult): void {
 /** The server refused the spin, so nothing was charged. */
 export function onSlotRefused(detail: string): void {
   spinning = false
-  message = detail
+  message = () => detail
 }
 
 function finishSpin(answer: SlotResult): void {
@@ -139,16 +141,16 @@ function finishSpin(answer: SlotResult): void {
   releaseHeldCoins()
   pickTagline()
   if (answer.jackpot) {
-    message = `JACKPOT! ${answer.win} COINS`
+    message = () => t('slots.jackpotWin', { coins: answer.win })
     playSfx(JACKPOT_SOUND_CLIP, SOUND_VOLUME)
   } else if (answer.win > answer.bet) {
-    message = `YOU WIN ${answer.win} COINS`
+    message = () => t('slots.youWin', { coins: answer.win })
     playSfx(WIN_SOUND_CLIP, SOUND_VOLUME)
   } else if (answer.win === answer.bet) {
-    message = 'BET RETURNED'
+    message = () => t('slots.betReturned')
     playSfx(WIN_SOUND_CLIP, SOUND_VOLUME)
   } else {
-    message = 'No luck. Spin again'
+    message = () => t('slots.noLuck')
   }
 }
 
@@ -158,7 +160,7 @@ function runReels(dt: number): void {
 
   if (result === null && elapsed >= ANSWER_TIMEOUT_SECONDS) {
     spinning = false
-    message = 'The machine did not answer'
+    message = () => t('slots.noAnswer')
     // Wherever the spin froze could read as a win (the reels turn in step, so three alike stay
     // alike): show three different symbols, which pay nothing.
     for (let index = 0; index < reels.length; index++) reels[index] = index
@@ -197,7 +199,7 @@ export function setupCasino(): void {
     entityName: 'casino-machine',
     entity: machines,
     radiusMeters: CASINO_RADIUS_METERS,
-    click: { entity: machines, hoverText: 'Play Slots' },
+    click: { entity: machines, hoverText: 'hover.playSlots' },
     onEnter: () => {
       panelClosed = false
       infoOpen = false

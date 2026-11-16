@@ -78,7 +78,7 @@ export function setupShop(): void {
   zone = createProximityZone({
     entityName: SHOP_OFFICER_ENTITY_NAME,
     radiusMeters: SHOP_RADIUS_METERS,
-    click: officer !== null ? { entity: officer, hoverText: 'Open General Store' } : undefined,
+    click: officer !== null ? { entity: officer, hoverText: 'hover.store' } : undefined,
     onEnter: () => {
       closed = false
       selected = null

@@ -83,7 +83,7 @@ export function setupTailorShop(): void {
     entityName: TAILOR_ENTITY_NAME,
     entity: clerk ?? undefined,
     radiusMeters: TAILOR_SHOP_RADIUS_METERS,
-    click: clerk !== null ? { entity: clerk, hoverText: 'Open Tailor Shop' } : undefined,
+    click: clerk !== null ? { entity: clerk, hoverText: 'hover.tailor' } : undefined,
     onEnter: open,
     onClick: () => {
       if (closed) open()

@@ -22,6 +22,7 @@ import { startMineEmote, stopMineEmote } from '../player/mine-emote'
 import { playSfx } from '../world/sfx'
 import { showOrePopup } from '../ui/ore-popup'
 import { playHitFeedback, playRockBreak } from './pick-feel'
+import { hoverText, t } from '../i18n'
 import { ActiveRock, pickRockSpot, ROCKS_AT_ONCE, } from '../shared/net/rock-sync'
 
 // Manual mining (design/balance.md §2, 2026-09-17). No timing bar: a handful of rocks stand at
@@ -127,7 +128,7 @@ const STAND_WARNING_HOLD_SECONDS = 1
 let standWarningSeconds = 0
 
 function standWarning(): string {
-  return standWarningSeconds > 0 ? 'Stand still to mine' : ''
+  return standWarningSeconds > 0 ? t('mining.standStill') : ''
 }
 
 let area: Area | null = null
@@ -364,7 +365,7 @@ const RUN_MIN_SECONDS = 0.3
 
 function makeRockClickable(rock: Rock): void {
   pointerEventsSystem.onPointerDown(
-    { entity: rock.entity, opts: { button: InputAction.IA_POINTER, hoverText: 'Mine', maxDistance: CLICK_REACH_METERS } },
+    { entity: rock.entity, opts: { button: InputAction.IA_POINTER, hoverText: hoverText(rock.entity, 'hover.mine'), maxDistance: CLICK_REACH_METERS } },
     () => {
       if (rock.finished || movingIn) return
       stopSwinging()
@@ -438,14 +439,14 @@ function update(dt: number): void {
   const needed = getHitsPerRock()
   if (needed <= 0) {
     stopSwinging()
-    status = { hits: 0, needed: 1, blocked: 'You need a pick — the mayor has one for you', warning: '', practice: rock === tutorial }
+    status = { hits: 0, needed: 1, blocked: t('mining.needPick'), warning: '', practice: rock === tutorial }
     return
   }
 
   const capacity = getCarryCapacity()
   if (capacity > 0 && getOre() >= capacity) {
     stopSwinging()
-    status = { hits: rock.hits, needed, blocked: 'Storage full — sell at the bank', warning: '', practice: rock === tutorial }
+    status = { hits: rock.hits, needed, blocked: t('mining.storageFull'), warning: '', practice: rock === tutorial }
     return
   }
 

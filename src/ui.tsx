@@ -33,7 +33,7 @@ import {
     isClaimOfficePanelOpen,
     toggleClaimOfficeFromButton
 } from './claim-office/claim-office'
-import { REWARD_STEP_LABELS, RewardCampaign, rewardCampaignsAt } from './shared/rewards'
+import { RewardCampaign, rewardCampaignsAt } from './shared/rewards'
 import {
     buyTailorItem,
     canBuyTailorItem,
@@ -98,12 +98,14 @@ import { isAdmin } from './shared/admins'
 import { getPlayer } from '@dcl/sdk/players'
 import { isLocalPreview } from './shared/local-preview'
 import { quotedRate, secondsToRecover } from './shared/state/market'
+import { getLanguage, itemBenefit, itemName, LANGUAGES, rewardText, t } from './i18n'
+import { flagIcon, LanguageRow } from './ui/language-selector'
 import { BitmapText } from './ui/bitmap-text'
 import { introScreen } from './ui/intro-screen'
 import { giveFeedback, reportBug } from './playtest'
 import { welcomeOverlay } from './ui/welcome-overlay'
 import { getMusicStep, getSfxStep, setMusicStep, setSfxStep, VOLUME_STEPS } from './world/volume'
-import { clearObjectiveHistory, dismissObjective, getObjectiveClock, getObjectives, getObjectiveHistory, Objective, PastObjective, setupObjective, SOCIAL_BONUS_TITLE } from './ui/objective'
+import { clearObjectiveHistory, dismissObjective, getObjectiveClock, getObjectives, getObjectiveHistory, Objective, PastObjective, setupObjective, SOCIAL_BONUS_ID } from './ui/objective'
 
 export function setupUi() {
     setupRollingCounters()
@@ -368,7 +370,7 @@ const oreSegment = () => {
         <UiEntity uiTransform={{ height: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexGrow: 1, flexShrink: 0 }}>
             {hudIcon(ICON_ORE)}
             <UiEntity uiTransform={{ flexDirection: 'column', justifyContent: 'center' }}>
-                <BitmapText value="Ore" fontSize={HUD_CAPTION_SIZE} color={HUD_CAPTION_COLOR} uiTransform={{ margin: { left: ORE_BAR_TEXT_INSET } }} />
+                <BitmapText value={t('hud.ore')} fontSize={HUD_CAPTION_SIZE} color={HUD_CAPTION_COLOR} uiTransform={{ margin: { left: ORE_BAR_TEXT_INSET } }} />
                 <UiEntity uiTransform={{ height: HUD_VALUE_SIZE, flexDirection: 'row', alignItems: 'center' }}>
                 <UiEntity
                     uiTransform={{
@@ -416,7 +418,7 @@ const storageFullBadge = () => {
                 }}
                 uiBackground={{ color: bright ? STORAGE_FULL_BADGE_COLOR : STORAGE_FULL_BADGE_DIM_COLOR }}
             >
-                <Label value="STORAGE FULL" fontSize={STORAGE_FULL_BADGE_SIZE} color={Color4.White()} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: STORAGE_FULL_BADGE_HEIGHT }} />
+                <Label value={t('hud.storageFull')} fontSize={STORAGE_FULL_BADGE_SIZE} color={Color4.White()} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: STORAGE_FULL_BADGE_HEIGHT }} />
             </UiEntity>
         </UiEntity>
     )
@@ -429,7 +431,7 @@ const rateSegment = () => {
         <UiEntity uiTransform={{ height: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexGrow: 1, flexShrink: 0 }}>
             {hudIcon(ICON_RATE)}
             <UiEntity uiTransform={{ flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center' }}>
-                <BitmapText value="Ore Price" fontSize={HUD_CAPTION_SIZE} color={HUD_CAPTION_COLOR} />
+                <BitmapText value={t('hud.orePrice')} fontSize={HUD_CAPTION_SIZE} color={HUD_CAPTION_COLOR} />
                 <UiEntity uiTransform={{ height: HUD_VALUE_SIZE, flexDirection: 'row', alignItems: 'center' }}>
                     <BitmapText value={priceVerdict(rate).word} fontSize={HUD_VALUE_SIZE} color={priceVerdict(rate).color} />
                 </UiEntity>
@@ -468,10 +470,13 @@ const hud = () => {
         >
             {oreSegment()}
             {hudDivider()}
-            {hudSegment(ICON_COINS, 'Bite Coins', `${shownCoins()}`, COIN_COLOR)}
+            {hudSegment(ICON_COINS, t('hud.coins'), `${shownCoins()}`, COIN_COLOR)}
             {hudDivider()}
             {rateSegment()}
         </UiEntity>
+        {/* Outside the pill, against its left edge: anchored to the HUD itself. */}
+        {languageButton()}
+        {languageMenu()}
         </UiEntity>
     )
 }
@@ -570,9 +575,9 @@ function rateLevel(rate: number): number {
  */
 function recoveryText(rate: number): string {
     const seconds = secondsToRecover(rate, getMarketPlayers())
-    if (seconds <= 0) return `At equilibrium price (${RATE_BASE})`
+    if (seconds <= 0) return t('bank.atEquilibrium', { rate: RATE_BASE })
     const minutes = Math.ceil(seconds / 60)
-    return `Back to equilibrium (${RATE_BASE}) in ~${minutes} min`
+    return t('bank.backToEquilibrium', { rate: RATE_BASE, minutes })
 }
 
 // A plain reading of the rate, so the number does not have to be interpreted: five equal
@@ -589,13 +594,13 @@ const PRICE_FAIR_COLOR = Color4.create(0.96, 0.82, 0.25, 1)
 const PRICE_LOW_COLOR = Color4.create(0.95, 0.56, 0.24, 1)
 const PRICE_BAD_COLOR = Color4.create(0.9, 0.33, 0.28, 1)
 
-function priceVerdict(rate: number): { word: string; color: Color4 } {
+function priceVerdict(rate: number): { word: string; pill: string; color: Color4 } {
     const tenths = Math.round(rate * 10)
-    if (tenths <= PRICE_BEST_MAX_TENTHS) return { word: 'BEST', color: PRICE_BEST_COLOR }
-    if (tenths <= PRICE_GOOD_MAX_TENTHS) return { word: 'GOOD', color: PRICE_GOOD_COLOR }
-    if (tenths <= PRICE_FAIR_MAX_TENTHS) return { word: 'FAIR', color: PRICE_FAIR_COLOR }
-    if (tenths <= PRICE_LOW_MAX_TENTHS) return { word: 'LOW', color: PRICE_LOW_COLOR }
-    return { word: 'BAD', color: PRICE_BAD_COLOR }
+    if (tenths <= PRICE_BEST_MAX_TENTHS) return { word: t('price.best'), pill: t('price.bestPill'), color: PRICE_BEST_COLOR }
+    if (tenths <= PRICE_GOOD_MAX_TENTHS) return { word: t('price.good'), pill: t('price.goodPill'), color: PRICE_GOOD_COLOR }
+    if (tenths <= PRICE_FAIR_MAX_TENTHS) return { word: t('price.fair'), pill: t('price.fairPill'), color: PRICE_FAIR_COLOR }
+    if (tenths <= PRICE_LOW_MAX_TENTHS) return { word: t('price.low'), pill: t('price.lowPill'), color: PRICE_LOW_COLOR }
+    return { word: t('price.bad'), pill: t('price.badPill'), color: PRICE_BAD_COLOR }
 }
 
 // A small pill beside the recovery note, under the chart: smaller than the rate itself, coloured so it scans at a glance.
@@ -603,7 +608,7 @@ const priceVerdictPill = (rate: number) => {
     const verdict = priceVerdict(rate)
     return (
         <Label
-            value={`${verdict.word} PRICE`}
+            value={verdict.pill}
             fontSize={14}
             color={BANK_INK}
             textAlign="middle-center"
@@ -820,24 +825,24 @@ const bankPanel = () => {
             >
                 {bankIcon(ICON_BANK, 72)}
                 <UiEntity uiTransform={{ flexDirection: 'column', alignItems: 'center' }}>
-                    <BitmapText value="THE BANK" fontSize={60} color={BANK_GOLD_LIGHT} />
-                    <Label value="Sell Ore for Coins" fontSize={18} color={BANK_CAPTION} textAlign="middle-center" uiTransform={{ height: 24 }} />
+                    <BitmapText value={t('bank.title')} fontSize={60} color={BANK_GOLD_LIGHT} />
+                    <Label value={t('bank.subtitle')} fontSize={18} color={BANK_CAPTION} textAlign="middle-center" uiTransform={{ height: 24 }} />
                 </UiEntity>
             </UiEntity>
 
             {/* Your ore on the left, the town's rate beside it: both stretch to the taller one. */}
             <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', margin: { top: BANK_ROW_GAP } }}>
                 {bankSection(
-                    'YOU HAVE',
-                    bankAmount(ICON_ORE, ore, 'ORE', BANK_CREAM),
+                    t('bank.youHave'),
+                    bankAmount(ICON_ORE, ore, t('unit.oreCaps'), BANK_CREAM),
                     { width: 200, joined: 'left' }
                 )}
 
                 {bankSection(
-                    'TOWN RATE',
+                    t('bank.townRate'),
                     [
                         <UiEntity key="rate" uiTransform={{ height: 44, flexDirection: 'row', alignItems: 'center' }}>
-                            <BitmapText value={`${formatRate(rate)} ORE = 1 COIN`} fontSize={34} color={BANK_CREAM} />
+                            <BitmapText value={t('bank.rateLine', { rate: formatRate(rate) })} fontSize={34} color={BANK_CREAM} />
                         </UiEntity>,
                         <UiEntity key="chart" uiTransform={{ width: '100%' }}>
                             {rateChart(getRateHistory(), rate)}
@@ -860,13 +865,13 @@ const bankPanel = () => {
             {/* What the sale pays on the left, the amount picker beside it, like the row above. */}
             <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', margin: { top: BANK_ROW_GAP } }}>
                 {bankSection(
-                    'YOU RECEIVE',
-                    bankAmount(ICON_COINS, payout, payout === 1 ? 'COIN' : 'COINS', COIN_COLOR),
+                    t('bank.youReceive'),
+                    bankAmount(ICON_COINS, payout, payout === 1 ? t('unit.coinCaps') : t('unit.coinsCaps'), COIN_COLOR),
                     { width: 200, joined: 'left' }
                 )}
 
                 {bankSection(
-                    'SELL AMOUNT',
+                    t('bank.sellAmount'),
                     [
                         <UiEntity key="step" uiTransform={{ width: '100%', height: 64, flexDirection: 'row', alignItems: 'center' }}>
                             {bankButton('-10', () => changeSellCoins(-1), { width: 96, height: 60 }, 36, BANK_STEP_COLOR, BANK_CREAM)}
@@ -883,22 +888,22 @@ const bankPanel = () => {
                                 }}
                                 uiBackground={{ color: BANK_WOOD_DARK }}
                             >
-                                <BitmapText value={`${amount} ORE`} fontSize={42} color={BANK_GOLD_LIGHT} align="center" />
+                                <BitmapText value={t('bank.oreAmount', { amount })} fontSize={42} color={BANK_GOLD_LIGHT} align="center" />
                             </UiEntity>
                             {bankButton('+10', () => changeSellCoins(1), { width: 96, height: 60 }, 36, BANK_STEP_COLOR, BANK_CREAM)}
                         </UiEntity>,
                         // The one place the minimum is stated: under the amount, quiet, always there.
                         <Label
                             key="minimum"
-                            value={`Minimum: ${formatRate(rate)} Ore`}
+                            value={t('bank.minimum', { rate: formatRate(rate) })}
                             fontSize={15}
                             color={BANK_HINT}
                             textAlign="middle-center"
                             uiTransform={{ width: '100%', height: 20, margin: { top: 4 } }}
                         />,
                         <UiEntity key="quick" uiTransform={{ width: '100%', height: 52, flexDirection: 'row', justifyContent: 'space-between', margin: { top: 6 } }}>
-                            {bankButton('HALF', () => setSellCoins(Math.floor(maxSellCoins() / 2)), { width: '48%', height: 50 }, 30, BANK_STEP_COLOR, BANK_CREAM)}
-                            {bankButton('MAX', () => setSellCoins(maxSellCoins()), { width: '48%', height: 50 }, 30, BANK_STEP_COLOR, BANK_CREAM)}
+                            {bankButton(t('bank.half'), () => setSellCoins(Math.floor(maxSellCoins() / 2)), { width: '48%', height: 50 }, 30, BANK_STEP_COLOR, BANK_CREAM)}
+                            {bankButton(t('bank.max'), () => setSellCoins(maxSellCoins()), { width: '48%', height: 50 }, 30, BANK_STEP_COLOR, BANK_CREAM)}
                         </UiEntity>
                     ],
                     { width: 0, grow: 1, joined: 'right' }
@@ -907,7 +912,7 @@ const bankPanel = () => {
 
             <UiEntity uiTransform={{ width: '100%', height: BANK_BUTTON_GAP }} />
             {bankButton(
-                canSell ? `SELL ${amount} ORE` : 'SELL',
+                canSell ? t('bank.sellOre', { amount }) : t('bank.sell'),
                 canSell ? sellSelectedOre : () => {},
                 { width: '100%', height: 72 },
                 44,
@@ -938,15 +943,15 @@ const bankPanel = () => {
 // dress and signed by whoever owes them: The Bank or the Slot Machine. The button credits them; once it says CREDITED the screen can be closed, for good.
 const compensationPanel = (offer: CompensationOffer) => {
     const claiming = isClaimingCompensation()
-    const label = offer.claimed ? 'CREDITED' : claiming ? 'CREDITING...' : `CLAIM ${offer.coins} COINS`
+    const label = offer.claimed ? t('comp.credited') : claiming ? t('comp.crediting') : t('comp.claim', { coins: offer.coins })
     const live = !offer.claimed && !claiming
     const casino = offer.kind === 'casino'
     const sender = casino
-        ? { icon: SLOT_SYMBOL_ICONS.bell, title: 'SLOT MACHINE', caption: 'A Note from the Gambling Hall', heading: 'SORRY FOR THE JAM!' }
-        : { icon: ICON_BANK, title: 'THE BANK', caption: 'A Note from the Bank', heading: 'YOUR COINS ARE BACK!' }
+        ? { icon: SLOT_SYMBOL_ICONS.bell, title: t('slots.title'), caption: t('comp.casinoCaption'), heading: t('comp.casinoHeading') }
+        : { icon: ICON_BANK, title: t('bank.title'), caption: t('comp.bankCaption'), heading: t('comp.bankHeading') }
     const apology = casino
-        ? `On ${offer.date} the slot machine jammed in the middle of your spin. Sorry about that! Here are ${offer.coins} coins to make up for it.`
-        : `We know you lost coins on ${offer.date} because of a mix-up in the bank's ledger. Sorry about that! Here are ${offer.coins} coins to make up for it.`
+        ? t('comp.casinoApology', { date: offer.date, coins: offer.coins })
+        : t('comp.bankApology', { date: offer.date, coins: offer.coins })
 
     return (
         <UiEntity
@@ -983,7 +988,7 @@ const compensationPanel = (offer: CompensationOffer) => {
                 />,
                 <UiEntity key="amount" uiTransform={{ width: '100%', height: 80, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
                     {bankIcon(ICON_COINS, 56)}
-                    <BitmapText value={`${offer.coins} COINS`} fontSize={52} color={COIN_COLOR} />
+                    <BitmapText value={t('unit.coinsAmountCaps', { coins: offer.coins })} fontSize={52} color={COIN_COLOR} />
                 </UiEntity>
             ])}
 
@@ -1024,7 +1029,7 @@ const compensationPanel = (offer: CompensationOffer) => {
 // explorer refuses that ("You are already in ..."), and only a full restart of the client is sure
 // to load the new version (deploy-scene skill: a scene reload keeps the cached one), so on desktop
 // the screen lists the steps instead of offering a button.
-const DESKTOP_REJOIN_STEPS = ['1. Close Decentraland completely.', '2. Open it again.', '3. Come back to claimbite.dcl.eth.']
+const desktopRejoinSteps = () => [t('update.step1'), t('update.step2'), t('update.step3')]
 /** The screen's paragraph: room for three wrapped lines. Each step gets a line of its own. */
 const UPDATE_PARAGRAPH_HEIGHT = 84
 const UPDATE_STEP_HEIGHT = 32
@@ -1037,21 +1042,21 @@ const updatePanel = (screen: 'maintenance' | 'rejoin') => {
     // Up a minute and still waiting: the way out shows anyway, in case the new version's notice never arrives.
     const offerRejoin = !maintenance || canEscapeMaintenance()
     const why = maintenance
-        ? 'The town is being updated. Nothing you do now is saved.'
+        ? t('update.whyMaintenance')
         : lost
-          ? 'The connection to the town was lost, most likely because it was just updated. Nothing you do now is saved or counted.'
-          : 'A new version of the town is up. You are still on the old one, and nothing you do here is saved or counted.'
+          ? t('update.whyLost')
+          : t('update.whyNewVersion')
     const what = !offerRejoin
         ? desktop
-            ? 'Wait here a minute: when the new version is up, this screen will tell you how to get to it.'
-            : 'Wait here a minute: when the new version is up, a REJOIN button will show up to take you to it.'
+            ? t('update.waitDesktop')
+            : t('update.waitMobile')
         : desktop
-          ? 'To play the new version:'
+          ? t('update.toPlay')
           : didRejoinFail()
-            ? 'If nothing happened: close Decentraland, open it again and come back to claimbite.dcl.eth. Your progress is safe.'
-            : 'Rejoin to keep playing.'
+            ? t('update.rejoinFailed')
+            : t('update.rejoinToPlay')
     // One Label per line: a Label does not grow to fit text with line breaks, so the steps would overlap.
-    const steps = offerRejoin && desktop ? DESKTOP_REJOIN_STEPS : []
+    const steps = offerRejoin && desktop ? desktopRejoinSteps() : []
     const showRejoin = offerRejoin && !desktop
     return (
         <UiEntity
@@ -1069,11 +1074,11 @@ const updatePanel = (screen: 'maintenance' | 'rejoin') => {
             uiBackground={{ color: BANK_WOOD_DARK }}
         >
             <UiEntity uiTransform={{ width: '100%', height: 124, flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-                <BitmapText value={maintenance ? 'UPDATING' : lost ? 'RECONNECT' : 'NEW VERSION'} fontSize={60} color={BANK_GOLD_LIGHT} />
-                <Label value={maintenance ? 'Back in a minute' : lost ? 'The town stopped answering' : 'Claim Bite was updated'} fontSize={18} color={BANK_CAPTION} textAlign="middle-center" uiTransform={{ height: 24, margin: { top: 18 } }} />
+                <BitmapText value={maintenance ? t('update.updating') : lost ? t('update.reconnect') : t('update.newVersion')} fontSize={60} color={BANK_GOLD_LIGHT} />
+                <Label value={maintenance ? t('update.backSoon') : lost ? t('update.stoppedAnswering') : t('update.wasUpdated')} fontSize={18} color={BANK_CAPTION} textAlign="middle-center" uiTransform={{ height: 24, margin: { top: 18 } }} />
             </UiEntity>
 
-            {bankSection(!offerRejoin ? 'PLEASE WAIT' : desktop ? 'HOW TO REJOIN' : 'PLEASE REJOIN', [
+            {bankSection(!offerRejoin ? t('update.pleaseWait') : desktop ? t('update.howToRejoin') : t('update.pleaseRejoin'), [
                 <Label
                     key="text"
                     value={`${why} ${what}`}
@@ -1097,7 +1102,7 @@ const updatePanel = (screen: 'maintenance' | 'rejoin') => {
                 steps.length > 0 ? (
                     <Label
                         key="safe"
-                        value="Your progress is safe."
+                        value={t('update.progressSafe')}
                         fontSize={18}
                         color={BANK_CAPTION}
                         textAlign="middle-left"
@@ -1112,7 +1117,7 @@ const updatePanel = (screen: 'maintenance' | 'rejoin') => {
             {!showRejoin
                 ? null
                 : bankButton(
-                      rejoining ? 'REJOINING...' : 'REJOIN',
+                      rejoining ? t('update.rejoining') : t('update.rejoin'),
                       rejoining ? () => {} : rejoinWorld,
                       { width: '100%', height: 72 },
                       44,
@@ -1238,6 +1243,11 @@ function buyBlocker(item: ShopItem): string | null {
     return null
 }
 
+/** "1 COIN" / "1,000 COINS". */
+function coinsCaps(amount: number): string {
+    return amount === 1 ? t('slots.oneCoin') : t('unit.coinsAmountCaps', { coins: withCommas(amount) })
+}
+
 /** 1000 → "1,000". */
 function withCommas(value: number): string {
     return `${Math.round(value)}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
@@ -1254,10 +1264,19 @@ function durabilityColor(pick: ShopItem, normal: Color4): Color4 {
 }
 
 // What the detail panel says about each pick, beyond the catalogue's numbers.
-const PICK_COPY: Record<string, { description: string; benefits: string[] }> = {
-    pick: { description: 'A borrowed pick. It gets the job done.', benefits: ['Free starting tool', 'Mines every rock'] },
-    'steel-pick': { description: 'Better hits. Faster mining.', benefits: ['Faster mining', 'Better hits'] },
-    'miners-pick': { description: 'The finest pick in the territory.', benefits: ['Fastest mining', 'Strongest hits'] }
+const PICK_COPY: Record<string, { readonly description: string; readonly benefits: string[] }> = {
+    pick: {
+        get description() { return t('pick.basic.description') },
+        get benefits() { return [t('pick.basic.benefit1'), t('pick.basic.benefit2')] }
+    },
+    'steel-pick': {
+        get description() { return t('pick.steel.description') },
+        get benefits() { return [t('pick.steel.benefit1'), t('pick.steel.benefit2')] }
+    },
+    'miners-pick': {
+        get description() { return t('pick.master.description') },
+        get benefits() { return [t('pick.master.benefit1'), t('pick.master.benefit2')] }
+    }
 }
 
 // --- Products ---
@@ -1276,14 +1295,15 @@ type Product = {
     muted: boolean
 }
 
-const STATUS_EQUIPPED: Status = { text: 'Equipped', color: PRICE_GOOD_COLOR }
-const STATUS_LOCKED: Status = { text: 'Locked', color: MUTED_COLOR }
-const STATUS_BUY: Status = { text: 'Buy', color: BANK_GOLD_LIGHT }
-const STATUS_UPGRADE: Status = { text: 'Upgrade', color: BANK_GOLD_LIGHT }
-const STATUS_SOON: Status = { text: 'Coming Soon', color: MUTED_COLOR }
+// Getters, not plain text: the objects are compared by identity, and the text follows the language.
+const STATUS_EQUIPPED: Status = { get text() { return t('status.equipped') }, color: PRICE_GOOD_COLOR }
+const STATUS_LOCKED: Status = { get text() { return t('status.locked') }, color: MUTED_COLOR }
+const STATUS_BUY: Status = { get text() { return t('status.buy') }, color: BANK_GOLD_LIGHT }
+const STATUS_UPGRADE: Status = { get text() { return t('status.upgrade') }, color: BANK_GOLD_LIGHT }
+const STATUS_SOON: Status = { get text() { return t('status.comingSoon') }, color: MUTED_COLOR }
 
 function ownedStatus(count: number): Status {
-    return { text: count > 1 ? `Owned x${count}` : 'Owned', color: BANK_CREAM }
+    return { text: count > 1 ? t('status.ownedCount', { count }) : t('status.owned'), color: BANK_CREAM }
 }
 
 function pickStatus(item: ShopItem): Status {
@@ -1296,9 +1316,9 @@ function storeProducts(): Product[] {
     const mules = getMuleCount()
     const picks: Product[] = PICKS.map((pick) => ({
         key: pick.id,
-        title: pick.label,
+        title: itemName(pick),
         icon: PICK_ICONS[pick.id] ?? ICON_PICK_IRON,
-        hint: pick.price > 0 ? `${pick.price} Coins` : 'Free',
+        hint: pick.price > 0 ? t('store.coinsPrice', { price: pick.price }) : t('store.free'),
         status: pickStatus(pick),
         muted: false
     }))
@@ -1308,17 +1328,17 @@ function storeProducts(): Product[] {
         ...picks,
         {
             key: 'mule',
-            title: mule.label,
+            title: itemName(mule),
             icon: ICON_MULE,
-            hint: `${mule.price} Coins`,
+            hint: t('store.coinsPrice', { price: mule.price }),
             status: mules > 0 ? ownedStatus(mules) : STATUS_BUY,
             muted: false
         },
-        { key: 'fuel', title: 'Fuel', icon: ICON_FUEL, hint: `${FUEL_PRICE_PER_GALLON} Coins / Gallon`, status: mules > 0 ? null : STATUS_LOCKED, muted: false },
-        { key: 'storage', title: 'Storage', icon: ICON_WAREHOUSE, hint: nextStorage !== null ? `${nextStorage.price} Coins` : 'Max level', status: null, muted: false },
-        { key: 'dynamite', title: 'Dynamite', icon: ICON_DYNAMITE, hint: '', status: STATUS_SOON, muted: true },
-        { key: 'horse', title: 'Horse', icon: ICON_HORSE, hint: '', status: STATUS_SOON, muted: true },
-        { key: 'revolver', title: 'Revolver', icon: ICON_REVOLVER, hint: '', status: STATUS_SOON, muted: true }
+        { key: 'fuel', title: t('store.fuel'), icon: ICON_FUEL, hint: t('store.coinsPerGallon', { price: FUEL_PRICE_PER_GALLON }), status: mules > 0 ? null : STATUS_LOCKED, muted: false },
+        { key: 'storage', title: t('store.storage'), icon: ICON_WAREHOUSE, hint: nextStorage !== null ? t('store.coinsPrice', { price: nextStorage.price }) : t('store.maxLevel'), status: null, muted: false },
+        { key: 'dynamite', title: t('store.dynamite'), icon: ICON_DYNAMITE, hint: '', status: STATUS_SOON, muted: true },
+        { key: 'horse', title: t('store.horse'), icon: ICON_HORSE, hint: '', status: STATUS_SOON, muted: true },
+        { key: 'revolver', title: t('store.revolver'), icon: ICON_REVOLVER, hint: '', status: STATUS_SOON, muted: true }
     ]
 }
 
@@ -1424,9 +1444,9 @@ const coinAmount = (amount: number, color: Color4, size: number) => (
 )
 
 /** Price as a stat: gold when it can be paid, red when it cannot — but always shown. */
-function priceStat(price: number | null, label: string = 'Price'): ReactEcs.JSX.Element {
+function priceStat(price: number | null, label: string = t('store.price')): ReactEcs.JSX.Element {
     if (price === null) return detailStat(label, '-', MUTED_COLOR)
-    if (price === 0) return detailStat(label, 'FREE', COIN_COLOR)
+    if (price === 0) return detailStat(label, t('store.freeCaps'), COIN_COLOR)
     return (
         <UiEntity key={label} uiTransform={{ flexDirection: 'column', margin: { bottom: 10 } }}>
             <Label value={label} fontSize={14} color={BANK_CAPTION} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 20 }} />
@@ -1436,9 +1456,9 @@ function priceStat(price: number | null, label: string = 'Price'): ReactEcs.JSX.
 }
 
 /** The buy action for an item: live when it can be bought, off (price still shown above) when not. */
-function buyAction(item: ShopItem, label: string = 'BUY'): Action {
+function buyAction(item: ShopItem, label: string = t('action.buy')): Action {
     const why = whyUnavailable(item)
-    if (why !== null) return { label: 'LOCKED', kind: 'off' }
+    if (why !== null) return { label: t('action.locked'), kind: 'off' }
     return { label, kind: buyBlocker(item) === null ? 'buy' : 'off', onClick: () => buyItem(item.id) }
 }
 
@@ -1458,27 +1478,27 @@ function pickDetail(item: ShopItem): Detail {
     const copy = PICK_COPY[item.id]
     const status = pickStatus(item)
     let action: Action
-    if (status === STATUS_EQUIPPED) action = { label: 'EQUIPPED', kind: 'equipped' }
-    else if (getOwned(item.id) > 0) action = { label: 'EQUIP', kind: 'equip', onClick: () => sendEquip(item.id) }
-    else if (item.starter === true) action = { label: 'LOCKED', kind: 'off' }
+    if (status === STATUS_EQUIPPED) action = { label: t('action.equipped'), kind: 'equipped' }
+    else if (getOwned(item.id) > 0) action = { label: t('action.equip'), kind: 'equip', onClick: () => sendEquip(item.id) }
+    else if (item.starter === true) action = { label: t('action.locked'), kind: 'off' }
     else action = buyAction(item)
 
     const notes = copy.benefits.map((benefit) => detailNote(`• ${benefit}`))
-    if (getOwned(item.id) <= 0 && item.starter === true) notes.push(detailNote('Free from the Mayor', BANK_CAPTION))
+    if (getOwned(item.id) <= 0 && item.starter === true) notes.push(detailNote(t('store.freeFromMayor'), BANK_CAPTION))
     else if (getOwned(item.id) <= 0 && item.requires !== undefined && getOwned(item.requires) <= 0) {
-        notes.push(detailNote(`Requires ${findItem(item.requires)?.label ?? ''}`, SHORT_COLOR))
+        notes.push(detailNote(t('store.requires', { item: itemName(findItem(item.requires)) }), SHORT_COLOR))
     }
     return {
-        title: item.label,
+        title: itemName(item),
         description: copy.description,
         icon: PICK_ICONS[item.id] ?? ICON_PICK_IRON,
         stats: [
             priceStat(item.price),
-            detailStat('Breaks a rock in', `${item.hitsPerRock} HITS`, BANK_CREAM),
+            detailStat(t('store.breaksRockIn'), t('store.hitsCaps', { hits: item.hitsPerRock ?? 0 }), BANK_CREAM),
             // Owned: what is left. Not owned: what a new one lasts.
             getOwned(item.id) > 0
-                ? detailStat('Durability', `${durabilityText(item)} ROCKS`, durabilityColor(item, BANK_CREAM))
-                : detailStat('Lasts', `${item.durability ?? 0} ROCKS`, BANK_CREAM)
+                ? detailStat(t('store.durability'), t('store.rocksCaps', { rocks: durabilityText(item) }), durabilityColor(item, BANK_CREAM))
+                : detailStat(t('store.lasts'), t('store.rocksCaps', { rocks: item.durability ?? 0 }), BANK_CREAM)
         ],
         notes,
         actions: [storeActionButton(action)]
@@ -1489,15 +1509,15 @@ function muleDetail(): Detail {
     const mule = itemsOf('mule')[0]
     const mules = getMuleCount()
     return {
-        title: mule.label,
-        description: 'Digs ore for you, even while you are away.',
+        title: itemName(mule),
+        description: t('mule.description'),
         icon: ICON_MULE,
-        stats: [priceStat(mule.price), detailStat('Produces', '200 ORE/DAY', BANK_CREAM)],
+        stats: [priceStat(mule.price), detailStat(t('mule.produces'), t('mule.perDayCaps', { ore: 200 }), BANK_CREAM)],
         notes: [
-            detailNote('• Digs straight into your storage'),
-            detailNote('• Requires fuel'),
+            detailNote(`• ${t('mule.note.storage')}`),
+            detailNote(`• ${t('mule.note.fuel')}`),
             detailNote(
-                mules >= MULE_MAX_COUNT ? `You own ${mules} (MAXIMUM SUPPORTED)` : mules > 0 ? `You own ${mules}` : 'You own none yet',
+                mules >= MULE_MAX_COUNT ? t('mule.ownMax', { count: mules }) : mules > 0 ? t('mule.own', { count: mules }) : t('mule.ownNone'),
                 BANK_CAPTION
             )
         ],
@@ -1526,7 +1546,7 @@ const fuelOption = (item: ShopItem) => {
             }}
             uiBackground={{ color: BANK_WOOD }}
         >
-            <BitmapText value={item.label.toUpperCase()} fontSize={24} color={BANK_CREAM} uiTransform={{ width: 170 }} />
+            <BitmapText value={itemName(item).toUpperCase()} fontSize={24} color={BANK_CREAM} uiTransform={{ width: 170 }} />
             {/* An order the tank cannot take keeps its price, muted, and its button goes grey:
                 that says enough without a warning line. */}
             <UiEntity uiTransform={{ flexGrow: 1 }}>
@@ -1541,7 +1561,7 @@ const fuelOption = (item: ShopItem) => {
                     if (live) buyItem(item.id)
                 }}
             >
-                <BitmapText value="BUY" fontSize={22} color={live ? BANK_INK : MUTED_COLOR} />
+                <BitmapText value={t('action.buy')} fontSize={22} color={live ? BANK_INK : MUTED_COLOR} />
             </UiEntity>
         </UiEntity>
     )
@@ -1551,52 +1571,52 @@ const fuelOption = (item: ShopItem) => {
 // running is the M.U.L.E. panel's business.
 function fuelDetail(): Detail {
     const mules = getMuleCount()
-    const description = 'Keeps your M.U.L.E.s running.'
+    const description = t('fuel.description')
     if (mules <= 0) {
         return {
-            title: 'Fuel',
+            title: t('store.fuel'),
             description,
             icon: ICON_FUEL,
-            stats: [detailStat('Price', `${FUEL_PRICE_PER_GALLON} COINS / GALLON`, BANK_CREAM)],
-            notes: [detailNote('Requires a M.U.L.E.', SHORT_COLOR)],
-            actions: [storeActionButton({ label: 'LOCKED', kind: 'off' })]
+            stats: [detailStat(t('store.price'), t('fuel.pricePerGallonCaps', { price: FUEL_PRICE_PER_GALLON }), BANK_CREAM)],
+            notes: [detailNote(t('fuel.requiresMule'), SHORT_COLOR)],
+            actions: [storeActionButton({ label: t('action.locked'), kind: 'off' })]
         }
     }
     return {
-        title: 'Fuel',
+        title: t('store.fuel'),
         description,
         icon: ICON_FUEL,
         stats: [
-            detailStat('Price', `${FUEL_PRICE_PER_GALLON} COINS / GALLON`, BANK_CREAM),
-            detailStat('In your tank', `${Math.floor(fuelGallonsNow())} / ${fuelTankGallons(mules)} GALLONS`, BANK_CREAM)
+            detailStat(t('store.price'), t('fuel.pricePerGallonCaps', { price: FUEL_PRICE_PER_GALLON }), BANK_CREAM),
+            detailStat(t('fuel.inTank'), t('fuel.tankGallonsCaps', { now: Math.floor(fuelGallonsNow()), tank: fuelTankGallons(mules) }), BANK_CREAM)
         ],
-        notes: [detailNote('1 Gallon runs 1 M.U.L.E. for 1 day', BANK_CAPTION)],
+        notes: [detailNote(t('fuel.rule'), BANK_CAPTION)],
         actions: itemsOf('fuel').map(fuelOption)
     }
 }
 
 function storageDetail(): Detail {
     const next = nextTier('storage', (id) => getOwned(id))
-    const stats = [detailStat('Current capacity', `${withCommas(getCarryCapacity())} ORE`, BANK_CREAM)]
-    if (next !== null) stats.push(detailStat('Next upgrade', `${withCommas(next.storage ?? 0)} ORE`, BANK_CREAM), priceStat(next.price))
+    const stats = [detailStat(t('storage.current'), t('storage.oreCaps', { ore: withCommas(getCarryCapacity()) }), BANK_CREAM)]
+    if (next !== null) stats.push(detailStat(t('storage.nextUpgrade'), t('storage.oreCaps', { ore: withCommas(next.storage ?? 0) }), BANK_CREAM), priceStat(next.price))
     return {
-        title: next?.label ?? 'Storage',
-        description: 'How much ore you can hold.',
+        title: next !== null ? itemName(next) : t('store.storage'),
+        description: t('storage.description'),
         icon: ICON_WAREHOUSE,
         stats,
-        notes: [detailNote(`Stored now: ${withCommas(getOre())} Ore`, BANK_CAPTION)],
-        actions: [storeActionButton(next === null ? { label: 'MAX CAPACITY', kind: 'off' } : buyAction(next))]
+        notes: [detailNote(t('storage.storedNow', { ore: withCommas(getOre()) }), BANK_CAPTION)],
+        actions: [storeActionButton(next === null ? { label: t('action.maxCapacity'), kind: 'off' } : buyAction(next))]
     }
 }
 
 function comingSoonDetail(title: string, icon: Icon): Detail {
     return {
         title,
-        description: 'On its way to the store.',
+        description: t('store.onItsWay'),
         icon,
         stats: [],
         notes: [],
-        actions: [storeActionButton({ label: 'COMING SOON', kind: 'off' })]
+        actions: [storeActionButton({ label: t('action.comingSoon'), kind: 'off' })]
     }
 }
 
@@ -1604,9 +1624,9 @@ function detailFor(key: ProductKey): Detail {
     if (key === 'mule') return muleDetail()
     if (key === 'fuel') return fuelDetail()
     if (key === 'storage') return storageDetail()
-    if (key === 'horse') return comingSoonDetail('Horse', ICON_HORSE)
-    if (key === 'revolver') return comingSoonDetail('Revolver', ICON_REVOLVER)
-    if (key === 'dynamite') return comingSoonDetail('Dynamite', ICON_DYNAMITE)
+    if (key === 'horse') return comingSoonDetail(t('store.horse'), ICON_HORSE)
+    if (key === 'revolver') return comingSoonDetail(t('store.revolver'), ICON_REVOLVER)
+    if (key === 'dynamite') return comingSoonDetail(t('store.dynamite'), ICON_DYNAMITE)
     const pick = findItem(key as ShopItemId)
     return pick !== null && pick.line === 'pick' ? pickDetail(pick) : pickDetail(PICKS[0])
 }
@@ -1663,10 +1683,10 @@ const storeDetail = (detail: Detail) => (
 // operation (rigs, their fuel, storage), gear is the rest of a westerner's kit (horse, revolver).
 type StoreTab = 'tools' | 'upgrades' | 'gear'
 
-const STORE_TABS: { id: StoreTab; label: string }[] = [
-    { id: 'tools', label: 'Tools' },
-    { id: 'upgrades', label: 'Upgrades' },
-    { id: 'gear', label: 'Gear' }
+const STORE_TABS: { id: StoreTab; readonly label: string }[] = [
+    { id: 'tools', get label() { return t('tab.tools') } },
+    { id: 'upgrades', get label() { return t('tab.upgrades') } },
+    { id: 'gear', get label() { return t('tab.gear') } }
 ]
 
 function storeTabOf(key: string): StoreTab {
@@ -1689,7 +1709,7 @@ const storePanel = () => {
     }
     const tabs = STORE_TABS.map((storeTab) => tabButton(storeTab.id, storeTab.label, storeTab.id === tab, () => openTab(storeTab.id)))
     const products = all.filter((product) => storeTabOf(product.key) === tab)
-    return counterPanel('GENERAL STORE', closeStorePanel, products, key, selectProduct, detailFor(key), tabs)
+    return counterPanel(t('store.title'), closeStorePanel, products, key, selectProduct, detailFor(key), tabs)
 }
 
 /**
@@ -1735,7 +1755,7 @@ const counterPanel = (
                         uiBackground={{ color: BANK_WOOD }}
                     >
                         <UiEntity uiTransform={{ width: 34, height: 34, margin: { right: 8 } }} uiBackground={iconBackground(ICON_COINS)} />
-                        <BitmapText value={`${withCommas(getCoins())} COINS`} fontSize={26} color={COIN_COLOR} />
+                        <BitmapText value={t('unit.coinsAmountCaps', { coins: withCommas(getCoins()) })} fontSize={26} color={COIN_COLOR} />
                     </UiEntity>
                 ) : null}
                 <Button
@@ -1791,8 +1811,8 @@ const counterContent = (products: Product[], key: string, onSelect: (key: string
 // The best property owned is the Active one, the home lived in, tagged green like an equipped
 // pick; the ones before it stay owned, as Previous.
 
-const STATUS_ACTIVE: Status = { text: 'Active', color: PRICE_GOOD_COLOR }
-const STATUS_PREVIOUS: Status = { text: 'Previous', color: MUTED_COLOR }
+const STATUS_ACTIVE: Status = { get text() { return t('status.active') }, color: PRICE_GOOD_COLOR }
+const STATUS_PREVIOUS: Status = { get text() { return t('status.previous') }, color: MUTED_COLOR }
 
 /** The home the player lives in: the best property owned. */
 function activeHome(): ShopItem | null {
@@ -1808,9 +1828,9 @@ function propertyStatus(item: ShopItem): Status {
 function landOfficeProducts(): Product[] {
     return itemsOf('housing').map((item) => ({
         key: item.id,
-        title: item.label,
+        title: itemName(item),
         icon: PROPERTY_ICONS[item.id] ?? ICON_WAGON,
-        hint: item.price > 0 ? `${withCommas(item.price)} Coins` : 'Free',
+        hint: item.price > 0 ? t('store.coinsPrice', { price: withCommas(item.price) }) : t('store.free'),
         status: propertyStatus(item),
         muted: false
     }))
@@ -1828,18 +1848,18 @@ function propertyDetail(item: ShopItem): Detail {
     const owned = getOwned(item.id) > 0
     const active = item.id === activeHome()?.id
     let action: Action
-    if (active) action = { label: 'ACTIVE', kind: 'equipped' }
-    else if (owned) action = { label: 'PREVIOUS', kind: 'off' }
+    if (active) action = { label: t('action.active'), kind: 'equipped' }
+    else if (owned) action = { label: t('action.previous'), kind: 'off' }
     // A new home replaces the old one: the player moves up, they do not end up with two.
-    else action = buyAction(item, 'UPGRADE')
+    else action = buyAction(item, t('action.upgrade'))
 
     const notes: ReactEcs.JSX.Element[] = []
-    if (active) notes.push(detailNote('Your current home', PRICE_GOOD_COLOR))
-    else if (owned) notes.push(detailNote('You moved up from here', BANK_CAPTION))
-    else if (item.requires !== undefined && getOwned(item.requires) <= 0) notes.push(detailNote(`Requires ${findItem(item.requires)?.label ?? ''}`, SHORT_COLOR))
+    if (active) notes.push(detailNote(t('land.currentHome'), PRICE_GOOD_COLOR))
+    else if (owned) notes.push(detailNote(t('land.movedUp'), BANK_CAPTION))
+    else if (item.requires !== undefined && getOwned(item.requires) <= 0) notes.push(detailNote(t('store.requires', { item: itemName(findItem(item.requires)) }), SHORT_COLOR))
     return {
-        title: item.label,
-        description: item.benefit,
+        title: itemName(item),
+        description: itemBenefit(item),
         icon: PROPERTY_ICONS[item.id] ?? ICON_WAGON,
         stats: [priceStat(item.price)],
         notes,
@@ -1849,7 +1869,7 @@ function propertyDetail(item: ShopItem): Detail {
 
 const landOfficePanel = () => {
     const key = selectedPropertyKey()
-    return counterPanel('LAND & CLAIM OFFICE', closeLandOfficePanel, landOfficeProducts(), key, selectProperty, propertyDetail(findItem(key)!))
+    return counterPanel(t('land.title'), closeLandOfficePanel, landOfficeProducts(), key, selectProperty, propertyDetail(findItem(key)!))
 }
 
 // --- Claim Office -----------------------------------------------------------------------
@@ -1885,8 +1905,8 @@ function giftIcon(campaign: RewardCampaign): Icon {
 
 /** No "Locked" while the quest is under way: the card's Quest x/3 already says where it stands. */
 function giftCardStatus(campaign: RewardCampaign): Status | null {
-    if (getRewardStatus(campaign.id).claimed) return { text: 'Claimed', color: PRICE_GOOD_COLOR }
-    return canClaimReward(campaign.id) ? { text: 'Ready to claim', color: BANK_GOLD_LIGHT } : null
+    if (getRewardStatus(campaign.id).claimed) return { text: t('status.claimed'), color: PRICE_GOOD_COLOR }
+    return canClaimReward(campaign.id) ? { text: t('status.readyToClaim'), color: BANK_GOLD_LIGHT } : null
 }
 
 const CREDITS_KEY: ProductKey = 'credits'
@@ -1895,30 +1915,30 @@ const CLAIM_LIST_WIDTH = Math.round(STORE_LIST_WIDTH * 0.75)
 
 // Collectibles are the wearables; Credits is a placeholder for now.
 type ClaimTab = 'collectibles' | 'credits'
-const CLAIM_TABS: { id: ClaimTab; label: string }[] = [
-    { id: 'collectibles', label: 'Collectibles' },
-    { id: 'credits', label: 'Credits' }
+const CLAIM_TABS: { id: ClaimTab; readonly label: string }[] = [
+    { id: 'collectibles', get label() { return t('tab.collectibles') } },
+    { id: 'credits', get label() { return t('tab.credits') } }
 ]
 let claimTab: ClaimTab = 'collectibles'
 
 function claimOfficeProducts(): Product[] {
-    if (claimTab === 'credits') return [{ key: CREDITS_KEY, title: 'Credits', icon: ICON_COINS, hint: '', status: STATUS_SOON, muted: true }]
+    if (claimTab === 'credits') return [{ key: CREDITS_KEY, title: t('tab.credits'), icon: ICON_COINS, hint: '', status: STATUS_SOON, muted: true }]
     // Quest x/3 while under way; Ready to claim / Claimed take its place after.
     return CLAIM_CAMPAIGNS.map((campaign) => {
         const status = giftCardStatus(campaign)
-        const hint = status === null ? `Quest ${giftStepsDone(campaign)}/${campaign.steps.length}` : ''
-        return { key: rewardKey(campaign), title: campaign.cardTitle, icon: giftIcon(campaign), hint, status, muted: false }
+        const hint = status === null ? t('claim.questProgress', { done: giftStepsDone(campaign), total: campaign.steps.length }) : ''
+        return { key: rewardKey(campaign), title: rewardText(campaign, 'cardTitle'), icon: giftIcon(campaign), hint, status, muted: false }
     })
 }
 
 function creditsDetail(): Detail {
     return {
-        title: 'Credits',
-        description: 'Coming soon to the Claim Office.',
+        title: t('tab.credits'),
+        description: t('claim.creditsSoon'),
         icon: ICON_COINS,
         stats: [],
         notes: [],
-        actions: [storeActionButton({ label: 'COMING SOON', kind: 'off' })]
+        actions: [storeActionButton({ label: t('action.comingSoon'), kind: 'off' })]
     }
 }
 
@@ -1932,7 +1952,7 @@ function giftStepsDone(campaign: RewardCampaign): number {
 function giftQuestStat(campaign: RewardCampaign): ReactEcs.JSX.Element {
     const done = giftStepsDone(campaign)
     const total = campaign.steps.length
-    return detailStat('Quest', done === total ? 'COMPLETE' : `${done}/${total}`, done === total ? GIFT_DONE_COLOR : BANK_GOLD_LIGHT)
+    return detailStat(t('claim.quest'), done === total ? t('claim.complete') : `${done}/${total}`, done === total ? GIFT_DONE_COLOR : BANK_GOLD_LIGHT)
 }
 
 const giftRequirement = (done: boolean, text: string) => detailNote(`${done ? '✓' : '•'} ${text}`, done ? GIFT_DONE_COLOR : GIFT_TODO_COLOR)
@@ -1940,24 +1960,24 @@ const giftRequirement = (done: boolean, text: string) => detailNote(`${done ? '�
 function giftDetail(campaign: RewardCampaign): Detail {
     const gift = getRewardStatus(campaign.id)
     let action: Action
-    if (gift.claimed) action = { label: 'CLAIMED', kind: 'equipped' }
-    else if (gift.claiming) action = { label: 'CLAIMING...', kind: 'off' }
-    else if (canClaimReward(campaign.id)) action = { label: 'CLAIM', kind: 'buy', onClick: () => claimReward(campaign.id) }
-    else action = { label: 'LOCKED', kind: 'off' }
+    if (gift.claimed) action = { label: t('action.claimed'), kind: 'equipped' }
+    else if (gift.claiming) action = { label: t('action.claiming'), kind: 'off' }
+    else if (canClaimReward(campaign.id)) action = { label: t('action.claim'), kind: 'buy', onClick: () => claimReward(campaign.id) }
+    else action = { label: t('action.locked'), kind: 'off' }
 
     const notes = gift.claimed
         ? [
               // The Rewards service mints it on chain when gas allows: it can take a while to show up.
-              detailNote('On its way to your backpack', PRICE_GOOD_COLOR),
-              detailNote('It may take a few minutes', BANK_CAPTION),
-              detailNote('Press I to open your backpack', BANK_CAPTION)
+              detailNote(t('reward.onItsWay'), PRICE_GOOD_COLOR),
+              detailNote(t('reward.fewMinutes'), BANK_CAPTION),
+              detailNote(t('reward.pressI'), BANK_CAPTION)
           ]
-        : campaign.steps.map((step) => giftRequirement(gift.done.includes(step), REWARD_STEP_LABELS[step]))
+        : campaign.steps.map((step) => giftRequirement(gift.done.includes(step), t(`rewardStep.${step}`)))
     const error = getRewardClaimError(campaign.id)
     if (error !== '') notes.push(detailNote(error, SHORT_COLOR))
     return {
-        title: campaign.name,
-        description: campaign.description,
+        title: rewardText(campaign, 'name'),
+        description: rewardText(campaign, 'description'),
         icon: giftIcon(campaign),
         stats: [giftQuestStat(campaign)],
         notes,
@@ -1971,7 +1991,7 @@ const claimOfficePanel = () => {
     const credits = claimTab === 'credits'
     const reward = selectedReward()
     return counterPanel(
-        'CLAIM REWARDS',
+        t('claim.title'),
         closeClaimOfficePanel,
         claimOfficeProducts(),
         credits ? CREDITS_KEY : rewardKey(reward),
@@ -2000,16 +2020,16 @@ function tailorItemOf(key: string): RewardCampaign | undefined {
 
 function tailorCardStatus(campaign: RewardCampaign): Status | null {
     if (campaign.comingSoon) return STATUS_SOON
-    if (isTailorItemOwned(campaign.id)) return { text: 'Owned', color: PRICE_GOOD_COLOR }
+    if (isTailorItemOwned(campaign.id)) return { text: t('status.owned'), color: PRICE_GOOD_COLOR }
     return null
 }
 
 function tailorProducts(): Product[] {
     return TAILOR_CAMPAIGNS.map((campaign) => ({
         key: rewardKey(campaign),
-        title: campaign.cardTitle,
+        title: rewardText(campaign, 'cardTitle'),
         icon: giftIcon(campaign),
-        hint: campaign.comingSoon || isTailorItemOwned(campaign.id) ? '' : `${withCommas(campaign.price)} Coins`,
+        hint: campaign.comingSoon || isTailorItemOwned(campaign.id) ? '' : t('store.coinsPrice', { price: withCommas(campaign.price) }),
         status: tailorCardStatus(campaign),
         muted: campaign.comingSoon
     }))
@@ -2018,23 +2038,23 @@ function tailorProducts(): Product[] {
 function tailorDetail(campaign: RewardCampaign): Detail {
     const status = getRewardStatus(campaign.id)
     let action: Action
-    if (campaign.comingSoon) action = { label: 'COMING SOON', kind: 'off' }
-    else if (status.claimed) action = { label: 'OWNED', kind: 'equipped' }
-    else if (status.claiming) action = { label: 'BUYING...', kind: 'off' }
-    else action = { label: 'BUY', kind: canBuyTailorItem(campaign.id) ? 'buy' : 'off', onClick: () => buyTailorItem(campaign.id) }
+    if (campaign.comingSoon) action = { label: t('action.comingSoon'), kind: 'off' }
+    else if (status.claimed) action = { label: t('action.owned'), kind: 'equipped' }
+    else if (status.claiming) action = { label: t('action.buying'), kind: 'off' }
+    else action = { label: t('action.buy'), kind: canBuyTailorItem(campaign.id) ? 'buy' : 'off', onClick: () => buyTailorItem(campaign.id) }
 
     const notes: ReactEcs.JSX.Element[] = []
     if (status.claimed) {
         // Minted on chain by the Rewards service when gas allows: it can take a while to show up.
-        notes.push(detailNote('On its way to your backpack', PRICE_GOOD_COLOR))
-        notes.push(detailNote('It may take a few minutes', BANK_CAPTION))
-        notes.push(detailNote('Press I to open your backpack', BANK_CAPTION))
+        notes.push(detailNote(t('reward.onItsWay'), PRICE_GOOD_COLOR))
+        notes.push(detailNote(t('reward.fewMinutes'), BANK_CAPTION))
+        notes.push(detailNote(t('reward.pressI'), BANK_CAPTION))
     }
     const error = getRewardClaimError(campaign.id)
     if (error !== '') notes.push(detailNote(error, SHORT_COLOR))
     return {
-        title: campaign.name,
-        description: campaign.description,
+        title: rewardText(campaign, 'name'),
+        description: rewardText(campaign, 'description'),
         icon: giftIcon(campaign),
         stats: campaign.comingSoon ? [] : [priceStat(campaign.price)],
         notes,
@@ -2046,7 +2066,7 @@ function tailorDetail(campaign: RewardCampaign): Detail {
 const tailorShopPanel = () => {
     const item = tailorItemOf(`reward:${getSelectedTailorItem()}`) ?? TAILOR_CAMPAIGNS[0]
     return counterPanel(
-        'TAILOR SHOP',
+        t('tailor.title'),
         closeTailorShopPanel,
         tailorProducts(),
         rewardKey(item),
@@ -2242,7 +2262,7 @@ const moveCloserHint = () => {
                 uiTransform={{ padding: { left: 18 * k, right: 18 * k, top: 8 * k, bottom: 8 * k }, borderRadius: PANEL_RADIUS, borderWidth: 2, borderColor: MINING_FILL_COLOR }}
                 uiBackground={{ color: HUD_BACKGROUND }}
             >
-                <Label value="Move closer to the rock to start mining" fontSize={18 * k} color={Color4.White()} textAlign="middle-center" textWrap="nowrap" uiTransform={{ height: 26 * k }} />
+                <Label value={t('mining.moveCloser')} fontSize={18 * k} color={Color4.White()} textAlign="middle-center" textWrap="nowrap" uiTransform={{ height: 26 * k }} />
             </UiEntity>
         </UiEntity>
     )
@@ -2258,7 +2278,9 @@ const miningBar = () => {
     const caption =
         status.blocked !== ''
             ? status.blocked
-            : `Keep mining — ${left} ${left === 1 ? 'hit' : 'hits'} to go`
+            : left === 1
+              ? t('mining.keepMiningOne')
+              : t('mining.keepMining', { left })
     const blocked = status.blocked !== ''
     const blinkOn = blocked && Math.floor(uiClock / MINING_BLOCKED_BLINK_SECONDS) % 2 === 0
 
@@ -2315,7 +2337,7 @@ const miningBar = () => {
                 {/* The mayor's practice rocks pay no bonus, so they show none. */}
                 {blocked || status.practice ? null : (
                     <Label
-                        value={`Social Bonus +${bonus}`}
+                        value={t('mining.socialBonus', { bonus })}
                         fontSize={16}
                         color={bonus > 0 ? SOCIAL_BONUS_COLOR : MUTED_COLOR}
                         textAlign="middle-center"
@@ -2368,7 +2390,7 @@ const orePopup = () => {
     const popup = getOrePopup()
     if (popup === null) return null
 
-    const text = `+${popup.amount} Ore`
+    const text = t('popup.ore', { amount: popup.amount })
     // Fully opaque for the hold, then fades (ore-popup.ts sets both). In a few steps rather than
     // every frame: the fade recolours every glyph, and doing that each frame stalled mobile until
     // the scene errored.
@@ -2386,7 +2408,7 @@ const orePopup = () => {
             />
             {popup.bonus > 0 ? (
                 <BitmapText
-                    value={`+${popup.bonus} Social bonus`}
+                    value={t('popup.socialBonus', { bonus: popup.bonus })}
                     fontSize={POPUP_BONUS_FONT_SIZE}
                     color={Color4.create(POPUP_BONUS_COLOR.r, POPUP_BONUS_COLOR.g, POPUP_BONUS_COLOR.b, alpha)}
                     align="center"
@@ -2424,17 +2446,17 @@ const deployStamp = () => {
 
 function fuelLeftText(): string {
     const hours = getMuleFuelHours()
-    if (getMuleCount() <= 0) return 'no M.U.L.E.'
-    if (hours <= 0) return 'empty'
-    if (hours < 1) return `${Math.ceil(hours * 60)} min`
-    if (hours < 24) return `${Math.floor(hours)}h`
-    return `${Math.floor(hours / 24)}d ${Math.floor(hours % 24)}h`
+    if (getMuleCount() <= 0) return t('fuelLeft.noMule')
+    if (hours <= 0) return t('fuelLeft.empty')
+    if (hours < 1) return t('time.minutes', { n: Math.ceil(hours * 60) })
+    if (hours < 24) return t('time.hours', { n: Math.floor(hours) })
+    return t('time.daysHours', { d: Math.floor(hours / 24), h: Math.floor(hours % 24) })
 }
 
 /** What the rigs are doing right now, by the same rules the server settles them with. */
 function muleStatus(): { running: boolean; reason: string } {
-    if (getMuleFuelHours() <= 0) return { running: false, reason: 'No fuel' }
-    if (getOre() >= getCarryCapacity()) return { running: false, reason: 'Storage full' }
+    if (getMuleFuelHours() <= 0) return { running: false, reason: t('muleStatus.noFuel') }
+    if (getOre() >= getCarryCapacity()) return { running: false, reason: t('muleStatus.storageFull') }
     return { running: true, reason: '' }
 }
 
@@ -2461,9 +2483,9 @@ const FUEL_BLINK_SECONDS = 0.5
 
 /** "3d 9h", "21h", "40 min" — however long, in the units that read best. */
 function durationText(hours: number): string {
-    if (hours < 1) return `${Math.max(1, Math.ceil(hours * 60))} min`
-    if (hours < 24) return `${Math.floor(hours)}h`
-    return `${Math.floor(hours / 24)}d ${Math.floor(hours % 24)}h`
+    if (hours < 1) return t('time.minutes', { n: Math.max(1, Math.ceil(hours * 60)) })
+    if (hours < 24) return t('time.hours', { n: Math.floor(hours) })
+    return t('time.daysHours', { d: Math.floor(hours / 24), h: Math.floor(hours % 24) })
 }
 
 type MuleStat = {
@@ -2590,10 +2612,10 @@ function fleetColumn(): ReactEcs.JSX.Element[] {
         </UiEntity>,
         muleStat(
             status.running
-                ? { caption: 'Status', value: 'Running', color: PRICE_GOOD_COLOR, dot: { color: PRICE_GOOD_COLOR, pulse: true } }
-                : { caption: 'Status', value: 'Paused', color: SHORT_COLOR, note: status.reason, dot: { color: SHORT_COLOR, pulse: false } }
+                ? { caption: t('mulePanel.status'), value: t('mulePanel.running'), color: PRICE_GOOD_COLOR, dot: { color: PRICE_GOOD_COLOR, pulse: true } }
+                : { caption: t('mulePanel.status'), value: t('mulePanel.paused'), color: SHORT_COLOR, note: status.reason, dot: { color: SHORT_COLOR, pulse: false } }
         ),
-        muleStat({ caption: 'Total output', value: `${withCommas(MULE_ORE_PER_HOUR * 24 * mules)} Ore/day` }),        
+        muleStat({ caption: t('mulePanel.totalOutput'), value: t('mulePanel.orePerDay', { ore: withCommas(MULE_ORE_PER_HOUR * 24 * mules) }) }),
     ]
 }
 
@@ -2624,16 +2646,16 @@ function fuelColumn(): ReactEcs.JSX.Element[] {
     // under a tenth of the tank the fill alone is a sliver.
     const blinkOff = low && Math.floor(uiClock / FUEL_BLINK_SECONDS) % 2 === 1
     return [
-        muleStat({ caption: 'Fuel in tank', value: `${Math.floor(gallons)} / ${tank}`, unit: 'Gallons', color: low ? SHORT_COLOR : COIN_COLOR }),
+        muleStat({ caption: t('mulePanel.fuelInTank'), value: `${Math.floor(gallons)} / ${tank}`, unit: t('mulePanel.gallons'), color: low ? SHORT_COLOR : COIN_COLOR }),
         muleBar('fuel-bar', blinkOff ? 0 : share, low ? SHORT_COLOR : COIN_COLOR, low && !blinkOff ? SHORT_COLOR : BANK_CAPTION),
-        muleStat({ caption: 'Fuel left', value: fuelLeftText(), color: gallons > 0 ? BANK_CREAM : SHORT_COLOR }),
-        muleStat({ caption: 'Fuel use', value: `${fuelUse} ${fuelUse === 1 ? 'Gallon' : 'Gallons'}/day` }),
+        muleStat({ caption: t('mulePanel.fuelLeft'), value: fuelLeftText(), color: gallons > 0 ? BANK_CREAM : SHORT_COLOR }),
+        muleStat({ caption: t('mulePanel.fuelUse'), value: fuelUse === 1 ? t('mulePanel.gallonPerDay') : t('mulePanel.gallonsPerDay', { n: fuelUse }) }),
         // Empty outranks low: only one of the two is a real state at a time.
         DEBUG_SHOW_MULE_ALERTS || gallons <= 0
-            ? muleAlert('fuel-empty', 'Out of fuel. Buy fuel at the General Store to keep producing.')
+            ? muleAlert('fuel-empty', t('mulePanel.alertOutOfFuel'))
             : null,
         DEBUG_SHOW_MULE_ALERTS || (low && gallons > 0)
-            ? muleAlert('fuel-low', 'Fuel is running low. Refill soon to keep producing.', COIN_COLOR)
+            ? muleAlert('fuel-low', t('mulePanel.alertFuelLow'), COIN_COLOR)
             : null
     ].filter((element): element is ReactEcs.JSX.Element => element !== null)
 }
@@ -2647,26 +2669,27 @@ function storageColumn(): ReactEcs.JSX.Element[] {
 
     // When the storage fills at the current pace — unless the fuel runs out first, which
     // pauses the rigs before it can.
-    let fullIn: MuleStat = { caption: 'Storage full in', value: 'Full now', color: SHORT_COLOR }
+    const fullInCaption = t('mulePanel.storageFullIn')
+    let fullIn: MuleStat = { caption: fullInCaption, value: t('mulePanel.fullNow'), color: SHORT_COLOR }
     if (ore < capacity) {
         const hours = (capacity - ore) / perHour
-        if (perHour <= 0 || fuelHours <= 0) fullIn = { caption: 'Storage full in', value: '-', color: MUTED_COLOR, note: 'not filling' }
-        else if (fuelHours < hours) fullIn = { caption: 'Storage full in', value: '-', color: MUTED_COLOR, note: 'fuel runs out first' }
-        else fullIn = { caption: 'Storage full in', value: durationText(hours) }
+        if (perHour <= 0 || fuelHours <= 0) fullIn = { caption: fullInCaption, value: '-', color: MUTED_COLOR, note: t('mulePanel.notFilling') }
+        else if (fuelHours < hours) fullIn = { caption: fullInCaption, value: '-', color: MUTED_COLOR, note: t('mulePanel.fuelFirst') }
+        else fullIn = { caption: fullInCaption, value: durationText(hours) }
     }
 
     return [
-        muleStat({ caption: 'Stored ore', value: `${withCommas(ore)} / ${withCommas(capacity)}` }),
+        muleStat({ caption: t('mulePanel.storedOre'), value: `${withCommas(ore)} / ${withCommas(capacity)}` }),
         muleBar('storage-bar', capacity > 0 ? ore / capacity : 0, ore >= capacity ? SHORT_COLOR : ORE_COLOR),
         muleStat(fullIn),
         // At the top tier there is nothing to upgrade to, so it only says so.
         muleStat(
             next === null
-                ? { caption: 'Capacity', value: 'Max', color: BANK_GOLD_LIGHT }
-                : { caption: 'Next upgrade', value: `${withCommas(next.storage ?? 0)} Ore` }
+                ? { caption: t('mulePanel.capacity'), value: t('mulePanel.max'), color: BANK_GOLD_LIGHT }
+                : { caption: t('storage.nextUpgrade'), value: t('mulePanel.oreAmount', { ore: withCommas(next.storage ?? 0) }) }
         ),
         DEBUG_SHOW_MULE_ALERTS || ore >= capacity
-            ? muleAlert('storage-full', 'Storage is full. Sell your ore at the Bank to keep producing.')
+            ? muleAlert('storage-full', t('mulePanel.alertStorageFull'))
             : null
     ].filter((element): element is ReactEcs.JSX.Element => element !== null)
 }
@@ -2700,12 +2723,12 @@ const mulePanel = () => (
         </UiEntity>
         {/* The columns stretch to the tallest, so their frames line up at the bottom. */}
         <UiEntity uiTransform={{ width: '100%', flexDirection: 'row' }}>
-            {muleColumn('Fleet', ICON_MULE, fleetColumn(), false)}
-            {muleColumn('Fuel', ICON_FUEL, fuelColumn(), false)}
-            {muleColumn('Storage', ICON_WAREHOUSE, storageColumn(), true)}
+            {muleColumn(t('mulePanel.fleet'), ICON_MULE, fleetColumn(), false)}
+            {muleColumn(t('store.fuel'), ICON_FUEL, fuelColumn(), false)}
+            {muleColumn(t('store.storage'), ICON_WAREHOUSE, storageColumn(), true)}
         </UiEntity>
         <Label
-            value="Get Fuel and Storage at the General Store"
+            value={t('mulePanel.footer')}
             fontSize={16}
             color={BANK_CAPTION}
             textAlign="middle-center"
@@ -2731,11 +2754,11 @@ let inventoryOpen = false
 // storage). Land is where the player lives, bought at the Land & Claim Office.
 type InventoryTab = 'all' | 'tools' | 'upgrades' | 'land'
 
-const INVENTORY_TABS: { id: InventoryTab; label: string }[] = [
-    { id: 'all', label: 'All' },
-    { id: 'tools', label: 'Tools' },
-    { id: 'upgrades', label: 'Upgrades' },
-    { id: 'land', label: 'Land' }
+const INVENTORY_TABS: { id: InventoryTab; readonly label: string }[] = [
+    { id: 'all', get label() { return t('tab.all') } },
+    { id: 'tools', get label() { return t('tab.tools') } },
+    { id: 'upgrades', get label() { return t('tab.upgrades') } },
+    { id: 'land', get label() { return t('tab.land') } }
 ]
 
 let inventoryTab: InventoryTab = 'all'
@@ -2782,14 +2805,14 @@ function inventoryEntries(): InventoryEntry[] {
         entries.push({
             key: pick.id,
             tab: 'tools',
-            title: pick.label,
+            title: itemName(pick),
             icon: PICK_ICONS[pick.id] ?? ICON_PICK_IRON,
-            status: `${pick.hitsPerRock} hits per rock`,
+            status: t('inv.hitsPerRock', { hits: pick.hitsPerRock ?? 0 }),
             equipped,
             details: [
-                `${pick.hitsPerRock} hits per rock`,
-                `Durability: ${durabilityText(pick)} rocks left`,
-                equipped ? 'Currently equipped' : 'Switch picks from the tool button'
+                t('inv.hitsPerRock', { hits: pick.hitsPerRock ?? 0 }),
+                t('inv.durabilityLeft', { rocks: durabilityText(pick) }),
+                equipped ? t('inv.currentlyEquipped') : t('inv.switchPicks')
             ]
         })
     }
@@ -2804,9 +2827,9 @@ function inventoryEntries(): InventoryEntry[] {
             status: `x${mules}`,
             equipped: false,
             details: [
-                `${mules} owned`,
-                `Produces ${withCommas(MULE_ORE_PER_HOUR * 24 * mules)} ore/day`,
-                `Fuel left: ${fuelLeftText()}`
+                t('inv.owned', { count: mules }),
+                t('inv.produces', { ore: withCommas(MULE_ORE_PER_HOUR * 24 * mules) }),
+                t('inv.fuelLeft', { left: fuelLeftText() })
             ]
         })
     }
@@ -2816,14 +2839,14 @@ function inventoryEntries(): InventoryEntry[] {
     entries.push({
         key: 'storage',
         tab: 'upgrades',
-        title: 'Storage',
+        title: t('store.storage'),
         icon: ICON_WAREHOUSE,
-        status: `Level ${storage.level}`,
+        status: t('inv.level', { level: storage.level }),
         equipped: false,
         details: [
-            `Level ${storage.level} · holds ${withCommas(getCarryCapacity())} ore`,
-            `Stored now: ${withCommas(getOre())} ore`,
-            nextStorage === null ? 'Max level' : `Next: ${nextStorage.label} at the Store`
+            t('inv.levelHolds', { level: storage.level, ore: withCommas(getCarryCapacity()) }),
+            t('inv.storedNow', { ore: withCommas(getOre()) }),
+            nextStorage === null ? t('store.maxLevel') : t('inv.nextAtStore', { item: itemName(nextStorage) })
         ]
     })
 
@@ -2835,15 +2858,15 @@ function inventoryEntries(): InventoryEntry[] {
         entries.push({
             key: property.id,
             tab: 'land',
-            title: property.label,
+            title: itemName(property),
             icon: PROPERTY_ICONS[property.id] ?? ICON_WAGON,
-            status: property.benefit,
+            status: itemBenefit(property),
             equipped: active,
-            badge: 'Active',
+            badge: t('status.active'),
             details: [
-                property.benefit,
-                property.startsOwned === true ? 'Yours from the start' : `Bought for ${withCommas(property.price)} coins`,
-                active ? 'Your current home' : 'You moved up from here'
+                itemBenefit(property),
+                property.startsOwned === true ? t('inv.yoursFromStart') : t('inv.boughtFor', { coins: withCommas(property.price) }),
+                active ? t('land.currentHome') : t('land.movedUp')
             ]
         })
     }
@@ -2853,13 +2876,13 @@ function inventoryEntries(): InventoryEntry[] {
         entries.push({
             key: 'fuel',
             tab: 'upgrades',
-            title: 'Fuel',
+            title: t('store.fuel'),
             icon: ICON_FUEL,
-            status: `${gallons} gal`,
+            status: t('inv.gal', { n: gallons }),
             equipped: false,
             details: [
-                `${gallons} / ${fuelTankGallons(mules)} gallons in the tank`,
-                getMuleFuelHours() <= 0 ? 'Tank empty — the M.U.L.E.s are stopped' : `Lasts ${fuelLeftText()} at this fleet size`
+                t('inv.gallonsInTank', { now: gallons, tank: fuelTankGallons(mules) }),
+                getMuleFuelHours() <= 0 ? t('inv.tankEmpty') : t('inv.lasts', { left: fuelLeftText() })
             ]
         })
     }
@@ -2981,7 +3004,7 @@ const inventoryCard = (entry: InventoryEntry, index: number) => {
             />
             {entry.equipped ? (
                 <Label
-                    value={entry.badge ?? 'Equipped'}
+                    value={entry.badge ?? t('status.equipped')}
                     fontSize={12}
                     color={EQUIPPED_TEXT}
                     textAlign="middle-center"
@@ -3051,7 +3074,7 @@ const inventoryPanel = () => {
             }}
             uiBackground={{ color: BANK_WOOD_DARK }}
         >
-            <BitmapText value="INVENTORY" fontSize={40} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%', margin: { bottom: 12 } }} />
+            <BitmapText value={t('inv.title')} fontSize={40} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%', margin: { bottom: 12 } }} />
             {/* Closed from the corner, like the store. */}
             <Button
                 value="X"
@@ -3069,7 +3092,7 @@ const inventoryPanel = () => {
                     shown.length === 0 ? (
                         <Label
                             key="empty"
-                            value={noPick ? 'Nothing yet — the mayor has a pick for you' : 'Nothing here yet'}
+                            value={noPick ? t('inv.emptyNoPick') : t('inv.empty')}
                             fontSize={18}
                             color={BANK_CAPTION}
                             textAlign="middle-center"
@@ -3434,8 +3457,8 @@ const pickButton = () => {
         },
         icon: (pick && PICK_ICONS[pick.id]) ?? ICON_PICK_IRON,
         iconTint: pick === null ? LOCKED_TINT : Color4.White(),
-        title: pick === null ? 'Manual Tool' : pick.label,
-        value: pick === null ? 'Not Owned' : durabilityText(pick),
+        title: pick === null ? t('dock.manualTool') : itemName(pick),
+        value: pick === null ? t('dock.notOwned') : durabilityText(pick),
         valueColor: pick === null ? MUTED_COLOR : durabilityColor(pick, BANK_CREAM),
         bar: pick === null ? null : { share: max > 0 ? getDurability(pick.id) / max : 0, color: durabilityColor(pick, BANK_GOLD) }
     })
@@ -3469,7 +3492,7 @@ const pickRow = (item: ShopItem, inUse: boolean) => {
                 uiBackground={iconBackground(PICK_ICONS[item.id] ?? ICON_PICK_IRON, owned ? Color4.White() : LOCKED_TINT)}
             />
             <Label
-                value={item.label}
+                value={itemName(item)}
                 fontSize={17}
                 color={owned ? BANK_CREAM : MUTED_COLOR}
                 textAlign="middle-left"
@@ -3500,14 +3523,14 @@ const pickSelector = () => {
     const pick = activePick((id) => getOwned(id), getEquipped())
     // No pick at all: say so, and where the free one comes from, like the M.U.L.E. dropdown does.
     if (pick === null) {
-        return dropdown(dockPickLeft(), 'Manual Tool', closePickSelector, [
+        return dropdown(dockPickLeft(), t('dock.manualTool'), closePickSelector, [
             dropdownCard('pick-card', [
-                dropdownLine('state', 'Not Owned', 17, MUTED_COLOR),
-                dropdownLine('hint', 'Claim your welcome pick from the Mayor', 14, BANK_CAPTION, 2)
+                dropdownLine('state', t('dock.notOwned'), 17, MUTED_COLOR),
+                dropdownLine('hint', t('dock.claimWelcomePick'), 14, BANK_CAPTION, 2)
             ])
         ])
     }
-    return dropdown(dockPickLeft(), 'Manual Tool', closePickSelector, PICKS.map((item) => pickRow(item, item.id === pick.id)))
+    return dropdown(dockPickLeft(), t('dock.manualTool'), closePickSelector, PICKS.map((item) => pickRow(item, item.id === pick.id)))
 }
 
 // --- M.U.L.E. summary ---------------------------------------------------------------------
@@ -3530,9 +3553,9 @@ type MuleHudState = { label: string; color: Color4; pulse: boolean; running: boo
 /** The rigs' state in the dropdown's words, from the same rules as the full panel. */
 function muleHudState(): MuleHudState {
     const status = muleStatus()
-    if (status.running) return { label: 'Running', color: PRICE_GOOD_COLOR, pulse: true, running: true }
-    if (getMuleFuelHours() <= 0) return { label: 'No Fuel', color: SHORT_COLOR, pulse: false, running: false }
-    return { label: 'Storage Full', color: MULE_WARNING_COLOR, pulse: false, running: false }
+    if (status.running) return { label: t('mulePanel.running'), color: PRICE_GOOD_COLOR, pulse: true, running: true }
+    if (getMuleFuelHours() <= 0) return { label: t('dock.noFuel'), color: SHORT_COLOR, pulse: false, running: false }
+    return { label: t('dock.storageFull'), color: MULE_WARNING_COLOR, pulse: false, running: false }
 }
 
 /** The tank as a share, and its colour: gold while there is plenty, amber when low, red when dry. */
@@ -3564,7 +3587,7 @@ const muleButton = () => {
             icon: ICON_MULE,
             iconTint: LOCKED_TINT,
             title: 'M.U.L.E.',
-            value: 'Not Owned',
+            value: t('dock.notOwned'),
             valueColor: MUTED_COLOR,
             bar: null
         })
@@ -3590,23 +3613,23 @@ const muleDropdown = () => {
     const mules = getMuleCount()
     const rows: ReactEcs.JSX.Element[] = []
     if (mules <= 0) {
-        rows.push(dropdownLine('state', 'Not Owned', 17, MUTED_COLOR), dropdownLine('hint', 'Buy at General Store', 14, BANK_CAPTION))
+        rows.push(dropdownLine('state', t('dock.notOwned'), 17, MUTED_COLOR), dropdownLine('hint', t('dock.buyAtStore'), 14, BANK_CAPTION))
     } else {
         const state = muleHudState()
         const fuel = muleFuel()
         const hours = getMuleFuelHours()
         rows.push(
-            dropdownLine('count', `${mules} ${mules === 1 ? 'Machine' : 'Machines'}`, 17, BANK_CREAM),
+            dropdownLine('count', mules === 1 ? t('dock.oneMachine') : t('dock.machines', { count: mules }), 17, BANK_CREAM),
             <UiEntity key="state" uiTransform={{ height: 24, flexDirection: 'row', alignItems: 'center' }}>
                 {statusDot({ color: state.color, pulse: state.pulse })}
                 <Label value={state.label} fontSize={16} color={state.color} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 24 }} />
             </UiEntity>,
-            ...(state.running ? [dropdownLine('output', `+${withCommas(Math.round(MULE_ORE_PER_HOUR * mules))} ore/hour`, 15, BANK_CREAM)] : []),
-            dropdownLine('fuel', `Fuel left: ${hours > 0 ? durationText(hours).toUpperCase() : 'Empty'}`, 15, fuel.gallons > 0 ? BANK_CREAM : SHORT_COLOR),
+            ...(state.running ? [dropdownLine('output', t('dock.orePerHour', { ore: withCommas(Math.round(MULE_ORE_PER_HOUR * mules)) }), 15, BANK_CREAM)] : []),
+            dropdownLine('fuel', t('inv.fuelLeft', { left: hours > 0 ? durationText(hours).toUpperCase() : t('dock.empty') }), 15, fuel.gallons > 0 ? BANK_CREAM : SHORT_COLOR),
             <UiEntity key="fuel-bar" uiTransform={{ width: '100%', margin: { top: 4 } }}>
                 {muleBar('hud-fuel-bar', fuel.share, fuel.color)}
             </UiEntity>,
-            dropdownLine('hint', 'Ore goes straight to your Storage', 13, BANK_CAPTION)
+            dropdownLine('hint', t('dock.oreToStorage'), 13, BANK_CAPTION)
         )
     }
     return dropdown(dockMuleLeft(), 'M.U.L.E.', closeMuleDropdown, [dropdownCard('mule-card', rows)])
@@ -3628,7 +3651,7 @@ const OBJECTIVE_CLOSE_SIZE = 32
 
 /** The Social Bonus wears its own green; other alerts the warning colour, objectives gold. */
 const objectiveTitleColor = (objective: Objective) =>
-    objective.title === SOCIAL_BONUS_TITLE ? SOCIAL_BONUS_COLOR : objective.alert ? STORAGE_FULL_COLOR : BANK_GOLD_LIGHT
+    objective.id === SOCIAL_BONUS_ID ? SOCIAL_BONUS_COLOR : objective.alert ? STORAGE_FULL_COLOR : BANK_GOLD_LIGHT
 
 const objectiveTracker = () => {
     const objectives = getObjectives()
@@ -3730,10 +3753,10 @@ let ownerNotesPage = 0
 /** "just now", "3 min ago", "2 h ago", "4 d ago", from a wall-clock moment. */
 function noteAge(at: number): string {
     const seconds = Math.max(0, (Date.now() - at) / 1000)
-    if (seconds < 60) return 'just now'
-    if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)} h ago`
-    return `${Math.floor(seconds / 86400)} d ago`
+    if (seconds < 60) return t('ago.justNow')
+    if (seconds < 3600) return t('ago.minutes', { n: Math.floor(seconds / 60) })
+    if (seconds < 86400) return t('ago.hours', { n: Math.floor(seconds / 3600) })
+    return t('ago.days', { n: Math.floor(seconds / 86400) })
 }
 
 const ownerStat = (icon: Icon, text: string, color: Color4 = BANK_CREAM) => (
@@ -3746,10 +3769,10 @@ const ownerStat = (icon: Icon, text: string, color: Color4 = BANK_CREAM) => (
 const ownerStats = () => {
     const card = getOwnerCard()
     if (card === null) {
-        return <Label value="Asking around town..." fontSize={18} color={BANK_CAPTION} textAlign="middle-left" uiTransform={{ height: OWNER_STAT_HEIGHT }} />
+        return <Label value={t('owner.asking')} fontSize={18} color={BANK_CAPTION} textAlign="middle-left" uiTransform={{ height: OWNER_STAT_HEIGHT }} />
     }
     if (!card.found) {
-        return <Label value="Nobody on record here" fontSize={18} color={BANK_CAPTION} textAlign="middle-left" uiTransform={{ height: OWNER_STAT_HEIGHT }} />
+        return <Label value={t('owner.nobody')} fontSize={18} color={BANK_CAPTION} textAlign="middle-left" uiTransform={{ height: OWNER_STAT_HEIGHT }} />
     }
     const property = findItem(card.property as ShopItemId)
     const pick = findItem(card.pick as ShopItemId)
@@ -3761,12 +3784,12 @@ const ownerStats = () => {
                     uiTransform={{ width: OWNER_ONLINE_DOT, height: OWNER_ONLINE_DOT, borderRadius: OWNER_ONLINE_DOT / 2, margin: { left: 9, right: 19 } }}
                     uiBackground={{ color: card.online ? SERVER_ONLINE_COLOR : MUTED_COLOR }}
                 />
-                <Label value={card.online ? 'In town' : 'Away'} fontSize={18} color={card.online ? SERVER_ONLINE_COLOR : MUTED_COLOR} textAlign="middle-left" uiTransform={{ height: OWNER_STAT_HEIGHT }} />
+                <Label value={card.online ? t('owner.inTown') : t('owner.away')} fontSize={18} color={card.online ? SERVER_ONLINE_COLOR : MUTED_COLOR} textAlign="middle-left" uiTransform={{ height: OWNER_STAT_HEIGHT }} />
             </UiEntity>
-            {ownerStat(PROPERTY_ICONS[card.property] ?? ICON_HOUSE_HOME, property?.label ?? 'Property')}
-            {ownerStat(PICK_ICONS[card.pick] ?? ICON_PICK_IRON, pick?.label ?? 'No pick', pick !== null ? BANK_CREAM : MUTED_COLOR)}
-            {ownerStat(ICON_MULE, card.mules > 0 ? `${card.mules} M.U.L.E.` : 'No M.U.L.E.', card.mules > 0 ? BANK_CREAM : MUTED_COLOR)}
-            {ownerStat(ICON_WAREHOUSE, storage?.label ?? 'Basic storage')}
+            {ownerStat(PROPERTY_ICONS[card.property] ?? ICON_HOUSE_HOME, itemName(property, t('owner.property')))}
+            {ownerStat(PICK_ICONS[card.pick] ?? ICON_PICK_IRON, itemName(pick, t('owner.noPick')), pick !== null ? BANK_CREAM : MUTED_COLOR)}
+            {ownerStat(ICON_MULE, card.mules > 0 ? `${card.mules} M.U.L.E.` : t('owner.noMule'), card.mules > 0 ? BANK_CREAM : MUTED_COLOR)}
+            {ownerStat(ICON_WAREHOUSE, itemName(storage, t('owner.basicStorage')))}
         </UiEntity>
     )
 }
@@ -3777,9 +3800,9 @@ const leaveNoteSection = () => {
     const ready = canSendNote()
     return (
         <UiEntity uiTransform={{ width: '100%', flexDirection: 'column' }}>
-            <BitmapText value="LEAVE A NOTE" fontSize={24} color={BANK_GOLD_LIGHT} uiTransform={{ margin: { bottom: 8 } }} />
+            <BitmapText value={t('owner.leaveNote')} fontSize={24} color={BANK_GOLD_LIGHT} uiTransform={{ margin: { bottom: 8 } }} />
             <Input
-                placeholder={`Say howdy to ${getOpenOwnerName()}...`}
+                placeholder={t('owner.sayHowdy', { name: getOpenOwnerName() })}
                 value={draft}
                 fontSize={18}
                 color={BANK_CREAM}
@@ -3806,7 +3829,7 @@ const leaveNoteSection = () => {
                     uiBackground={{ color: ready ? BANK_GOLD : DISABLED_COLOR }}
                     onMouseDown={sendNote}
                 >
-                    <BitmapText value="SEND" fontSize={24} color={ready ? BANK_INK : MUTED_COLOR} />
+                    <BitmapText value={t('owner.send')} fontSize={24} color={ready ? BANK_INK : MUTED_COLOR} />
                 </UiEntity>
             </UiEntity>
         </UiEntity>
@@ -3858,14 +3881,14 @@ const myNotesSection = () => {
     return (
         <UiEntity uiTransform={{ width: '100%', flexDirection: 'column' }}>
             <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', margin: { bottom: 8 } }}>
-                <BitmapText value="NOTES AT YOUR DOOR" fontSize={24} color={BANK_GOLD_LIGHT} />
+                <BitmapText value={t('owner.notesAtDoor')} fontSize={24} color={BANK_GOLD_LIGHT} />
                 {notes.length >= NOTE_MAX_KEPT ? (
-                    <Label value="Mailbox full: clear it for new notes" fontSize={14} color={SHORT_COLOR} textAlign="middle-right" textWrap="nowrap" uiTransform={{ height: 24 }} />
+                    <Label value={t('owner.mailboxFull')} fontSize={14} color={SHORT_COLOR} textAlign="middle-right" textWrap="nowrap" uiTransform={{ height: 24 }} />
                 ) : null}
             </UiEntity>
             <UiEntity uiTransform={{ width: '100%', flexDirection: 'column' }}>
                 {note === undefined ? (
-                    <Label value="Nobody has left a note yet" fontSize={16} color={BANK_CAPTION} textAlign="middle-center" uiTransform={{ width: '100%', height: 60 }} />
+                    <Label value={t('owner.noNotes')} fontSize={16} color={BANK_CAPTION} textAlign="middle-center" uiTransform={{ width: '100%', height: 60 }} />
                 ) : (
                     ownerNoteRow(note)
                 )}
@@ -3887,7 +3910,7 @@ const myNotesSection = () => {
                         if (notes.length > 0) clearMyNotes()
                     }}
                 >
-                    <BitmapText value="CLEAR" fontSize={24} color={notes.length > 0 ? BANK_INK : MUTED_COLOR} />
+                    <BitmapText value={t('common.clear')} fontSize={24} color={notes.length > 0 ? BANK_INK : MUTED_COLOR} />
                 </UiEntity>
             </UiEntity>
         </UiEntity>
@@ -3909,7 +3932,7 @@ const ownerCardPanel = () => {
             }}
             uiBackground={{ color: BANK_WOOD_DARK }}
         >
-            <BitmapText value="PROPERTY OF" fontSize={20} color={BANK_CAPTION} align="center" uiTransform={{ width: '100%' }} />
+            <BitmapText value={t('owner.propertyOf')} fontSize={20} color={BANK_CAPTION} align="center" uiTransform={{ width: '100%' }} />
             <BitmapText value={getOpenOwnerName().toUpperCase()} fontSize={40} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%', margin: { bottom: 12 } }} />
             {/* Closed from the corner, like the other screens. */}
             <Button
@@ -3977,9 +4000,9 @@ let notificationsOpen = false
 /** "just now", "3 min ago", "2 h ago". */
 function timeAgo(at: number): string {
     const seconds = Math.max(0, getObjectiveClock() - at)
-    if (seconds < 60) return 'just now'
-    if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`
-    return `${Math.floor(seconds / 3600)} h ago`
+    if (seconds < 60) return t('ago.justNow')
+    if (seconds < 3600) return t('ago.minutes', { n: Math.floor(seconds / 60) })
+    return t('ago.hours', { n: Math.floor(seconds / 3600) })
 }
 
 const notificationsButton = () =>
@@ -4036,7 +4059,7 @@ const notificationsPanel = () => {
             }}
             uiBackground={{ color: BANK_WOOD_DARK }}
         >
-            <BitmapText value="NOTIFICATIONS" fontSize={40} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%', margin: { bottom: 12 } }} />
+            <BitmapText value={t('notify.title')} fontSize={40} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%', margin: { bottom: 12 } }} />
             {/* Closed from the corner, like the other screens. */}
             <Button
                 value="X"
@@ -4049,7 +4072,7 @@ const notificationsPanel = () => {
                 }}
             />
             {history.length === 0 ? (
-                <Label value="No notifications" fontSize={16} color={BANK_CAPTION} textAlign="middle-center" uiTransform={{ width: '100%', height: 60 }} />
+                <Label value={t('notify.none')} fontSize={16} color={BANK_CAPTION} textAlign="middle-center" uiTransform={{ width: '100%', height: 60 }} />
             ) : (
                 <UiEntity uiTransform={{ width: '100%', flexDirection: 'column' }}>{history.map(notificationRow)}</UiEntity>
             )}
@@ -4067,7 +4090,7 @@ const notificationsPanel = () => {
                 uiBackground={{ color: history.length > 0 ? BANK_GOLD : DISABLED_COLOR }}
                 onMouseDown={clearObjectiveHistory}
             >
-                <BitmapText value="CLEAR" fontSize={24} color={history.length > 0 ? BANK_INK : MUTED_COLOR} />
+                <BitmapText value={t('common.clear')} fontSize={24} color={history.length > 0 ? BANK_INK : MUTED_COLOR} />
             </UiEntity>
         </UiEntity>
     )
@@ -4141,8 +4164,8 @@ const feedbackMenu = () => (
         }}
         uiBackground={{ color: BANK_WOOD_DARK }}
     >
-        {feedbackMenuRow('GIVE FEEDBACK', true, giveFeedback)}
-        {feedbackMenuRow('REPORT A BUG', false, reportBug)}
+        {feedbackMenuRow(t('feedback.give'), true, giveFeedback)}
+        {feedbackMenuRow(t('feedback.reportBug'), false, reportBug)}
         {adminMaintenanceRow()}
         {feedbackMenuBuild()}
     </UiEntity>
@@ -4206,6 +4229,115 @@ const rewardsButton = () =>
             muleDropdownOpen = false
         }
     })
+
+// --- Language ----------------------------------------------------------------------------
+//
+// Outside the HUD, just left of it, at its height: the active language's flag and code. It drops
+// the list of languages under it, the current one ticked, like Feedback drops its menu.
+//
+// Both are children of the HUD's outer row, which is as wide as the plank: `right: '100%'` puts
+// their right edge on the plank's left edge (less a gap), wherever the HUD is and however wide.
+
+/** Half as wide again as the corner buttons, so the code fits beside the flag. */
+const LANGUAGE_BUTTON_WIDTH = BOTTOM_BUTTON_WIDTH * 1.5
+const LANGUAGE_MENU_WIDTH = 230
+
+/** The button's top in the HUD's outer row, which starts hudBleed() above the screen. */
+function languageButtonTop(): number {
+    return (HUD_PILL_HEIGHT - BOTTOM_PANEL_HEIGHT) / 2 + hudBleed()
+}
+
+let languageMenuOpen = false
+
+/** The flag at half the corner icons' size, so the language's code fits beside it. */
+const LANGUAGE_FLAG_SCALE = 0.5
+const LANGUAGE_CODE_GAP = 6
+
+function toggleLanguageMenu() {
+    languageMenuOpen = !languageMenuOpen
+    if (languageMenuOpen) {
+        notificationsOpen = false
+        soundOpen = false
+        townBoardOpen = false
+        feedbackMenuOpen = false
+        mapOpen = false
+        inventoryOpen = false
+        pickSelectorOpen = false
+        muleDropdownOpen = false
+    }
+}
+
+// cornerButton's frame, with a small flag and the code (EN, ES...) in place of its one big icon.
+const languageButton = () => {
+    const language = getLanguage()
+    const flag = BOTTOM_PANEL_ICON * LANGUAGE_FLAG_SCALE
+    return (
+        <UiEntity
+            uiTransform={{
+                positionType: 'absolute',
+                position: { top: languageButtonTop(), right: '100%' },
+                margin: { right: BOTTOM_BUTTON_GAP },
+                width: LANGUAGE_BUTTON_WIDTH,
+                height: BOTTOM_PANEL_HEIGHT,
+                borderRadius: 8,
+                borderWidth: 2,
+                borderColor: languageMenuOpen ? BANK_GOLD : BANK_TRIM,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center'
+            }}
+            uiBackground={{ color: BOTTOM_BUTTON_COLOR }}
+            onMouseDown={toggleLanguageMenu}
+        >
+            <UiEntity uiTransform={{ width: flag, height: flag, flexShrink: 0 }} uiBackground={iconBackground(flagIcon(language))} />
+            <Label
+                value={language.toUpperCase()}
+                fontSize={bottomButtonFont()}
+                color={BANK_CREAM}
+                textAlign="middle-left"
+                textWrap="nowrap"
+                uiTransform={{ height: BOTTOM_PANEL_HEIGHT, margin: { left: LANGUAGE_CODE_GAP } }}
+            />
+        </UiEntity>
+    )
+}
+
+/** Hangs under the button, its right edge level with the button's, so it opens away from the HUD. */
+const languageMenu = () => {
+    // Another corner screen opened since: the list gives way to it rather than wait under it.
+    if (notificationsOpen || soundOpen || townBoardOpen || feedbackMenuOpen || mapOpen || inventoryOpen) languageMenuOpen = false
+    if (!languageMenuOpen) return null
+    return (
+        <UiEntity
+            uiTransform={{
+                positionType: 'absolute',
+                position: {
+                    top: languageButtonTop() + BOTTOM_PANEL_HEIGHT + FEEDBACK_MENU_GAP,
+                    right: '100%'
+                },
+                margin: { right: BOTTOM_BUTTON_GAP },
+                width: LANGUAGE_MENU_WIDTH,
+                flexDirection: 'column',
+                padding: 6,
+                borderRadius: PANEL_RADIUS,
+                borderWidth: 3,
+                borderColor: BANK_TRIM
+            }}
+            uiBackground={{ color: BANK_WOOD_DARK }}
+        >
+            {LANGUAGES.map((language) => (
+                <LanguageRow
+                    key={language.id}
+                    language={language.id}
+                    name={language.name}
+                    onPicked={() => {
+                        languageMenuOpen = false
+                    }}
+                />
+            ))}
+        </UiEntity>
+    )
+}
 
 // --- Sound -------------------------------------------------------------------------------
 //
@@ -4271,7 +4403,7 @@ const soundRow = (title: string, step: number, setStep: (step: number) => void) 
     >
         <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', margin: { bottom: 6 } }}>
             <BitmapText value={title} fontSize={22} color={BANK_GOLD_LIGHT} />
-            <Label value={step === 0 ? 'Off' : `${step * (100 / VOLUME_STEPS)}%`} fontSize={16} color={BANK_CREAM} textAlign="middle-right" textWrap="nowrap" uiTransform={{ height: 22 }} />
+            <Label value={step === 0 ? t('sound.off') : `${step * (100 / VOLUME_STEPS)}%`} fontSize={16} color={BANK_CREAM} textAlign="middle-right" textWrap="nowrap" uiTransform={{ height: 22 }} />
         </UiEntity>
         <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             {soundStepButton('-', step > 0, () => setStep(step - 1))}
@@ -4309,7 +4441,7 @@ const soundPanel = () => (
         }}
         uiBackground={{ color: BANK_WOOD_DARK }}
     >
-        <BitmapText value="SOUND" fontSize={40} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%', margin: { bottom: 12 } }} />
+        <BitmapText value={t('sound.title')} fontSize={40} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%', margin: { bottom: 12 } }} />
         <Button
             value="X"
             fontSize={30}
@@ -4320,8 +4452,8 @@ const soundPanel = () => (
                 soundOpen = false
             }}
         />
-        {soundRow('MUSIC', getMusicStep(), setMusicStep)}
-        {soundRow('SFX', getSfxStep(), setSfxStep)}
+        {soundRow(t('sound.music'), getMusicStep(), setMusicStep)}
+        {soundRow(t('sound.sfx'), getSfxStep(), setSfxStep)}
     </UiEntity>
 )
 
@@ -4361,12 +4493,12 @@ const townBoardButton = () =>
         }
     })
 
-const TOWN_TITLES: { id: TitleId; title: string; feat: string; value: (value: number) => string }[] = [
-    { id: 'whale', title: 'THE WHALE', feat: 'Biggest single sale', value: (value) => `${withCommas(value)} ore` },
-    { id: 'panic', title: 'PANIC SELLER', feat: 'Sold at the worst rate', value: (value) => `${formatRate(value)} ore/coin` },
-    { id: 'active', title: 'HARDEST WORKER', feat: 'Most ore mined by hand', value: (value) => `${withCommas(value)} ore` },
-    { id: 'baron', title: 'M.U.L.E. BARON', feat: 'Most ore dug by rigs', value: (value) => `${withCommas(value)} ore` },
-    { id: 'roller', title: 'HIGH ROLLER', feat: 'Biggest slot win', value: (value) => `${withCommas(value)} coins` }
+const TOWN_TITLES: { id: TitleId; readonly title: string; readonly feat: string; value: (value: number) => string }[] = [
+    { id: 'whale', get title() { return t('town.whale') }, get feat() { return t('town.whaleFeat') }, value: (value) => t('town.ore', { ore: withCommas(value) }) },
+    { id: 'panic', get title() { return t('town.panic') }, get feat() { return t('town.panicFeat') }, value: (value) => t('town.orePerCoin', { rate: formatRate(value) }) },
+    { id: 'active', get title() { return t('town.worker') }, get feat() { return t('town.workerFeat') }, value: (value) => t('town.ore', { ore: withCommas(value) }) },
+    { id: 'baron', get title() { return t('town.baron') }, get feat() { return t('town.baronFeat') }, value: (value) => t('town.ore', { ore: withCommas(value) }) },
+    { id: 'roller', get title() { return t('town.roller') }, get feat() { return t('town.rollerFeat') }, value: (value) => t('obj.coins', { coins: withCommas(value) }) }
 ]
 
 const townPhoto = (address: string, size: number) => (
@@ -4396,14 +4528,14 @@ const townTitleCard = (title: string, address: string, name: string, description
 
 const townOwnersCard = (owners: readonly { kind: string; address: string; name: string }[]) => (
     <UiEntity key="owners" uiTransform={{ width: '100%', flexDirection: 'column', alignItems: 'center' }}>
-        <BitmapText value="NEW OWNERS" fontSize={34} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%', margin: { bottom: 16 } }} />
+        <BitmapText value={t('town.newOwners')} fontSize={34} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%', margin: { bottom: 16 } }} />
         <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', justifyContent: 'center' }}>
             {owners.map((owner, index) => (
                 <UiEntity key={`${index}`} uiTransform={{ width: TOWN_OWNER_WIDTH, flexDirection: 'column', alignItems: 'center' }}>
                     {townPhoto(owner.address, TOWN_OWNER_PHOTO_SIZE)}
                     <UiEntity uiTransform={{ width: '100%', height: 8 }} />
                     {townCardLine(owner.name, 16, BANK_CREAM)}
-                    {townCardLine(findItem(owner.kind as ShopItemId)?.label ?? owner.kind, 16, BANK_GOLD_LIGHT)}
+                    {townCardLine(itemName(findItem(owner.kind as ShopItemId), owner.kind), 16, BANK_GOLD_LIGHT)}
                 </UiEntity>
             ))}
         </UiEntity>
@@ -4452,11 +4584,11 @@ const townActiveUsersCard = () => {
     )
     return (
         <UiEntity key="active-users" uiTransform={{ width: '100%', height: '100%', flexDirection: 'column', alignItems: 'center' }}>
-            <BitmapText value="ACTIVE USERS" fontSize={34} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%' }} />
-            {townCardLine(`Active Users: ${names.length}`, 16, BANK_CAPTION)}
+            <BitmapText value={t('town.activeUsers')} fontSize={34} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%' }} />
+            {townCardLine(t('town.activeUsersCount', { count: names.length }), 16, BANK_CAPTION)}
             <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', flexWrap: 'wrap', margin: { top: 8 } }}>
                 {shown.map((name, index) => cell(name, `${index}`, BANK_CREAM))}
-                {hidden > 0 ? cell(`+${hidden} more`, 'more', BANK_CAPTION) : null}
+                {hidden > 0 ? cell(t('town.more', { count: hidden }), 'more', BANK_CAPTION) : null}
             </UiEntity>
         </UiEntity>
     )
@@ -4496,8 +4628,8 @@ const townBoardPanel = () => {
             }}
             uiBackground={{ color: BANK_WOOD_DARK }}
         >
-            <BitmapText value="TOWN BOARD" fontSize={40} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%' }} />
-            {townCardLine('Last 7 days', 16, BANK_CAPTION)}
+            <BitmapText value={t('town.title')} fontSize={40} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%' }} />
+            {townCardLine(t('town.last7Days'), 16, BANK_CAPTION)}
             <Button
                 value="X"
                 fontSize={30}
@@ -4525,7 +4657,7 @@ const townBoardPanel = () => {
                     }}
                     uiBackground={{ color: BANK_WOOD }}
                 >
-                    {cards.length > 0 ? cards[page] : townCardLine('Nothing on the board yet', 16, BANK_CAPTION)}
+                    {cards.length > 0 ? cards[page] : townCardLine(t('town.empty'), 16, BANK_CAPTION)}
                 </UiEntity>
                 {cards.length > 1 ? townArrow('>', () => step(1)) : <UiEntity uiTransform={{ width: TOWN_ARROW_SIZE, flexShrink: 0 }} />}
             </UiEntity>
@@ -4632,14 +4764,14 @@ const slotInfoBar = (jackpot: number) => (
     >
         <UiEntity uiTransform={{ width: '55%', height: '100%', flexDirection: 'row', alignItems: 'center' }}>
             {isSlotInfoOpen() ? null : (
-                <Label value="JACKPOT" fontSize={16} color={BANK_CAPTION} textAlign="middle-left" textWrap="nowrap" uiTransform={{ width: 90, height: '100%', flexShrink: 0 }} />
+                <Label value={t('slots.jackpot')} fontSize={16} color={BANK_CAPTION} textAlign="middle-left" textWrap="nowrap" uiTransform={{ width: 90, height: '100%', flexShrink: 0 }} />
             )}
             {isSlotInfoOpen() ? null : (
-                <BitmapText value={`${withCommas(jackpot)} ${jackpot === 1 ? 'COIN' : 'COINS'}`} fontSize={30} color={COIN_COLOR} />
+                <BitmapText value={coinsCaps(jackpot)} fontSize={30} color={COIN_COLOR} />
             )}
         </UiEntity>
         <Label
-            value={`HOW IT PAYS  ${isSlotInfoOpen() ? '-' : '+'}`}
+            value={`${t('slots.howItPays')}  ${isSlotInfoOpen() ? '-' : '+'}`}
             fontSize={16}
             color={BANK_CREAM}
             textAlign="middle-right"
@@ -4656,8 +4788,8 @@ const casinoPanel = () => {
     const bellsPay = withCommas(threeBellsPay(jackpot, bet))
     const jackpotHint =
         bet >= SLOT_MAX_BET
-            ? `3 bells pay ${bellsPay} coins, the whole jackpot included.`
-            : `3 bells pay ${bellsPay} coins at this bet. Bet ${SLOT_MAX_BET} for the whole jackpot.`
+            ? t('slots.bellsPayMax', { coins: bellsPay })
+            : t('slots.bellsPay', { coins: bellsPay, max: SLOT_MAX_BET })
     return (
         <UiEntity
             uiTransform={{
@@ -4672,7 +4804,7 @@ const casinoPanel = () => {
             }}
             uiBackground={{ color: BANK_WOOD_DARK }}
         >
-            <BitmapText value="SLOT MACHINE" fontSize={52} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%' }} />
+            <BitmapText value={t('slots.title')} fontSize={52} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%' }} />
             <Label value={`<i>${getSlotTagline()}</i>`} fontSize={20} color={BANK_CREAM} textAlign="middle-center" uiTransform={{ width: '100%', height: 28, margin: { top: 4 } }} />
 
             {/* The machine: the reels, and what they just did. The message is not a button. */}
@@ -4685,7 +4817,7 @@ const casinoPanel = () => {
                 {SLOT_BETS.map((option) => (
                     <UiEntity key={`${option}`} uiTransform={{ width: '32%', height: 60 }}>
                         {bankButton(
-                            `${option} ${option === 1 ? 'COIN' : 'COINS'}`,
+                            coinsCaps(option),
                             () => setSlotBet(option),
                             { width: '100%', height: 60 },
                             30,
@@ -4698,7 +4830,7 @@ const casinoPanel = () => {
 
             <UiEntity uiTransform={{ width: '100%', height: 12 }} />
             {bankButton(
-                isSlotSpinning() ? 'SPINNING' : getCoins() < bet ? 'NOT ENOUGH COINS' : `SPIN FOR ${bet}`,
+                isSlotSpinning() ? t('slots.spinning') : getCoins() < bet ? t('slots.notEnough') : t('slots.spinFor', { bet }),
                 canSpin ? spinSlot : () => {},
                 { width: '100%', height: 68 },
                 40,
@@ -4711,17 +4843,17 @@ const casinoPanel = () => {
             {isSlotInfoOpen() ? (
                 <UiEntity uiTransform={{ width: '100%', flexShrink: 0, flexDirection: 'row', justifyContent: 'space-between' }}>
                     {bankSection(
-                        'JACKPOT',
+                        t('slots.jackpot'),
                         <UiEntity uiTransform={{ width: '100%', flexGrow: 1, flexDirection: 'column', justifyContent: 'center' }}>
                             <BitmapText
-                                value={`${withCommas(jackpot)} ${jackpot === 1 ? 'COIN' : 'COINS'}`}
+                                value={coinsCaps(jackpot)}
                                 fontSize={42}
                                 color={COIN_COLOR}
                                 align="left"
                                 uiTransform={{ width: '100%', height: 44 }}
                             />
                             <Label
-                                value="Grows with every bet!"
+                                value={t('slots.grows')}
                                 fontSize={16}
                                 color={BANK_CREAM}
                                 textAlign="middle-left"
@@ -4739,7 +4871,7 @@ const casinoPanel = () => {
                         { width: '49%', height: SLOT_TABLES_HEIGHT }
                     )}
                     {bankSection(
-                        'PAYS (x BET)',
+                        t('slots.pays'),
                         [
                             slotPayLine('two', 'horseshoe', 'x2', `x${TWO_HORSESHOES_PAY}`),
                             ...SLOT_SYMBOLS.map((symbol) =>
@@ -4747,7 +4879,7 @@ const casinoPanel = () => {
                                     symbol.id,
                                     symbol.id,
                                     'x3',
-                                    symbol.id === 'bell' ? `x${symbol.pays} + JACKPOT` : `x${symbol.pays}`,
+                                    symbol.id === 'bell' ? `x${symbol.pays} + ${t('slots.jackpot')}` : `x${symbol.pays}`,
                                     symbol.id === 'bell'
                                 )
                             )

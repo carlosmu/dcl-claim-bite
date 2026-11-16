@@ -96,7 +96,7 @@ export function setupClaimOffice(): void {
   zone = createProximityZone({
     entityName: CLAIM_OFFICER_ENTITY_NAME,
     radiusMeters: CLAIM_OFFICE_RADIUS_METERS,
-    click: officer !== null ? { entity: officer, hoverText: 'Open Claim Office' } : undefined,
+    click: officer !== null ? { entity: officer, hoverText: 'hover.claimOffice' } : undefined,
     onEnter: open,
     onClick: () => {
       if (closed) open()

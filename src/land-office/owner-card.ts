@@ -5,6 +5,7 @@ import { getPlayer } from '@dcl/sdk/players'
 import { room } from '../shared/net/protocol'
 import { cleanNoteText, Note, NOTE_MAX_CHARS, parseNotes } from '../shared/notes'
 import { focusPanel, registerPanel } from '../world/panel-focus'
+import { t } from '../i18n'
 
 // The card a property's owner shows when their property is clicked: who they are and what they
 // have (the server's answer, never their coins), and a note to leave at their door — or, at your
@@ -113,7 +114,7 @@ export function sendNote(): void {
 /** The server's answer to a note, from the economy link's action results. */
 export function onNoteResult(ok: boolean, detail: string): void {
   sending = false
-  noteStatus = { ok, text: ok ? 'Note left at the door' : `Not sent: ${detail}` }
+  noteStatus = { ok, text: ok ? t('owner.noteLeft') : t('owner.notSent', { detail }) }
   if (ok) draft = ''
 }
 

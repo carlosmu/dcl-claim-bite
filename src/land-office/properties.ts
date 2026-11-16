@@ -14,6 +14,7 @@ import { Color4, Quaternion, Vector3 } from '@dcl/sdk/math'
 import { DEBUG_FILL_PROPERTY_LOTS } from '../shared/debug-flags'
 import { setBitmapText3d } from '../world/bitmap-text-3d'
 import { openOwnerCard } from './owner-card'
+import { getLanguage, hoverText, itemName, t } from '../i18n'
 import { PROPERTY_AREAS, PROPERTY_KINDS, PropertyKind, PropertyLots } from '../shared/net/property-lots-sync'
 
 // The properties standing in town. Every lot of the grid laid over each kind's area has its
@@ -87,8 +88,7 @@ const OWNER_BOARD_Z_METERS = -2.75
 /** How far in front of the sign's centre the lettering sits, so it does not sink into the board. */
 const OWNER_TEXT_FORWARD_METERS = -0.06
 
-/** "Property of" above, the owner's name below; sizes are metres per em of the western font. */
-const OWNER_CAPTION = 'Property of'
+/** "Property of" (sign.propertyOf) above, the owner's name below; sizes are metres per em of the western font. */
 const OWNER_CAPTION_SIZE = 0.102
 const OWNER_NAME_SIZE = 0.14
 /** A long name shrinks to fit the board. */
@@ -97,7 +97,7 @@ const OWNER_TEXT_COLOR = Color4.fromHexString('#2B1A0EFF')
 /** Whether a lot with no owner has a sign at all, saying FOR SALE; without it the lot stands bare. */
 const SHOW_VACANT_SIGN: boolean = false
 /** What the sign says while the lot has no owner. */
-const forSaleText = (kind: PropertyKind) => `${kind.toUpperCase()}\nFOR SALE`
+const forSaleText = (kind: PropertyKind) => `${itemName({ id: kind, label: kind }).toUpperCase()}\n${t('sign.forSale')}`
 const FOR_SALE_SIZE = 0.16
 const FOR_SALE_COLOR = Color4.Black()
 /** How much lower than the owner's lettering FOR SALE starts. */
@@ -237,8 +237,8 @@ function syncLots(): void {
 
   for (const [key, property] of standing) {
     const owner = owners.get(key)
-    // Prefixed so an owner named "FOR SALE" still reads as owned.
-    const shown = owner === undefined ? forSaleText(property.kind) : `owner:${owner.address}:${owner.name}`
+    // Prefixed so an owner named "FOR SALE" still reads as owned; with the language, so a change rewrites it.
+    const shown = `${getLanguage()}|` + (owner === undefined ? forSaleText(property.kind) : `owner:${owner.address}:${owner.name}`)
     if (property.shownName === shown) continue
     property.shownName = shown
     Transform.getMutable(property.text).position.y = OWNER_NAME_HEIGHT_METERS - (owner === undefined ? FOR_SALE_DROP_METERS : 0)
@@ -252,11 +252,11 @@ function syncLots(): void {
         ? !hasSign
           ? []
           : [
-              { value: property.kind.toUpperCase(), size: FOR_SALE_SIZE },
-              { value: 'FOR SALE', size: FOR_SALE_SIZE }
+              { value: itemName({ id: property.kind, label: property.kind }).toUpperCase(), size: FOR_SALE_SIZE },
+              { value: t('sign.forSale'), size: FOR_SALE_SIZE }
             ]
         : [
-            { value: OWNER_CAPTION, size: OWNER_CAPTION_SIZE },
+            { value: t('sign.propertyOf'), size: OWNER_CAPTION_SIZE },
             { value: owner.name.toUpperCase(), size: OWNER_NAME_SIZE, maxWidth: OWNER_NAME_MAX_WIDTH_METERS }
           ],
       owner === undefined ? FOR_SALE_COLOR : OWNER_TEXT_COLOR
@@ -273,7 +273,7 @@ function setOwnerClick(property: StandingProperty, owner: { address: string; nam
     pointerEventsSystem.removeOnPointerDown(entity)
     if (owner === undefined) continue
     pointerEventsSystem.onPointerDown(
-      { entity, opts: { button: InputAction.IA_POINTER, hoverText: `${owner.name}'s place`, maxDistance: OWNER_CARD_REACH_METERS } },
+      { entity, opts: { button: InputAction.IA_POINTER, hoverText: hoverText(entity, 'hover.ownersPlace', { name: owner.name }), maxDistance: OWNER_CARD_REACH_METERS } },
       () => openOwnerCard(owner.address, owner.name)
     )
   }

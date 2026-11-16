@@ -2,26 +2,27 @@ import { AvatarNametag, engine, Entity, PlayerIdentityData } from '@dcl/sdk/ecs'
 import { Color3 } from '@dcl/sdk/math'
 
 import { PlayerTiers } from '../shared/net/tiers-sync'
+import { getLanguage, StringKey, t } from '../i18n'
 
 // Every avatar's tag shows its tier: the best property its player owns. The tiers come from the
 // server (PlayerTiers); plates are drawn client-side only, so every client tags the avatars
 // around it itself, and retags one when its owner upgrades.
 
-type TierStyle = { title: string; background: Color3; border: Color3 }
+type TierStyle = { title: StringKey; background: Color3; border: Color3 }
 
 // White, orange, yellow, green. The dark label stays the same on all four so it keeps its
 // contrast on a phone screen.
 const TIERS: Record<number, TierStyle> = {
-  1: { title: 'Drifter', background: Color3.White(), border: Color3.create(0.45, 0.45, 0.45) },
-  2: { title: 'Cabin Owner', background: Color3.create(1, 0.6, 0.15), border: Color3.create(0.55, 0.28, 0.05) },
-  3: { title: 'Homeowner', background: Color3.Yellow(), border: Color3.create(0.45, 0.3, 0.08) },
-  4: { title: 'Ranch Owner', background: Color3.create(0.4, 0.85, 0.35), border: Color3.create(0.15, 0.4, 0.12) }
+  1: { title: 'tier.drifter', background: Color3.White(), border: Color3.create(0.45, 0.45, 0.45) },
+  2: { title: 'tier.cabinOwner', background: Color3.create(1, 0.6, 0.15), border: Color3.create(0.55, 0.28, 0.05) },
+  3: { title: 'tier.homeowner', background: Color3.Yellow(), border: Color3.create(0.45, 0.3, 0.08) },
+  4: { title: 'tier.ranchOwner', background: Color3.create(0.4, 0.85, 0.35), border: Color3.create(0.15, 0.4, 0.12) }
 }
 
 const LABEL_COLOR = Color3.create(0.2, 0.12, 0.02)
 
-/** The tier each avatar was last tagged with, so a plate is only rewritten when it changes. */
-const tagged = new Map<Entity, number>()
+/** The tier (and language) each avatar was last tagged with, so a plate is only rewritten when either changes. */
+const tagged = new Map<Entity, string>()
 
 function tagPlayers(): void {
   const tiers = new Map<string, number>()
@@ -33,10 +34,11 @@ function tagPlayers(): void {
     // Until the server has read their purse there is nothing true to show.
     const tier = tiers.get(identity.address.toLowerCase())
     const style = tier !== undefined ? TIERS[tier] : undefined
-    if (tier === undefined || style === undefined || tagged.get(entity) === tier) continue
-    tagged.set(entity, tier)
+    const tag = `${tier}|${getLanguage()}`
+    if (tier === undefined || style === undefined || tagged.get(entity) === tag) continue
+    tagged.set(entity, tag)
     AvatarNametag.createOrReplace(entity, {
-      label: `Tier ${tier}:\n${style.title}`,
+      label: t('tier.label', { tier, title: t(style.title) }),
       labelColor: LABEL_COLOR,
       backgroundColor: style.background,
       borderColor: style.border
