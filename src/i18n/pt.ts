@@ -93,7 +93,7 @@ export const pt: Strings = {
     'item.pick': 'Picareta de Forasteiro',
     'item.steel-pick': 'Picareta de Mineiro',
     'item.miners-pick': 'Picareta Mestra',
-    'item.mule': 'M.U.L.E.',
+    'item.mule': 'M.U.L.A.',
     'item.fuel-10': '+10 Galões',
     'item.fuel-25': '+25 Galões',
     'item.fuel-50': '+50 Galões',
@@ -156,7 +156,7 @@ export const pt: Strings = {
     'pick.master.benefit1': 'A mineração mais rápida',
     'pick.master.benefit2': 'Os golpes mais fortes',
 
-    // M.U.L.E. in the store
+    // M.U.L.A. in the store
     'mule.description': 'Extrai minério para você, mesmo quando você não está.',
     'mule.produces': 'Produz',
     'mule.perDayCaps': '{ore} MINÉRIO/DIA',
@@ -167,12 +167,12 @@ export const pt: Strings = {
     'mule.ownNone': 'Você ainda não tem nenhuma',
 
     // Fuel in the store
-    'fuel.description': 'Mantém suas M.U.L.E. funcionando.',
+    'fuel.description': 'Mantém suas M.U.L.A. funcionando.',
     'fuel.pricePerGallonCaps': '{price} MOEDAS / GALÃO',
-    'fuel.requiresMule': 'Requer uma M.U.L.E.',
+    'fuel.requiresMule': 'Requer uma M.U.L.A.',
     'fuel.inTank': 'No seu tanque',
     'fuel.tankGallonsCaps': '{now} / {tank} GALÕES',
-    'fuel.rule': '1 galão move 1 M.U.L.E. por 1 dia',
+    'fuel.rule': '1 galão move 1 M.U.L.A. por 1 dia',
 
     // Storage in the store
     'storage.current': 'Capacidade atual',
@@ -239,8 +239,8 @@ export const pt: Strings = {
     'time.hours': '{n} h',
     'time.daysHours': '{d} d {h} h',
 
-    // M.U.L.E. panel
-    'fuelLeft.noMule': 'sem M.U.L.E.',
+    // M.U.L.A. panel
+    'fuelLeft.noMule': 'sem M.U.L.A.',
     'fuelLeft.empty': 'vazio',
     'muleStatus.noFuel': 'Sem combustível',
     'muleStatus.storageFull': 'Depósito cheio',
@@ -268,6 +268,10 @@ export const pt: Strings = {
     'mulePanel.alertStorageFull': 'O depósito está cheio. Venda seu minério no Banco para continuar produzindo.',
     'mulePanel.fleet': 'Frota',
     'mulePanel.footer': 'Compre combustível e depósito no Armazém Geral',
+    // The M.U.L.E. is the M.U.L.A. here (mula), feminine; like any acronym, the same in the plural.
+    'mule.pluralCaps': 'M.U.L.A.',
+    'mulePanel.subtitle': 'Máquina Utilitária de Lavra Automática',
+    'owner.mules': '{count} M.U.L.A.',
 
     // Inventory
     'tab.all': 'Tudo',
@@ -287,7 +291,7 @@ export const pt: Strings = {
     'inv.boughtFor': 'Comprada por {coins} moedas',
     'inv.gal': '{n} gal',
     'inv.gallonsInTank': '{now} / {tank} galões no tanque',
-    'inv.tankEmpty': 'Tanque vazio: as M.U.L.E. estão paradas',
+    'inv.tankEmpty': 'Tanque vazio: as M.U.L.A. estão paradas',
     'inv.lasts': 'Dura {left} com esta frota',
     'inv.title': 'INVENTÁRIO',
     'inv.emptyNoPick': 'Nada ainda: o prefeito tem uma picareta para você',
@@ -313,8 +317,8 @@ export const pt: Strings = {
     'obj.pickBroken': 'PICARETA QUEBRADA',
     'obj.yourPick': 'Sua picareta',
     'obj.wornOut': '{pick} se desgastou',
-    'obj.muleDugOne': 'Sua M.U.L.E. extraiu {ore} de minério',
-    'obj.muleDugMany': 'Suas M.U.L.E. extraíram {ore} de minério',
+    'obj.muleDugOne': 'Sua M.U.L.A. extraiu {ore} de minério',
+    'obj.muleDugMany': 'Suas M.U.L.A. extraíram {ore} de minério',
     'obj.whileAway': 'ENQUANTO VOCÊ ESTAVA FORA',
     'obj.addedToStorage': 'Adicionado ao seu depósito',
     'obj.leftNote': '{from} deixou um recado para você',
@@ -325,7 +329,7 @@ export const pt: Strings = {
     'obj.freePick': 'Ele tem uma picareta grátis para você',
     'obj.sellAtBank': 'Venda minério no Banco',
     'obj.oreReady': '{ore} de minério pronto',
-    'obj.muleStopped': 'M.U.L.E. PARADA',
+    'obj.muleStopped': 'M.U.L.A. PARADA',
     'obj.outOfFuel': 'Sem combustível',
     'obj.buyFuel': 'Compre combustível no Armazém',
     'obj.fuelLow': 'POUCO COMBUSTÍVEL',
@@ -357,7 +361,7 @@ export const pt: Strings = {
     'owner.away': 'Fora',
     'owner.property': 'Propriedade',
     'owner.noPick': 'Sem picareta',
-    'owner.noMule': 'Sem M.U.L.E.',
+    'owner.noMule': 'Sem M.U.L.A.',
     'owner.basicStorage': 'Depósito básico',
     'owner.leaveNote': 'DEIXE UM RECADO',
     'owner.sayHowdy': 'Diga olá para {name}...',
@@ -390,7 +394,7 @@ export const pt: Strings = {
     'town.panicFeat': 'Vendeu na pior cotação',
     'town.worker': 'O MAIS TRABALHADOR',
     'town.workerFeat': 'Mais minério extraído à mão',
-    'town.baron': 'BARÃO DAS M.U.L.E.',
+    'town.baron': 'BARÃO DAS M.U.L.A.',
     'town.baronFeat': 'Mais minério extraído por máquinas',
     'town.roller': 'GRANDE APOSTADOR',
     'town.rollerFeat': 'Maior prêmio no caça-níquel',
@@ -436,7 +440,7 @@ export const pt: Strings = {
     'hover.tailor': 'Abrir Alfaiataria',
     'hover.playSlots': 'Jogar no caça-níquel',
     'hover.mine': 'Minerar',
-    'hover.mule': 'Abrir M.U.L.E.',
+    'hover.mule': 'Abrir M.U.L.A.',
     'hover.ownersPlace': 'Casa de {name}',
 
     // Mining messages
@@ -447,8 +451,8 @@ export const pt: Strings = {
     // Signs and labels
     'sign.propertyOf': 'Propriedade de',
     'sign.forSale': 'À VENDA',
-    'muleSign.one': '1 M.U.L.E.',
-    'muleSign.many': '{count} M.U.L.E.',
+    'muleSign.one': '1 M.U.L.A.',
+    'muleSign.many': '{count} M.U.L.A.',
     'tier.label': 'Nível {tier}:\n{title}',
     'tier.drifter': 'Andarilho',
     'tier.cabinOwner': 'Dono de cabana',

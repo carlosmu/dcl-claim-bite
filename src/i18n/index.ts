@@ -4,6 +4,7 @@ import { en, StringKey, Strings } from './en'
 import { es } from './es'
 import { pt } from './pt'
 import { fr } from './fr'
+import { ru } from './ru'
 
 export type { StringKey } from './en'
 
@@ -23,10 +24,11 @@ export const LANGUAGES: { id: Language; name: string }[] = [
     { id: 'en', name: 'English' },
     { id: 'es', name: 'Español' },
     { id: 'pt', name: 'Português' },
-    { id: 'fr', name: 'Français' }
+    { id: 'fr', name: 'Français' },
+    { id: 'ru', name: 'Русский' }
 ]
 
-const STRINGS: Record<Language, Strings> = { en, es, pt, fr }
+const STRINGS: Record<Language, Strings> = { en, es, pt, fr, ru }
 
 /** What the player picked in the selector, or null to follow the client's language. */
 let picked: Language | null = null

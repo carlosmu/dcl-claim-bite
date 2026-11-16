@@ -270,6 +270,10 @@ export const en = {
     'mulePanel.alertStorageFull': 'Storage is full. Sell your ore at the Bank to keep producing.',
     'mulePanel.fleet': 'Fleet',
     'mulePanel.footer': 'Get Fuel and Storage at the General Store',
+    // The name is a brand: kept in English in the Latin-script languages.
+    'mule.pluralCaps': 'M.U.L.E.S',
+    'mulePanel.subtitle': 'Mining Utility Labor Engine',
+    'owner.mules': '{count} M.U.L.E.',
 
     // Inventory
     'tab.all': 'All',

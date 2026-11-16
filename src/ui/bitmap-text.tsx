@@ -1,5 +1,6 @@
 import ReactEcs, { Label, UiTransformProps } from '@dcl/sdk/react-ecs'
 import { Color4 } from '@dcl/sdk/math'
+import { getLanguage, Language } from '../i18n'
 
 // --- Western text ------------------------------------------------------------------------
 //
@@ -8,6 +9,21 @@ import { Color4 } from '@dcl/sdk/math'
 // a preview with Compress Assets / `--asset-bundles`; a plain preview always shows the fallback).
 
 export const WESTERN_FONT_SRC = 'assets/fonts/BouWeste.ttf'
+
+/**
+ * The typeface for languages BouWeste cannot write, by language. BouWeste has Latin only; a
+ * language missing here uses it. Each entry is another ~700 KB asset bundle (fonts skill), so
+ * one font per script, not per language. Licences sit next to the TTFs in assets/fonts.
+ */
+const FONT_BY_LANGUAGE: Partial<Record<Language, string>> = {
+    // Cyrillic. OFL, Reserved Font Names "Kelly" / "Kelly Slab": used unmodified.
+    ru: 'assets/fonts/KellySlab-Regular.ttf'
+}
+
+/** The scene's typeface for the current language: BouWeste, or the one that has its letters. */
+export function gameFontSrc(): string {
+    return FONT_BY_LANGUAGE[getLanguage()] ?? WESTERN_FONT_SRC
+}
 
 export type BitmapTextProps = {
     value: string
@@ -25,7 +41,7 @@ export function BitmapText(props: BitmapTextProps) {
             value={value}
             fontSize={fontSize}
             color={color}
-            fontSrc={WESTERN_FONT_SRC}
+            fontSrc={gameFontSrc()}
             font="serif"
             textAlign={align === 'center' ? 'middle-center' : align === 'right' ? 'middle-right' : 'middle-left'}
             textWrap="nowrap"

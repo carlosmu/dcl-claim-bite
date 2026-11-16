@@ -270,6 +270,10 @@ export const fr: Strings = {
     'mulePanel.alertStorageFull': 'L’entrepôt est plein. Vends ton minerai à la Banque pour continuer à produire.',
     'mulePanel.fleet': 'Flotte',
     'mulePanel.footer': 'Carburant et entrepôt au Bazar Général',
+    // The name is a brand: kept in English in the Latin-script languages.
+    'mule.pluralCaps': 'M.U.L.E.S',
+    'mulePanel.subtitle': 'Mining Utility Labor Engine',
+    'owner.mules': '{count} M.U.L.E.',
 
     // Inventory
     'tab.all': 'Tout',

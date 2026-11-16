@@ -2608,7 +2608,7 @@ function fleetColumn(): ReactEcs.JSX.Element[] {
     return [
         <UiEntity key="fleet-count" uiTransform={{ width: '100%', flexDirection: 'row', alignItems: 'flex-end', margin: { bottom: 12 } }}>
             <BitmapText value={`${mules}`} fontSize={56} color={BANK_GOLD_LIGHT} />
-            <BitmapText value={mules === 1 ? 'M.U.L.E.' : 'M.U.L.E.S'} fontSize={22} color={BANK_CREAM} uiTransform={{ margin: { left: 10, bottom: 6 } }} />
+            <BitmapText value={mules === 1 ? t('item.mule') : t('mule.pluralCaps')} fontSize={22} color={BANK_CREAM} uiTransform={{ margin: { left: 10, bottom: 6 } }} />
         </UiEntity>,
         muleStat(
             status.running
@@ -2710,8 +2710,8 @@ const mulePanel = () => (
         {/* The name centred: the acronym, with what it stands for under it, smaller. The close
             button sits apart in the top-right corner, so it does not pull the title off centre. */}
         <UiEntity uiTransform={{ width: '100%', height: 72, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', margin: { bottom: 12 } }}>
-            <BitmapText value="M.U.L.E." fontSize={46} color={BANK_GOLD_LIGHT} />
-            <Label value="Mining Utility Labor Engine" fontSize={16} color={BANK_CAPTION} textAlign="middle-center" textWrap="nowrap" uiTransform={{ width: '100%', height: 22 }} />
+            <BitmapText value={t('item.mule')} fontSize={46} color={BANK_GOLD_LIGHT} />
+            <Label value={t('mulePanel.subtitle')} fontSize={16} color={BANK_CAPTION} textAlign="middle-center" textWrap="nowrap" uiTransform={{ width: '100%', height: 22 }} />
             <Button
                 value="X"
                 fontSize={30}
@@ -2822,7 +2822,7 @@ function inventoryEntries(): InventoryEntry[] {
         entries.push({
             key: 'mule',
             tab: 'upgrades',
-            title: 'M.U.L.E.',
+            title: t('item.mule'),
             icon: ICON_MULE,
             status: `x${mules}`,
             equipped: false,
@@ -3586,7 +3586,7 @@ const muleButton = () => {
             onToggle,
             icon: ICON_MULE,
             iconTint: LOCKED_TINT,
-            title: 'M.U.L.E.',
+            title: t('item.mule'),
             value: t('dock.notOwned'),
             valueColor: MUTED_COLOR,
             bar: null
@@ -3600,7 +3600,7 @@ const muleButton = () => {
         open: muleDropdownOpen,
         onToggle,
         icon: ICON_MULE,
-        title: 'M.U.L.E.',
+        title: t('item.mule'),
         dot: { color: state.color, pulse: state.pulse },
         value: `${Math.floor(fuel.gallons)} / ${fuel.tank}`,
         valueColor: fuel.color,
@@ -3632,7 +3632,7 @@ const muleDropdown = () => {
             dropdownLine('hint', t('dock.oreToStorage'), 13, BANK_CAPTION)
         )
     }
-    return dropdown(dockMuleLeft(), 'M.U.L.E.', closeMuleDropdown, [dropdownCard('mule-card', rows)])
+    return dropdown(dockMuleLeft(), t('item.mule'), closeMuleDropdown, [dropdownCard('mule-card', rows)])
 }
 
 // --- Objective tracker --------------------------------------------------------------------
@@ -3788,7 +3788,7 @@ const ownerStats = () => {
             </UiEntity>
             {ownerStat(PROPERTY_ICONS[card.property] ?? ICON_HOUSE_HOME, itemName(property, t('owner.property')))}
             {ownerStat(PICK_ICONS[card.pick] ?? ICON_PICK_IRON, itemName(pick, t('owner.noPick')), pick !== null ? BANK_CREAM : MUTED_COLOR)}
-            {ownerStat(ICON_MULE, card.mules > 0 ? `${card.mules} M.U.L.E.` : t('owner.noMule'), card.mules > 0 ? BANK_CREAM : MUTED_COLOR)}
+            {ownerStat(ICON_MULE, card.mules > 0 ? t('owner.mules', { count: card.mules }) : t('owner.noMule'), card.mules > 0 ? BANK_CREAM : MUTED_COLOR)}
             {ownerStat(ICON_WAREHOUSE, itemName(storage, t('owner.basicStorage')))}
         </UiEntity>
     )

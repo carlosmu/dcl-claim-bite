@@ -1,7 +1,7 @@
 import { engine, Entity, Font, TextAlignMode, TextShape, Transform } from '@dcl/sdk/ecs'
 import { Color4, Vector3 } from '@dcl/sdk/math'
 
-import { WESTERN_FONT_SRC } from '../ui/bitmap-text'
+import { gameFontSrc } from '../ui/bitmap-text'
 
 // --- Western text in the world -----------------------------------------------------------
 //
@@ -38,7 +38,7 @@ export function setBitmapText3d(root: Entity, lines: BitmapLine[], color: Color4
     TextShape.create(entity, {
       text: line.value,
       fontSize: size * FONT_SIZE_PER_METRE,
-      fontSrc: WESTERN_FONT_SRC,
+      fontSrc: gameFontSrc(),
       font: Font.F_SERIF,
       textColor: color,
       textAlign: TextAlignMode.TAM_MIDDLE_CENTER

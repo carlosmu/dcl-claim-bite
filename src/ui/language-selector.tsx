@@ -24,7 +24,8 @@ const FLAG_UVS: Record<Language, number[]> = {
     en: smallIconUvs(1, 2), // A2
     es: smallIconUvs(2, 2), // B2
     pt: smallIconUvs(3, 2), // C2
-    fr: smallIconUvs(4, 2) // D2
+    fr: smallIconUvs(4, 2), // D2
+    ru: smallIconUvs(5, 2) // E2
 }
 const TICK_UVS = smallIconUvs(2, 1) // B1
 

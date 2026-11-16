@@ -23,7 +23,7 @@ import {
 import { Color4, Quaternion, Vector3 } from '@dcl/sdk/math'
 import { getPlayer } from '@dcl/sdk/players'
 
-import { WESTERN_FONT_SRC } from '../ui/bitmap-text'
+import { gameFontSrc } from '../ui/bitmap-text'
 import { focusPanel, registerPanel } from '../world/panel-focus'
 import { MULE_YARD_COLUMNS, MULE_YARD_ROWS, MuleYard } from '../shared/net/mule-yard-sync'
 import { DEBUG_FILL_MULE_YARD } from '../shared/debug-flags'
@@ -234,7 +234,7 @@ function panelText(parent: Entity, y: number, size: number): Entity {
   TextShape.create(entity, {
     text: '',
     fontSize: size * 10,
-    fontSrc: WESTERN_FONT_SRC,
+    fontSrc: gameFontSrc(),
     font: Font.F_SERIF,
     textColor: PANEL_CREAM,
     textAlign: TextAlignMode.TAM_MIDDLE_CENTER,
@@ -463,6 +463,9 @@ function syncYard(): void {
     const levelText = entry.level === 1 ? t('muleSign.one') : t('muleSign.many', { count: entry.level })
     const labelText = `${fitName(entry.name)}\n${levelText}`
     if (TextShape.get(mule.label).text !== labelText) TextShape.getMutable(mule.label).text = labelText
+    // The typeface follows the language too: Cyrillic needs another one.
+    const fontSrc = gameFontSrc()
+    if (TextShape.get(mule.label).fontSrc !== fontSrc) TextShape.getMutable(mule.label).fontSrc = fontSrc
 
     const own = entry.address.toLowerCase() === myAddress
     syncPanelVisibility(mule, spot, player?.position, own)
