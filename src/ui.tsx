@@ -902,8 +902,11 @@ const bankPanel = () => {
                             uiTransform={{ width: '100%', height: 20, margin: { top: 4 } }}
                         />,
                         <UiEntity key="quick" uiTransform={{ width: '100%', height: 52, flexDirection: 'row', justifyContent: 'space-between', margin: { top: 6 } }}>
-                            {bankButton(t('bank.half'), () => setSellCoins(Math.floor(maxSellCoins() / 2)), { width: '48%', height: 50 }, 30, BANK_STEP_COLOR, BANK_CREAM)}
-                            {bankButton(t('bank.max'), () => setSellCoins(maxSellCoins()), { width: '48%', height: 50 }, 30, BANK_STEP_COLOR, BANK_CREAM)}
+                            {/* A share of the most the bag sells for, each always the same: 1/4 and 1/2
+                                are figures, read the same in every language; MAX is translated. */}
+                            {bankButton('1/4', () => setSellCoins(Math.floor(maxSellCoins() / 4)), { width: '32%', height: 50 }, 30, BANK_STEP_COLOR, BANK_CREAM)}
+                            {bankButton('1/2', () => setSellCoins(Math.floor(maxSellCoins() / 2)), { width: '32%', height: 50 }, 30, BANK_STEP_COLOR, BANK_CREAM)}
+                            {bankButton(t('bank.max'), () => setSellCoins(maxSellCoins()), { width: '32%', height: 50 }, 30, BANK_STEP_COLOR, BANK_CREAM)}
                         </UiEntity>
                     ],
                     { width: 0, grow: 1, joined: 'right' }
