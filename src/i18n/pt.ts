@@ -42,7 +42,6 @@ export const pt: Strings = {
     'bank.sellAmount': 'QUANTIDADE A VENDER',
     'bank.oreAmount': '{amount} MINÉRIO',
     'bank.minimum': 'Mínimo: {rate} de minério',
-    'bank.half': 'METADE',
     'bank.max': 'MÁX',
     'bank.sellOre': 'VENDER {amount}',
     'bank.sell': 'VENDER',

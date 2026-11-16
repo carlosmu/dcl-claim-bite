@@ -44,7 +44,6 @@ export const en = {
     'bank.sellAmount': 'SELL AMOUNT',
     'bank.oreAmount': '{amount} ORE',
     'bank.minimum': 'Minimum: {rate} Ore',
-    'bank.half': 'HALF',
     'bank.max': 'MAX',
     'bank.sellOre': 'SELL {amount} ORE',
     'bank.sell': 'SELL',

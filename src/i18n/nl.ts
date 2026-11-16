@@ -42,7 +42,6 @@ export const nl: Strings = {
     'bank.sellAmount': 'HOEVEELHEID',
     'bank.oreAmount': '{amount} ERTS',
     'bank.minimum': 'Minimum: {rate} erts',
-    'bank.half': 'HELFT',
     'bank.max': 'MAX',
     'bank.sellOre': 'VERKOOP {amount}',
     'bank.sell': 'VERKOOP',

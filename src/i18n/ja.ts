@@ -45,7 +45,6 @@ export const ja: Strings = {
     'bank.sellAmount': '売る量',
     'bank.oreAmount': '鉱石 {amount}',
     'bank.minimum': '最低：鉱石 {rate}',
-    'bank.half': '半分',
     'bank.max': '最大',
     'bank.sellOre': '鉱石 {amount} を売る',
     'bank.sell': '売る',

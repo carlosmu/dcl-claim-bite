@@ -47,7 +47,6 @@ export const ru: Strings = {
     'bank.sellAmount': 'СКОЛЬКО ПРОДАТЬ',
     'bank.oreAmount': '{amount} РУДЫ',
     'bank.minimum': 'Минимум: {rate} руды',
-    'bank.half': 'ПОЛОВИНА',
     'bank.max': 'МАКС',
     'bank.sellOre': 'ПРОДАТЬ {amount}',
     'bank.sell': 'ПРОДАТЬ',

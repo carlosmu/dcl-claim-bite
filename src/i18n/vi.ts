@@ -44,7 +44,6 @@ export const vi: Strings = {
     'bank.sellAmount': 'SỐ LƯỢNG BÁN',
     'bank.oreAmount': '{amount} QUẶNG',
     'bank.minimum': 'Tối thiểu: {rate} quặng',
-    'bank.half': 'MỘT NỬA',
     'bank.max': 'TỐI ĐA',
     'bank.sellOre': 'BÁN {amount} QUẶNG',
     'bank.sell': 'BÁN',

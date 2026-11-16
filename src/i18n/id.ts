@@ -43,7 +43,6 @@ export const id: Strings = {
     'bank.sellAmount': 'JUMLAH JUAL',
     'bank.oreAmount': '{amount} BIJIH',
     'bank.minimum': 'Minimal: {rate} bijih',
-    'bank.half': 'SETENGAH',
     'bank.max': 'MAKS',
     'bank.sellOre': 'JUAL {amount} BIJIH',
     'bank.sell': 'JUAL',

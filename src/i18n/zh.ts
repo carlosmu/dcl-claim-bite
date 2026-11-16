@@ -44,7 +44,6 @@ export const zh: Strings = {
     'bank.sellAmount': '出售数量',
     'bank.oreAmount': '{amount} 矿石',
     'bank.minimum': '最少：{rate} 矿石',
-    'bank.half': '一半',
     'bank.max': '最大',
     'bank.sellOre': '出售 {amount} 矿石',
     'bank.sell': '出售',

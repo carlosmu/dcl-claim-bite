@@ -44,7 +44,6 @@ export const tr: Strings = {
     'bank.sellAmount': 'SATIŞ MİKTARI',
     'bank.oreAmount': '{amount} CEVHER',
     'bank.minimum': 'En az: {rate} cevher',
-    'bank.half': 'YARISI',
     'bank.max': 'TÜMÜ',
     'bank.sellOre': '{amount} CEVHER SAT',
     'bank.sell': 'SAT',

@@ -44,7 +44,6 @@ export const fr: Strings = {
     'bank.sellAmount': 'QUANTITÉ À VENDRE',
     'bank.oreAmount': '{amount} MINERAI',
     'bank.minimum': 'Minimum : {rate} de minerai',
-    'bank.half': 'MOITIÉ',
     'bank.max': 'MAX',
     'bank.sellOre': 'VENDRE {amount}',
     'bank.sell': 'VENDRE',

@@ -45,7 +45,6 @@ export const ko: Strings = {
     'bank.sellAmount': '판매 수량',
     'bank.oreAmount': '광석 {amount}',
     'bank.minimum': '최소: 광석 {rate}',
-    'bank.half': '절반',
     'bank.max': '최대',
     'bank.sellOre': '광석 {amount} 판매',
     'bank.sell': '판매',

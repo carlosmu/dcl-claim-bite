@@ -43,7 +43,6 @@ export const de: Strings = {
     'bank.sellAmount': 'VERKAUFSMENGE',
     'bank.oreAmount': '{amount} ERZ',
     'bank.minimum': 'Minimum: {rate} Erz',
-    'bank.half': 'HÄLFTE',
     'bank.max': 'MAX',
     'bank.sellOre': '{amount} VERKAUFEN',
     'bank.sell': 'VERKAUFEN',
