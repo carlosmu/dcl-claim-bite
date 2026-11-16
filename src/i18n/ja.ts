@@ -1,7 +1,9 @@
 import { Strings } from './en'
 
 // Japanese (casual-polite game voice). Drawn in the explorer's built-in face, not BouWeste: see
-// FONT_BY_LANGUAGE in ui/bitmap-text.tsx. The M.U.L.E. keeps its Latin name, as a brand.
+// FONT_BY_LANGUAGE in ui/bitmap-text.tsx. Here the M.U.L.E. is the ラバ (mule) and Bite Coins are
+// かじりコイン (bite coins: "バイト" would read as a part-time job), and Claim Bite is かじり鉱山
+// (the bite mine).
 export const ja: Strings = {
     // Title card
     'intro.loading': '読み込み中',
@@ -17,7 +19,7 @@ export const ja: Strings = {
     'hud.ore': '鉱石',
     'hud.storageFull': '倉庫がいっぱい',
     'hud.orePrice': '鉱石の価格',
-    'hud.coins': 'Bite コイン',
+    'hud.coins': 'かじりコイン',
 
     // Ore price verdict
     'price.best': '最高',
@@ -82,7 +84,7 @@ export const ja: Strings = {
     'update.newVersion': '新バージョン',
     'update.backSoon': 'すぐ戻ります',
     'update.stoppedAnswering': '町が応答しません',
-    'update.wasUpdated': 'Claim Bite が更新されました',
+    'update.wasUpdated': 'かじり鉱山が更新されました',
     'update.pleaseWait': 'お待ちください',
     'update.howToRejoin': '再入場の方法',
     'update.pleaseRejoin': '再入場してください',
@@ -94,7 +96,7 @@ export const ja: Strings = {
     'item.pick': 'よそ者のつるはし',
     'item.steel-pick': '鉱夫のつるはし',
     'item.miners-pick': '名匠のつるはし',
-    'item.mule': 'M.U.L.E.',
+    'item.mule': 'ラバ',
     'item.fuel-10': '+10 ガロン',
     'item.fuel-25': '+25 ガロン',
     'item.fuel-50': '+50 ガロン',
@@ -157,7 +159,7 @@ export const ja: Strings = {
     'pick.master.benefit1': '最速の採掘',
     'pick.master.benefit2': '最強の一撃',
 
-    // M.U.L.E. in the store
+    // ラバ (M.U.L.E.) in the store
     'mule.description': '留守の間も、代わりに鉱石を掘ってくれる。',
     'mule.produces': '生産量',
     'mule.perDayCaps': '1日 鉱石 {ore}',
@@ -168,12 +170,12 @@ export const ja: Strings = {
     'mule.ownNone': 'まだ持っていません',
 
     // Fuel in the store
-    'fuel.description': 'M.U.L.E. を動かし続ける。',
+    'fuel.description': 'ラバを動かし続ける。',
     'fuel.pricePerGallonCaps': '{price} コイン / ガロン',
-    'fuel.requiresMule': 'M.U.L.E. が必要',
+    'fuel.requiresMule': 'ラバが必要',
     'fuel.inTank': 'タンク内',
     'fuel.tankGallonsCaps': '{now} / {tank} ガロン',
-    'fuel.rule': '1 ガロンで M.U.L.E. 1 台が 1 日動く',
+    'fuel.rule': '1 ガロンでラバ 1 台が 1 日動く',
 
     // Storage in the store
     'storage.current': '現在の容量',
@@ -224,8 +226,8 @@ export const ja: Strings = {
     'reward.bug-catcher.name': 'バグキャッチャー装備',
     'reward.bug-catcher.description': '身につけて、バグを捕まえて、ゲームをもっと良くしよう！',
     'reward.claim-bite-mining.cardTitle': '採掘エモート',
-    'reward.claim-bite-mining.name': 'Claim Bite Mining',
-    'reward.claim-bite-mining.description': 'どこでもつるはしを振ろう。本物の Claim Bite 鉱夫のように。',
+    'reward.claim-bite-mining.name': 'かじり鉱山の採掘',
+    'reward.claim-bite-mining.description': 'どこでもつるはしを振ろう。本物のかじり鉱山の鉱夫のように。',
 
     // Mining
     'mining.moveCloser': '岩に近づいて採掘しよう',
@@ -240,8 +242,8 @@ export const ja: Strings = {
     'time.hours': '{n}時間',
     'time.daysHours': '{d}日{h}時間',
 
-    // M.U.L.E. panel
-    'fuelLeft.noMule': 'M.U.L.E. なし',
+    // ラバ (M.U.L.E.) panel
+    'fuelLeft.noMule': 'ラバなし',
     'fuelLeft.empty': '空',
     'muleStatus.noFuel': '燃料切れ',
     'muleStatus.storageFull': '倉庫がいっぱい',
@@ -269,10 +271,10 @@ export const ja: Strings = {
     'mulePanel.alertStorageFull': '倉庫がいっぱいです。銀行で鉱石を売ると生産が再開します。',
     'mulePanel.fleet': '保有台数',
     'mulePanel.footer': '燃料と倉庫は雑貨屋で買えます',
-    // The name stays the Latin brand; the panel spells it out in Japanese.
-    'mule.pluralCaps': 'M.U.L.E.',
-    'mulePanel.subtitle': '採掘用汎用作業エンジン',
-    'owner.mules': 'M.U.L.E. {count} 台',
+    // The mule's name in Japanese; the panel says what it is under it.
+    'mule.pluralCaps': 'ラバ',
+    'mulePanel.subtitle': '自動採掘マシン',
+    'owner.mules': 'ラバ {count} 台',
 
     // Inventory
     'tab.all': 'すべて',
@@ -292,7 +294,7 @@ export const ja: Strings = {
     'inv.boughtFor': '{coins} コインで購入',
     'inv.gal': '{n} ガロン',
     'inv.gallonsInTank': 'タンクに {now} / {tank} ガロン',
-    'inv.tankEmpty': 'タンクが空：M.U.L.E. は停止中',
+    'inv.tankEmpty': 'タンクが空：ラバは停止中',
     'inv.lasts': '今の台数で {left} もつ',
     'inv.title': '持ち物',
     'inv.emptyNoPick': 'まだ何もありません：町長がつるはしをくれます',
@@ -318,8 +320,8 @@ export const ja: Strings = {
     'obj.pickBroken': 'つるはしが壊れた',
     'obj.yourPick': 'あなたのつるはし',
     'obj.wornOut': '{pick}がすり減りました',
-    'obj.muleDugOne': 'M.U.L.E. が鉱石を {ore} 掘りました',
-    'obj.muleDugMany': 'M.U.L.E. たちが鉱石を {ore} 掘りました',
+    'obj.muleDugOne': 'ラバが鉱石を {ore} 掘りました',
+    'obj.muleDugMany': 'ラバたちが鉱石を {ore} 掘りました',
     'obj.whileAway': '留守の間に',
     'obj.addedToStorage': '倉庫に追加されました',
     'obj.leftNote': '{from}からメモが届きました',
@@ -330,7 +332,7 @@ export const ja: Strings = {
     'obj.freePick': '無料のつるはしをくれます',
     'obj.sellAtBank': '銀行で鉱石を売ろう',
     'obj.oreReady': '鉱石 {ore} 準備OK',
-    'obj.muleStopped': 'M.U.L.E. 停止',
+    'obj.muleStopped': 'ラバ停止',
     'obj.outOfFuel': '燃料切れ',
     'obj.buyFuel': '雑貨屋で燃料を買おう',
     'obj.fuelLow': '燃料が少ない',
@@ -362,7 +364,7 @@ export const ja: Strings = {
     'owner.away': '留守',
     'owner.property': '家',
     'owner.noPick': 'つるはしなし',
-    'owner.noMule': 'M.U.L.E. なし',
+    'owner.noMule': 'ラバなし',
     'owner.basicStorage': '基本の倉庫',
     'owner.leaveNote': 'メモを残す',
     'owner.sayHowdy': '{name}にあいさつしよう...',
@@ -395,7 +397,7 @@ export const ja: Strings = {
     'town.panicFeat': '最悪のレートで売却',
     'town.worker': '働き者',
     'town.workerFeat': '手掘りの鉱石が最多',
-    'town.baron': 'M.U.L.E. 王',
+    'town.baron': 'ラバ王',
     'town.baronFeat': '機械で掘った鉱石が最多',
     'town.roller': 'ハイローラー',
     'town.rollerFeat': 'スロットの最高配当',
@@ -441,7 +443,7 @@ export const ja: Strings = {
     'hover.tailor': '仕立て屋を開く',
     'hover.playSlots': 'スロットで遊ぶ',
     'hover.mine': '掘る',
-    'hover.mule': 'M.U.L.E. を開く',
+    'hover.mule': 'ラバを開く',
     'hover.ownersPlace': '{name}の家',
 
     // Mining messages
@@ -452,8 +454,8 @@ export const ja: Strings = {
     // Signs and labels
     'sign.propertyOf': '持ち主',
     'sign.forSale': '売り出し中',
-    'muleSign.one': 'M.U.L.E. 1 台',
-    'muleSign.many': 'M.U.L.E. {count} 台',
+    'muleSign.one': 'ラバ 1 台',
+    'muleSign.many': 'ラバ {count} 台',
     'tier.label': 'ランク {tier}：\n{title}',
     'tier.drifter': '流れ者',
     'tier.cabinOwner': '小屋の主',
@@ -464,7 +466,7 @@ export const ja: Strings = {
     'mayor.wellDone': 'よくやった、よそ者！',
     'mayor.headToRock': 'さあ、あの岩へ行って\n最初の金塊を掘り出そう！',
     'welcome.howdy': 'やあ、よそ者！',
-    'welcome.welcomeTown': 'Claim Bite Town へようこそ、\n夢がかなう町へ！',
+    'welcome.welcomeTown': 'かじり鉱山の町へようこそ、\n夢がかなう町へ！',
     'welcome.takePickaxe': 'ほら、このつるはしは無料だよ！',
     'welcome.welcomeBack': 'おかえり、よそ者！'
 }

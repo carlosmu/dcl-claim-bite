@@ -1,8 +1,8 @@
 import { Strings } from './en'
 
 // Chinese, simplified (zh, zh-CN; zh-TW and zh-HK land here too). Drawn in the explorer's
-// built-in face, not BouWeste: see FONT_BY_LANGUAGE in ui/bitmap-text.tsx. The M.U.L.E. keeps
-// its Latin name, as a brand.
+// built-in face, not BouWeste: see FONT_BY_LANGUAGE in ui/bitmap-text.tsx. Here the M.U.L.E. is
+// the 骡子 (mule), Bite Coins are 咬币 (bite coins) and Claim Bite is 咬金矿 (the bite-of-gold mine).
 export const zh: Strings = {
     // Title card
     'intro.loading': '加载中',
@@ -18,7 +18,7 @@ export const zh: Strings = {
     'hud.ore': '矿石',
     'hud.storageFull': '仓库已满',
     'hud.orePrice': '矿价',
-    'hud.coins': 'Bite 币',
+    'hud.coins': '咬币',
 
     // Ore price verdict
     'price.best': '最佳',
@@ -83,7 +83,7 @@ export const zh: Strings = {
     'update.newVersion': '新版本',
     'update.backSoon': '马上回来',
     'update.stoppedAnswering': '小镇没有响应',
-    'update.wasUpdated': 'Claim Bite 已更新',
+    'update.wasUpdated': '咬金矿已更新',
     'update.pleaseWait': '请稍候',
     'update.howToRejoin': '如何重新进入',
     'update.pleaseRejoin': '请重新进入',
@@ -95,7 +95,7 @@ export const zh: Strings = {
     'item.pick': '外乡人的镐',
     'item.steel-pick': '矿工的镐',
     'item.miners-pick': '大师之镐',
-    'item.mule': 'M.U.L.E.',
+    'item.mule': '骡子',
     'item.fuel-10': '+10 加仑',
     'item.fuel-25': '+25 加仑',
     'item.fuel-50': '+50 加仑',
@@ -158,7 +158,7 @@ export const zh: Strings = {
     'pick.master.benefit1': '最快的挖掘',
     'pick.master.benefit2': '最强的敲击',
 
-    // M.U.L.E. in the store
+    // 骡子 (M.U.L.E.) in the store
     'mule.description': '替你挖矿，你不在时也照样工作。',
     'mule.produces': '产量',
     'mule.perDayCaps': '每天 {ore} 矿石',
@@ -169,12 +169,12 @@ export const zh: Strings = {
     'mule.ownNone': '你还没有',
 
     // Fuel in the store
-    'fuel.description': '让你的 M.U.L.E. 持续运转。',
+    'fuel.description': '让你的骡子持续运转。',
     'fuel.pricePerGallonCaps': '{price} 金币 / 加仑',
-    'fuel.requiresMule': '需要一台 M.U.L.E.',
+    'fuel.requiresMule': '需要一台骡子',
     'fuel.inTank': '油箱中',
     'fuel.tankGallonsCaps': '{now} / {tank} 加仑',
-    'fuel.rule': '1 加仑可让 1 台 M.U.L.E. 运转 1 天',
+    'fuel.rule': '1 加仑可让 1 台骡子运转 1 天',
 
     // Storage in the store
     'storage.current': '当前容量',
@@ -225,8 +225,8 @@ export const zh: Strings = {
     'reward.bug-catcher.name': '捉虫装备',
     'reward.bug-catcher.description': '穿上它，捉住 bug，让游戏变得更好！',
     'reward.claim-bite-mining.cardTitle': '挖矿表情',
-    'reward.claim-bite-mining.name': 'Claim Bite Mining',
-    'reward.claim-bite-mining.description': '走到哪挖到哪，像真正的 Claim Bite 矿工一样。',
+    'reward.claim-bite-mining.name': '咬金矿采矿',
+    'reward.claim-bite-mining.description': '走到哪挖到哪，像真正的咬金矿矿工一样。',
 
     // Mining
     'mining.moveCloser': '靠近岩石才能开始挖矿',
@@ -241,8 +241,8 @@ export const zh: Strings = {
     'time.hours': '{n} 小时',
     'time.daysHours': '{d} 天 {h} 小时',
 
-    // M.U.L.E. panel
-    'fuelLeft.noMule': '没有 M.U.L.E.',
+    // 骡子 (M.U.L.E.) panel
+    'fuelLeft.noMule': '没有骡子',
     'fuelLeft.empty': '空',
     'muleStatus.noFuel': '没有燃料',
     'muleStatus.storageFull': '仓库已满',
@@ -270,10 +270,10 @@ export const zh: Strings = {
     'mulePanel.alertStorageFull': '仓库已满。去银行卖掉矿石才能继续生产。',
     'mulePanel.fleet': '机队',
     'mulePanel.footer': '燃料和仓库可在杂货店购买',
-    // The name stays the Latin brand; the panel spells it out in Chinese.
-    'mule.pluralCaps': 'M.U.L.E.',
-    'mulePanel.subtitle': '采矿通用劳作引擎',
-    'owner.mules': '{count} 台 M.U.L.E.',
+    // The mule's name in Chinese; the panel says what it is under it.
+    'mule.pluralCaps': '骡子',
+    'mulePanel.subtitle': '自动采矿机',
+    'owner.mules': '{count} 台骡子',
 
     // Inventory
     'tab.all': '全部',
@@ -293,7 +293,7 @@ export const zh: Strings = {
     'inv.boughtFor': '花 {coins} 金币买下',
     'inv.gal': '{n} 加仑',
     'inv.gallonsInTank': '油箱中有 {now} / {tank} 加仑',
-    'inv.tankEmpty': '油箱空了：M.U.L.E. 已停止',
+    'inv.tankEmpty': '油箱空了：骡子已停止',
     'inv.lasts': '按当前机队可用 {left}',
     'inv.title': '物品栏',
     'inv.emptyNoPick': '还什么都没有：镇长有一把镐给你',
@@ -319,8 +319,8 @@ export const zh: Strings = {
     'obj.pickBroken': '镐坏了',
     'obj.yourPick': '你的镐',
     'obj.wornOut': '{pick} 已磨损',
-    'obj.muleDugOne': '你的 M.U.L.E. 挖到了 {ore} 矿石',
-    'obj.muleDugMany': '你的 M.U.L.E. 们挖到了 {ore} 矿石',
+    'obj.muleDugOne': '你的骡子挖到了 {ore} 矿石',
+    'obj.muleDugMany': '你的骡子们挖到了 {ore} 矿石',
     'obj.whileAway': '你不在的时候',
     'obj.addedToStorage': '已存入你的仓库',
     'obj.leftNote': '{from} 给你留了一张便条',
@@ -331,7 +331,7 @@ export const zh: Strings = {
     'obj.freePick': '他有一把免费的镐给你',
     'obj.sellAtBank': '在银行出售矿石',
     'obj.oreReady': '{ore} 矿石待售',
-    'obj.muleStopped': 'M.U.L.E. 已停止',
+    'obj.muleStopped': '骡子已停止',
     'obj.outOfFuel': '没有燃料',
     'obj.buyFuel': '在杂货店买燃料',
     'obj.fuelLow': '燃料不足',
@@ -363,7 +363,7 @@ export const zh: Strings = {
     'owner.away': '不在',
     'owner.property': '房产',
     'owner.noPick': '没有镐',
-    'owner.noMule': '没有 M.U.L.E.',
+    'owner.noMule': '没有骡子',
     'owner.basicStorage': '基础仓库',
     'owner.leaveNote': '留张便条',
     'owner.sayHowdy': '跟 {name} 打个招呼...',
@@ -396,7 +396,7 @@ export const zh: Strings = {
     'town.panicFeat': '以最差汇率出售',
     'town.worker': '最勤劳矿工',
     'town.workerFeat': '手工挖矿最多',
-    'town.baron': 'M.U.L.E. 大亨',
+    'town.baron': '骡子大亨',
     'town.baronFeat': '机器挖矿最多',
     'town.roller': '豪赌客',
     'town.rollerFeat': '老虎机最大赢额',
@@ -442,7 +442,7 @@ export const zh: Strings = {
     'hover.tailor': '打开裁缝店',
     'hover.playSlots': '玩老虎机',
     'hover.mine': '挖矿',
-    'hover.mule': '打开 M.U.L.E.',
+    'hover.mule': '打开骡子',
     'hover.ownersPlace': '{name} 的家',
 
     // Mining messages
@@ -453,8 +453,8 @@ export const zh: Strings = {
     // Signs and labels
     'sign.propertyOf': '房产主人',
     'sign.forSale': '出售中',
-    'muleSign.one': '1 台 M.U.L.E.',
-    'muleSign.many': '{count} 台 M.U.L.E.',
+    'muleSign.one': '1 台骡子',
+    'muleSign.many': '{count} 台骡子',
     'tier.label': '{tier} 级：\n{title}',
     'tier.drifter': '流浪者',
     'tier.cabinOwner': '木屋主人',
@@ -465,7 +465,7 @@ export const zh: Strings = {
     'mayor.wellDone': '干得好，外乡人！',
     'mayor.headToRock': '现在去那块岩石\n挖出你的第一批金块吧！',
     'welcome.howdy': '你好，外乡人！',
-    'welcome.welcomeTown': '欢迎来到 Claim Bite 小镇，\n梦想成真的地方！',
+    'welcome.welcomeTown': '欢迎来到咬金矿小镇，\n梦想成真的地方！',
     'welcome.takePickaxe': '给，这把镐免费送你！',
     'welcome.welcomeBack': '欢迎回来，外乡人！'
 }
