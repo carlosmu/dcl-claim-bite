@@ -13,6 +13,8 @@ import { getPlayer } from '@dcl/sdk/players'
 import { isStateSyncronized } from '@dcl/sdk/network'
 import { t } from '../i18n'
 import { LanguageSelector } from './language-selector'
+import { DEBUG_CJK_FONT_TEST } from '../shared/debug-flags'
+import { CJK_TEST_LINES } from '../shared/cjk-font-test'
 
 // Title card shown when the game starts: scrolling backdrop, logo, Start Game button. Tapping the
 // button hides logo and button, then the backdrop fades to nothing and goes away.
@@ -299,6 +301,22 @@ export function introScreen() {
                     textAlign="middle-center"
                     uiTransform={{ positionType: 'absolute', position: { bottom: 12 }, width: '100%', height: 20 }}
                 />
+            ) : null}
+            {phase === 'title' && DEBUG_CJK_FONT_TEST ? (
+                // DEBUG: Chinese and Japanese in each built-in UI face, bottom-left of the title card.
+                <UiEntity
+                    uiTransform={{ positionType: 'absolute', position: { left: 24, bottom: 48 }, flexDirection: 'column', padding: 12 }}
+                    uiBackground={{ color: Color4.create(0, 0, 0, 0.85) }}
+                >
+                    {(['sans-serif', 'serif', 'monospace'] as const).map((face) => (
+                        <UiEntity key={face} uiTransform={{ flexDirection: 'column', margin: { bottom: 8 } }}>
+                            <Label value={`[${face}]`} fontSize={16} color={Color4.create(1, 0.8, 0.3, 1)} font={face} textAlign="middle-left" uiTransform={{ height: 22 }} />
+                            {CJK_TEST_LINES.map((line) => (
+                                <Label key={line} value={line} fontSize={22} color={Color4.White()} font={face} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 30 }} />
+                            ))}
+                        </UiEntity>
+                    ))}
+                </UiEntity>
             ) : null}
             {phase === 'title' ? (
                 // Up top, centred, LANGUAGE_TOP below the screen's edge. Last, so its open list

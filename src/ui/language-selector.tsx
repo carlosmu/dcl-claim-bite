@@ -25,7 +25,12 @@ const FLAG_UVS: Record<Language, number[]> = {
     es: smallIconUvs(2, 2), // B2
     pt: smallIconUvs(3, 2), // C2
     fr: smallIconUvs(4, 2), // D2
-    ru: smallIconUvs(5, 2) // E2
+    ru: smallIconUvs(5, 2), // E2
+    de: smallIconUvs(6, 2), // F2
+    it: smallIconUvs(7, 2), // G2
+    nl: smallIconUvs(8, 2), // H2
+    zh: smallIconUvs(1, 3), // A3
+    ja: smallIconUvs(2, 3) // B3
 }
 const TICK_UVS = smallIconUvs(2, 1) // B1
 
@@ -41,8 +46,9 @@ const FLAG_SIZE = 28
 const NAME_FONT_SIZE = 20
 const NAME_WIDTH = 120
 const MENU_GAP = 8
-// The open list: half as wide again as it was (230), rows 30% taller (48), on solid black so it reads over the logo.
-const MENU_WIDTH = 345
+// The open list: two columns of languages, rows 30% taller than at first (48), on solid black so it
+// reads over the logo. Each column as wide as the one-column list was (230).
+const MENU_WIDTH = 460
 const MENU_PADDING = 6
 const MENU_RADIUS = 12
 const ROW_HEIGHT = Math.round(48 * 1.3)
@@ -72,7 +78,8 @@ export function LanguageRow(props: { key: string; language: Language; name: stri
     return (
         <UiEntity
             uiTransform={{
-                width: '100%',
+                // Half the list: the list lays the languages out in two columns.
+                width: '50%',
                 height: ROW_HEIGHT,
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -91,6 +98,8 @@ export function LanguageRow(props: { key: string; language: Language; name: stri
                 fontSize={NAME_FONT_SIZE}
                 color={NAME_COLOR}
                 textAlign="middle-left"
+                // One line always: on the first load "Français" broke before its ç, measured late.
+                textWrap="nowrap"
                 uiTransform={{ height: ROW_HEIGHT, flexGrow: 1, margin: { left: 12 } }}
             />
             {selected ? (
@@ -136,6 +145,7 @@ export function LanguageSelector() {
                     fontSize={NAME_FONT_SIZE}
                     color={NAME_COLOR}
                     textAlign="middle-center"
+                    textWrap="nowrap"
                     uiTransform={{ width: NAME_WIDTH, height: PILL_HEIGHT }}
                 />
             </UiEntity>
@@ -145,7 +155,8 @@ export function LanguageSelector() {
                         width: MENU_WIDTH,
                         margin: { top: MENU_GAP },
                         padding: MENU_PADDING,
-                        flexDirection: 'column',
+                        flexDirection: 'row',
+                        flexWrap: 'wrap',
                         borderRadius: MENU_RADIUS
                     }}
                     uiBackground={{ color: MENU_COLOR }}

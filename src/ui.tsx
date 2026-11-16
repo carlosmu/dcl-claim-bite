@@ -475,8 +475,7 @@ const hud = () => {
             {rateSegment()}
         </UiEntity>
         {/* Outside the pill, against its left edge: anchored to the HUD itself. */}
-        {languageButton()}
-        {languageMenu()}
+        {languageSelector()}
         </UiEntity>
     )
 }
@@ -4235,12 +4234,15 @@ const rewardsButton = () =>
 // Outside the HUD, just left of it, at its height: the active language's flag and code. It drops
 // the list of languages under it, the current one ticked, like Feedback drops its menu.
 //
-// Both are children of the HUD's outer row, which is as wide as the plank: `right: '100%'` puts
-// their right edge on the plank's left edge (less a gap), wherever the HUD is and however wide.
+// A holder in the HUD's outer row, which is as wide as the plank: `right: '100%'` puts its right
+// edge on the plank's left edge (less a gap), wherever the HUD is and however wide. It holds the
+// button and, under it, the list, from the button's left edge rightwards, below the plank. The
+// click lives on the button alone, so picking a language in the list does not toggle it again.
 
 /** Half as wide again as the corner buttons, so the code fits beside the flag. */
 const LANGUAGE_BUTTON_WIDTH = BOTTOM_BUTTON_WIDTH * 1.5
-const LANGUAGE_MENU_WIDTH = 230
+/** Two columns of languages, each as wide as the one-column list was. */
+const LANGUAGE_MENU_WIDTH = 460
 
 /** The button's top in the HUD's outer row, which starts hudBleed() above the screen. */
 function languageButtonTop(): number {
@@ -4267,6 +4269,22 @@ function toggleLanguageMenu() {
     }
 }
 
+/** The button and its list, left of the HUD. */
+const languageSelector = () => (
+    <UiEntity
+        uiTransform={{
+            positionType: 'absolute',
+            position: { top: languageButtonTop(), right: '100%' },
+            margin: { right: BOTTOM_BUTTON_GAP },
+            width: LANGUAGE_BUTTON_WIDTH,
+            height: BOTTOM_PANEL_HEIGHT
+        }}
+    >
+        {languageButton()}
+        {languageMenu()}
+    </UiEntity>
+)
+
 // cornerButton's frame, with a small flag and the code (EN, ES...) in place of its one big icon.
 const languageButton = () => {
     const language = getLanguage()
@@ -4274,11 +4292,8 @@ const languageButton = () => {
     return (
         <UiEntity
             uiTransform={{
-                positionType: 'absolute',
-                position: { top: languageButtonTop(), right: '100%' },
-                margin: { right: BOTTOM_BUTTON_GAP },
-                width: LANGUAGE_BUTTON_WIDTH,
-                height: BOTTOM_PANEL_HEIGHT,
+                width: '100%',
+                height: '100%',
                 borderRadius: 8,
                 borderWidth: 2,
                 borderColor: languageMenuOpen ? BANK_GOLD : BANK_TRIM,
@@ -4302,7 +4317,7 @@ const languageButton = () => {
     )
 }
 
-/** Hangs under the button, its right edge level with the button's, so it opens away from the HUD. */
+/** Hangs under the button, its left edge level with the button's, opening rightwards under the HUD. */
 const languageMenu = () => {
     // Another corner screen opened since: the list gives way to it rather than wait under it.
     if (notificationsOpen || soundOpen || townBoardOpen || feedbackMenuOpen || mapOpen || inventoryOpen) languageMenuOpen = false
@@ -4311,13 +4326,11 @@ const languageMenu = () => {
         <UiEntity
             uiTransform={{
                 positionType: 'absolute',
-                position: {
-                    top: languageButtonTop() + BOTTOM_PANEL_HEIGHT + FEEDBACK_MENU_GAP,
-                    right: '100%'
-                },
-                margin: { right: BOTTOM_BUTTON_GAP },
+                position: { top: '100%', left: 0 },
+                margin: { top: FEEDBACK_MENU_GAP },
                 width: LANGUAGE_MENU_WIDTH,
-                flexDirection: 'column',
+                flexDirection: 'row',
+                flexWrap: 'wrap',
                 padding: 6,
                 borderRadius: PANEL_RADIUS,
                 borderWidth: 3,

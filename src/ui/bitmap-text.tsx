@@ -12,17 +12,24 @@ export const WESTERN_FONT_SRC = 'assets/fonts/BouWeste.ttf'
 
 /**
  * The typeface for languages BouWeste cannot write, by language. BouWeste has Latin only; a
- * language missing here uses it. Each entry is another ~700 KB asset bundle (fonts skill), so
- * one font per script, not per language. Licences sit next to the TTFs in assets/fonts.
+ * language missing here uses it. Each TTF is another ~700 KB asset bundle (fonts skill), so one
+ * font per script, not per language. Licences sit next to the TTFs in assets/fonts.
+ *
+ * `null`: no TTF, the explorer's built-in face (`font`). Chinese and Japanese need thousands of
+ * characters (Noto Sans SC alone is 17.8 MB); the built-in faces have them, checked in-world with
+ * DEBUG_CJK_FONT_TEST, desktop.
  */
-const FONT_BY_LANGUAGE: Partial<Record<Language, string>> = {
+const FONT_BY_LANGUAGE: Partial<Record<Language, string | null>> = {
     // Cyrillic. OFL, Reserved Font Names "Kelly" / "Kelly Slab": used unmodified.
-    ru: 'assets/fonts/KellySlab-Regular.ttf'
+    ru: 'assets/fonts/KellySlab-Regular.ttf',
+    zh: null,
+    ja: null
 }
 
-/** The scene's typeface for the current language: BouWeste, or the one that has its letters. */
-export function gameFontSrc(): string {
-    return FONT_BY_LANGUAGE[getLanguage()] ?? WESTERN_FONT_SRC
+/** The scene's TTF for the current language, or undefined for the built-in face. */
+export function gameFontSrc(): string | undefined {
+    const src = FONT_BY_LANGUAGE[getLanguage()]
+    return src === null ? undefined : src ?? WESTERN_FONT_SRC
 }
 
 export type BitmapTextProps = {
