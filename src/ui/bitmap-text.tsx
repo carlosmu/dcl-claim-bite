@@ -1,5 +1,6 @@
 import ReactEcs, { Label, UiTransformProps } from '@dcl/sdk/react-ecs'
 import { Color4 } from '@dcl/sdk/math'
+import { isMobile } from '@dcl/sdk/platform'
 import { getLanguage, Language } from '../i18n'
 
 // --- Western text ------------------------------------------------------------------------
@@ -48,8 +49,26 @@ export type BitmapTextProps = {
     uiTransform?: UiTransformProps
 }
 
+/**
+ * The built-in faces draw their letters lower in the line than BouWeste does, so the same box
+ * looked bottom-heavy: "60" on the ore bar sat on the floor. When the built-in face shows, this
+ * much of the font size is padded off the bottom of the box, which lifts the centred text by half
+ * of it. Not when BouWeste shows, and a caller's own padding wins.
+ */
+const BUILT_IN_FACE_LIFT = 0.2
+
+/**
+ * Whether the text shows in the built-in face rather than BouWeste: a language BouWeste cannot
+ * write, or the mobile app, which ignores `fontSrc`. (A desktop preview without asset bundles shows
+ * it too, but nothing here can tell.)
+ */
+function showsBuiltInFace(): boolean {
+    return gameFontSrc() === undefined || isMobile()
+}
+
 export function BitmapText(props: BitmapTextProps) {
     const { value, fontSize, color = Color4.White(), align = 'left', uiTransform } = props
+    const lift = showsBuiltInFace() ? { padding: { bottom: Math.round(fontSize * BUILT_IN_FACE_LIFT) } } : {}
     return (
         <Label
             value={value}
@@ -59,7 +78,7 @@ export function BitmapText(props: BitmapTextProps) {
             font="serif"
             textAlign={align === 'center' ? 'middle-center' : align === 'right' ? 'middle-right' : 'middle-left'}
             textWrap="nowrap"
-            uiTransform={{ height: fontSize, flexShrink: 0, ...uiTransform }}
+            uiTransform={{ height: fontSize, flexShrink: 0, ...lift, ...uiTransform }}
         />
     )
 }
