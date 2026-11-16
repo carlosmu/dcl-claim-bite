@@ -40,7 +40,7 @@ import { setupConnectionWatch } from './ui/connection-watch'
 import { setupDeployStamp } from './net/deploy-stamp'
 import { setupEconomyLink } from './net/economy-link'
 import { setupLanguageLink } from './net/language-link'
-import { setupCjkFontTest } from './world/cjk-font-test'
+import { setupGamePhase } from './world/game-phase'
 import { setupPlaytest } from './playtest'
 import { skipTitleCard } from './ui/intro-screen'
 import { DEBUG_SKIP_INTRO } from './shared/debug-flags'
@@ -65,7 +65,7 @@ export async function main() {
     setupDeployStamp()
     setupEconomyLink()
     setupLanguageLink()
-    setupCjkFontTest()
+    setupGamePhase()
     setupMusic()
     if (DEBUG_SKIP_INTRO) skipTitleCard()
     setupIsometricCamera()

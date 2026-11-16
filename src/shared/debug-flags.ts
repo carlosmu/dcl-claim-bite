@@ -40,11 +40,6 @@ export const DEBUG_FILL_MULE_YARD = DEBUG_ENABLED && false
  * to the spawn by the mayor. The practice rocks still come with the mayor's pick. */
 export const DEBUG_SKIP_INTRO = DEBUG_ENABLED && false
 
-/** Chinese and Japanese lines in the explorer's built-in fonts, to see whether it has their
- *  characters: on the title card in each built-in UI face, and on a sign in front of the player.
- *  Boxes (□) or blanks mean it does not. A test, not a feature: off before deploying. */
-export const DEBUG_CJK_FONT_TEST = DEBUG_ENABLED && false
-
 /** The most a single debug grant can add, so a typo cannot overflow a purse. */
 export const DEBUG_MAX_COINS = 1_000_000
 

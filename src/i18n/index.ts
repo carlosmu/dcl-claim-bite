@@ -10,6 +10,9 @@ import { it } from './it'
 import { nl } from './nl'
 import { zh } from './zh'
 import { ja } from './ja'
+import { tr } from './tr'
+import { ko } from './ko'
+import { id } from './id'
 
 export type { StringKey } from './en'
 
@@ -33,12 +36,30 @@ export const LANGUAGES: { id: Language; name: string }[] = [
     { id: 'de', name: 'Deutsch' },
     { id: 'it', name: 'Italiano' },
     { id: 'nl', name: 'Nederlands' },
+    { id: 'id', name: 'Indonesia' },
+    { id: 'tr', name: 'Türkçe' },
     { id: 'ru', name: 'Русский' },
     { id: 'zh', name: '中文' },
-    { id: 'ja', name: '日本語' }
+    { id: 'ja', name: '日本語' },
+    { id: 'ko', name: '한국어' }
 ]
 
-const STRINGS: Record<Language, Strings> = { en, es, pt, fr, de, it, nl, ru, zh, ja }
+/**
+ * How the selectors' lists lay the languages out: one array per column, top to bottom. Every
+ * language in LANGUAGES appears once.
+ */
+export const LANGUAGE_COLUMNS: Language[][] = [
+    ['en', 'es', 'pt', 'fr', 'it'],
+    ['de', 'nl', 'ru', 'tr', 'id'],
+    ['zh', 'ja', 'ko']
+]
+
+/** A language's name in itself, as the selectors show it. */
+export function languageName(language: Language): string {
+    return LANGUAGES.find((entry) => entry.id === language)?.name ?? language
+}
+
+const STRINGS: Record<Language, Strings> = { en, es, pt, fr, de, it, nl, id, tr, ru, zh, ja, ko }
 
 /** What the player picked in the selector, or null to follow the client's language. */
 let picked: Language | null = null
@@ -63,6 +84,16 @@ export function setLanguage(language: Language) {
  */
 export function restoreLanguage(language: Language) {
     if (picked === null) picked = language
+}
+
+/**
+ * `text` in capitals, the way the current language writes them. toUpperCase() is the same in
+ * every language but Turkish, where i becomes İ (dotted) and ı becomes I: "kazmayı" is
+ * "KAZMAYI", and "bilgi" is "BİLGİ", not "BILGI".
+ */
+export function upper(text: string): string {
+    if (getLanguage() === 'tr') return text.replace(/i/g, 'İ').replace(/ı/g, 'I').toUpperCase()
+    return text.toUpperCase()
 }
 
 /** A catalogue item's name ('item.<id>'), or its catalogue label when there is no key for it. */

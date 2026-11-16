@@ -1,6 +1,6 @@
 import ReactEcs, { Label, UiEntity } from '@dcl/sdk/react-ecs'
 import { Color4 } from '@dcl/sdk/math'
-import { getLanguage, Language, LANGUAGES } from '../i18n'
+import { getLanguage, Language, LANGUAGE_COLUMNS, languageName } from '../i18n'
 import { pickLanguage } from '../net/language-link'
 
 // The language selector on the title card, up top and centred: a pill with the current flag and
@@ -30,7 +30,10 @@ const FLAG_UVS: Record<Language, number[]> = {
     it: smallIconUvs(7, 2), // G2
     nl: smallIconUvs(8, 2), // H2
     zh: smallIconUvs(1, 3), // A3
-    ja: smallIconUvs(2, 3) // B3
+    ja: smallIconUvs(2, 3), // B3
+    tr: smallIconUvs(3, 3), // C3
+    ko: smallIconUvs(4, 3), // D3
+    id: smallIconUvs(5, 3) // E3
 }
 const TICK_UVS = smallIconUvs(2, 1) // B1
 
@@ -44,14 +47,24 @@ const PILL_PADDING_X = 16
 const PILL_BORDER = 2
 const FLAG_SIZE = 28
 const NAME_FONT_SIZE = 20
-const NAME_WIDTH = 120
+// Room for the longest names, "Nederlands" and "Português".
+const NAME_WIDTH = 130
 const MENU_GAP = 8
-// The open list: two columns of languages, rows 30% taller than at first (48), on solid black so it
-// reads over the logo. Each column as wide as the one-column list was (230).
-const MENU_WIDTH = 460
+// The open list: the columns of LANGUAGE_COLUMNS, rows 30% taller than at first (48), on solid
+// black so it reads over the logo. Each column fits the longest names ("Nederlands", "Português"),
+// with the title card's bigger flag and the tick.
+const COLUMN_WIDTH = 240
 const MENU_PADDING = 6
+/** The list's width, padding included: every column side by side. Both selectors use it. */
+export const LANGUAGE_LIST_WIDTH = LANGUAGE_COLUMNS.length * COLUMN_WIDTH + 2 * MENU_PADDING
+const MENU_WIDTH = LANGUAGE_LIST_WIDTH
 const MENU_RADIUS = 12
 const ROW_HEIGHT = Math.round(48 * 1.3)
+
+/** Flag and row sizes for a list. The title card's are bigger: 30% for the flags, 25% for the rows. */
+export type LanguageListSize = { flag: number; row: number }
+const LIST_SIZE: LanguageListSize = { flag: FLAG_SIZE, row: ROW_HEIGHT }
+const TITLE_LIST_SIZE: LanguageListSize = { flag: Math.round(FLAG_SIZE * 1.3), row: Math.round(ROW_HEIGHT * 1.25) }
 const ROW_RADIUS = 8
 const TICK_SIZE = 22
 
@@ -63,24 +76,24 @@ const NAME_COLOR = Color4.White()
 
 let open = false
 
-function Flag(props: { language: Language }) {
+function Flag(props: { language: Language; size?: number }) {
+    const size = props.size ?? FLAG_SIZE
     return (
         <UiEntity
-            uiTransform={{ width: FLAG_SIZE, height: FLAG_SIZE, flexShrink: 0 }}
+            uiTransform={{ width: size, height: size, flexShrink: 0 }}
             uiBackground={{ texture: { src: SMALL_ICONS_ATLAS }, textureMode: 'stretch', uvs: FLAG_UVS[props.language] }}
         />
     )
 }
 
 /** One language in a list: flag, name, and the tick on the current one. Picking it calls `onPicked` after. */
-export function LanguageRow(props: { key: string; language: Language; name: string; onPicked: () => void }) {
+function LanguageRow(props: { key: string; language: Language; name: string; size: LanguageListSize; onPicked: () => void }) {
     const selected = props.language === getLanguage()
     return (
         <UiEntity
             uiTransform={{
-                // Half the list: the list lays the languages out in two columns.
-                width: '50%',
-                height: ROW_HEIGHT,
+                width: '100%',
+                height: props.size.row,
                 flexDirection: 'row',
                 alignItems: 'center',
                 padding: { left: 10, right: 10 },
@@ -92,7 +105,7 @@ export function LanguageRow(props: { key: string; language: Language; name: stri
                 props.onPicked()
             }}
         >
-            <Flag language={props.language} />
+            <Flag language={props.language} size={props.size.flag} />
             <Label
                 value={props.name}
                 fontSize={NAME_FONT_SIZE}
@@ -100,7 +113,7 @@ export function LanguageRow(props: { key: string; language: Language; name: stri
                 textAlign="middle-left"
                 // One line always: on the first load "Français" broke before its ç, measured late.
                 textWrap="nowrap"
-                uiTransform={{ height: ROW_HEIGHT, flexGrow: 1, margin: { left: 12 } }}
+                uiTransform={{ height: props.size.row, flexGrow: 1, margin: { left: 12 } }}
             />
             {selected ? (
                 <UiEntity
@@ -112,11 +125,26 @@ export function LanguageRow(props: { key: string; language: Language; name: stri
     )
 }
 
+/**
+ * The list's columns (LANGUAGE_COLUMNS), side by side, for a row container `LANGUAGE_LIST_WIDTH`
+ * wide (padding included). Picking a language calls `onPicked` after. `size`: the in-game list's
+ * unless given.
+ */
+export function languageColumns(onPicked: () => void, size: LanguageListSize = LIST_SIZE): ReactEcs.JSX.Element[] {
+    return LANGUAGE_COLUMNS.map((column, index) => (
+        <UiEntity key={`column-${index}`} uiTransform={{ width: COLUMN_WIDTH, flexShrink: 0, flexDirection: 'column' }}>
+            {column.map((language) => (
+                <LanguageRow key={language} language={language} name={languageName(language)} size={size} onPicked={onPicked} />
+            ))}
+        </UiEntity>
+    ))
+}
+
 /** The pill, with its list under it when open. Unplaced: the caller puts it where it goes, and
  *  should draw it after whatever the open list covers. */
 export function LanguageSelector() {
     const current = getLanguage()
-    const currentName = LANGUAGES.find((l) => l.id === current)?.name ?? ''
+    const currentName = languageName(current)
     return (
         <UiEntity
             uiTransform={{
@@ -139,7 +167,7 @@ export function LanguageSelector() {
                     open = !open
                 }}
             >
-                <Flag language={current} />
+                <Flag language={current} size={TITLE_LIST_SIZE.flag} />
                 <Label
                     value={currentName}
                     fontSize={NAME_FONT_SIZE}
@@ -156,21 +184,14 @@ export function LanguageSelector() {
                         margin: { top: MENU_GAP },
                         padding: MENU_PADDING,
                         flexDirection: 'row',
-                        flexWrap: 'wrap',
+                        alignItems: 'flex-start',
                         borderRadius: MENU_RADIUS
                     }}
                     uiBackground={{ color: MENU_COLOR }}
                 >
-                    {LANGUAGES.map((l) => (
-                        <LanguageRow
-                            key={l.id}
-                            language={l.id}
-                            name={l.name}
-                            onPicked={() => {
-                                open = false
-                            }}
-                        />
-                    ))}
+                    {languageColumns(() => {
+                        open = false
+                    }, TITLE_LIST_SIZE)}
                 </UiEntity>
             ) : null}
         </UiEntity>

@@ -17,7 +17,7 @@ const SUBTITLE_COLOR = Color4.create(1, 198 / 255, 0, 1)
 /** How far above the middle of the bottom bar the subtitle sits, as a share of the screen. */
 const SUBTITLE_RAISE = 10
 // The box behind the lines, so they read over a bright sky or sand.
-const SUBTITLE_BOX_COLOR = Color4.create(0, 0, 0, 0.3)
+const SUBTITLE_BOX_COLOR = Color4.create(0, 0, 0, 0.85)
 const SUBTITLE_BOX_PADDING = { top: 10, bottom: 10, left: 24, right: 24 }
 const SUBTITLE_BOX_RADIUS = 12
 

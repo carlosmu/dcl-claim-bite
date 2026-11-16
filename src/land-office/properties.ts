@@ -14,7 +14,7 @@ import { Color4, Quaternion, Vector3 } from '@dcl/sdk/math'
 import { DEBUG_FILL_PROPERTY_LOTS } from '../shared/debug-flags'
 import { setBitmapText3d } from '../world/bitmap-text-3d'
 import { openOwnerCard } from './owner-card'
-import { getLanguage, hoverText, itemName, t } from '../i18n'
+import { getLanguage, hoverText, itemName, t, upper } from '../i18n'
 import { PROPERTY_AREAS, PROPERTY_KINDS, PropertyKind, PropertyLots } from '../shared/net/property-lots-sync'
 
 // The properties standing in town. Every lot of the grid laid over each kind's area has its
@@ -97,7 +97,7 @@ const OWNER_TEXT_COLOR = Color4.fromHexString('#2B1A0EFF')
 /** Whether a lot with no owner has a sign at all, saying FOR SALE; without it the lot stands bare. */
 const SHOW_VACANT_SIGN: boolean = false
 /** What the sign says while the lot has no owner. */
-const forSaleText = (kind: PropertyKind) => `${itemName({ id: kind, label: kind }).toUpperCase()}\n${t('sign.forSale')}`
+const forSaleText = (kind: PropertyKind) => `${upper(itemName({ id: kind, label: kind }))}\n${t('sign.forSale')}`
 const FOR_SALE_SIZE = 0.16
 const FOR_SALE_COLOR = Color4.Black()
 /** How much lower than the owner's lettering FOR SALE starts. */
@@ -252,12 +252,12 @@ function syncLots(): void {
         ? !hasSign
           ? []
           : [
-              { value: itemName({ id: property.kind, label: property.kind }).toUpperCase(), size: FOR_SALE_SIZE },
+              { value: upper(itemName({ id: property.kind, label: property.kind })), size: FOR_SALE_SIZE },
               { value: t('sign.forSale'), size: FOR_SALE_SIZE }
             ]
         : [
             { value: t('sign.propertyOf'), size: OWNER_CAPTION_SIZE },
-            { value: owner.name.toUpperCase(), size: OWNER_NAME_SIZE, maxWidth: OWNER_NAME_MAX_WIDTH_METERS }
+            { value: upper(owner.name), size: OWNER_NAME_SIZE, maxWidth: OWNER_NAME_MAX_WIDTH_METERS }
           ],
       owner === undefined ? FOR_SALE_COLOR : OWNER_TEXT_COLOR
     )

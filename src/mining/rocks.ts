@@ -544,11 +544,19 @@ export function placeTutorialRock(position: Vector3, seq: number, onDone?: () =>
   makeRockClickable(tutorial)
 }
 
+/** Practice rocks mined this visit: how far into the mayor's tutorial the player is. */
+let practiceRocksMined = 0
+
+export function getPracticeRocksMined(): number {
+  return practiceRocksMined
+}
+
 /** Takes the practice rock away, once mined. */
 function removeTutorialRock(): void {
   if (tutorial !== null) engine.removeEntity(tutorial.entity)
   tutorial = null
   mining = -1
+  practiceRocksMined += 1
 
   const done = tutorialDone
   tutorialDone = null

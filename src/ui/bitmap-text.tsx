@@ -17,14 +17,18 @@ export const WESTERN_FONT_SRC = 'assets/fonts/BouWeste.ttf'
  *
  * `null`: no TTF, the explorer's built-in face (`font`). Chinese and Japanese need thousands of
  * characters (Noto Sans SC alone is 17.8 MB); the built-in faces have them, checked in-world with
- * DEBUG_CJK_FONT_TEST, desktop.
+ * a temporary in-world test (desktop).
  */
 const FONT_BY_LANGUAGE: Partial<Record<Language, string | null>> = {
     // Cyrillic: the built-in face, like Chinese and Japanese, checked in preview. Kelly Slab (Google
     // Fonts, OFL) was tried first and dropped: one more ~700 KB bundle for little gain.
     ru: null,
     zh: null,
-    ja: null
+    ja: null,
+    // Korean (Hangul), and Turkish: BouWeste lacks ğ ş ı İ, and a word half in one face and half in
+    // another reads as broken. Both checked in-world, like Chinese and Japanese.
+    ko: null,
+    tr: null
 }
 
 /** The scene's TTF for the current language, or undefined for the built-in face. */

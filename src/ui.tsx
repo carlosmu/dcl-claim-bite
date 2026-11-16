@@ -98,12 +98,13 @@ import { isAdmin } from './shared/admins'
 import { getPlayer } from '@dcl/sdk/players'
 import { isLocalPreview } from './shared/local-preview'
 import { quotedRate, secondsToRecover } from './shared/state/market'
-import { getLanguage, itemBenefit, itemName, LANGUAGES, rewardText, t } from './i18n'
-import { flagIcon, LanguageRow } from './ui/language-selector'
+import { getLanguage, itemBenefit, itemName, rewardText, t, upper } from './i18n'
+import { flagIcon, LANGUAGE_LIST_WIDTH, languageColumns } from './ui/language-selector'
 import { BitmapText } from './ui/bitmap-text'
 import { introScreen } from './ui/intro-screen'
 import { giveFeedback, reportBug } from './playtest'
 import { welcomeOverlay } from './ui/welcome-overlay'
+import { canShowBlockingScreen, isPlaying } from './world/game-phase'
 import { getMusicStep, getSfxStep, setMusicStep, setSfxStep, VOLUME_STEPS } from './world/volume'
 import { clearObjectiveHistory, dismissObjective, getObjectiveClock, getObjectives, getObjectiveHistory, Objective, PastObjective, setupObjective, SOCIAL_BONUS_ID } from './ui/objective'
 
@@ -1371,7 +1372,7 @@ const storeCard = (product: Product, selected: boolean, onSelect: (key: string) 
             uiBackground={iconBackground(product.icon, product.muted ? COMING_SOON_TINT : undefined)}
         />
         <UiEntity uiTransform={{ flexGrow: 1, flexDirection: 'column', justifyContent: 'center' }}>
-            <BitmapText value={product.title.toUpperCase()} fontSize={19} color={product.muted ? MUTED_COLOR : BANK_CREAM} />
+            <BitmapText value={upper(product.title)} fontSize={19} color={product.muted ? MUTED_COLOR : BANK_CREAM} />
             <UiEntity uiTransform={{ flexDirection: 'row', height: 18, margin: { top: 2 } }}>
                 {product.hint !== '' ? (
                     <Label value={product.hint} fontSize={13} color={product.muted ? MUTED_COLOR : COIN_COLOR} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 18, margin: { right: 8 } }} />
@@ -1545,7 +1546,7 @@ const fuelOption = (item: ShopItem) => {
             }}
             uiBackground={{ color: BANK_WOOD }}
         >
-            <BitmapText value={itemName(item).toUpperCase()} fontSize={24} color={BANK_CREAM} uiTransform={{ width: 170 }} />
+            <BitmapText value={upper(itemName(item))} fontSize={24} color={BANK_CREAM} uiTransform={{ width: 170 }} />
             {/* An order the tank cannot take keeps its price, muted, and its button goes grey:
                 that says enough without a warning line. */}
             <UiEntity uiTransform={{ flexGrow: 1 }}>
@@ -1644,7 +1645,7 @@ const storeDetail = (detail: Detail) => (
         }}
         uiBackground={{ color: BANK_WOOD }}
     >
-        <BitmapText value={detail.title.toUpperCase()} fontSize={40} color={BANK_GOLD_LIGHT} />
+        <BitmapText value={upper(detail.title)} fontSize={40} color={BANK_GOLD_LIGHT} />
         <Label value={detail.description} fontSize={16} color={BANK_CAPTION} textAlign="middle-left" uiTransform={{ height: 26 }} />
         {detail.bigIcon === true ? (
             <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', margin: { top: 12 } }}>
@@ -2529,9 +2530,9 @@ const muleStat = (stat: MuleStat) => (
         <Label value={stat.caption} fontSize={15} color={BANK_CAPTION} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 20 }} />
         <UiEntity uiTransform={{ flexDirection: 'row', alignItems: 'flex-end' }}>
             {stat.dot !== undefined ? statusDot(stat.dot) : null}
-            <BitmapText value={stat.value.toUpperCase()} fontSize={22} color={stat.color ?? BANK_CREAM} />
+            <BitmapText value={upper(stat.value)} fontSize={22} color={stat.color ?? BANK_CREAM} />
             {stat.unit !== undefined ? (
-                <BitmapText value={stat.unit.toUpperCase()} fontSize={15} color={stat.color ?? BANK_CREAM} uiTransform={{ margin: { left: 6 } }} />
+                <BitmapText value={upper(stat.unit)} fontSize={15} color={stat.color ?? BANK_CREAM} uiTransform={{ margin: { left: 6 } }} />
             ) : null}
         </UiEntity>
         {stat.note !== undefined ? (
@@ -2593,7 +2594,7 @@ const muleColumn = (title: string, icon: Icon, children: ReactEcs.JSX.Element[],
                 uiTransform={{ width: 32, height: 32, margin: { right: 6 }, flexShrink: 0 }}
                 uiBackground={iconBackground(icon)}
             />
-            <BitmapText value={title.toUpperCase()} fontSize={22} color={BANK_GOLD_LIGHT} />
+            <BitmapText value={upper(title)} fontSize={22} color={BANK_GOLD_LIGHT} />
         </UiEntity>
         <UiEntity uiTransform={{ width: '100%', flexDirection: 'column', padding: { left: 14, right: 14, top: 12, bottom: 4 } }}>
             {children}
@@ -3035,7 +3036,7 @@ const inventoryDetail = (entry: InventoryEntry) => (
             uiBackground={iconBackground(entry.icon)}
         />
         <UiEntity uiTransform={{ flexGrow: 1, flexDirection: 'column', justifyContent: 'center' }}>
-            <BitmapText value={entry.title.toUpperCase()} fontSize={28} color={BANK_GOLD_LIGHT} uiTransform={{ margin: { bottom: 4 } }} />
+            <BitmapText value={upper(entry.title)} fontSize={28} color={BANK_GOLD_LIGHT} uiTransform={{ margin: { bottom: 4 } }} />
             {entry.details.map((line, i) => (
                 <Label
                     key={`${i}`}
@@ -3113,8 +3114,6 @@ const inventoryPanel = () => {
 const inventoryButton = () => (
     <UiEntity
         uiTransform={{
-            positionType: 'absolute',
-            ...dockPosition(dockInventoryLeft(), BOTTOM_BUTTON_Y),
             width: bottomButtonWidth(),
             height: BOTTOM_PANEL_HEIGHT,
             borderRadius: 8,
@@ -3182,8 +3181,6 @@ const mapPanel = () => (
 const mapButton = () => (
     <UiEntity
         uiTransform={{
-            positionType: 'absolute',
-            ...dockPosition(dockMapLeft(), BOTTOM_BUTTON_Y),
             width: bottomButtonWidth(),
             height: BOTTOM_PANEL_HEIGHT,
             borderRadius: 8,
@@ -3214,9 +3211,10 @@ const mapButton = () => (
 
 // --- Bottom buttons -----------------------------------------------------------------------
 //
-// One dock centred at the bottom of the column, four pieces in a row: two status panels — the
-// pick in hand and the M.U.L.E. fleet, each opening its own dropdown above it — then Map and
-// Inventory. The centre is also the part of the bottom edge the mobile controls leave free.
+// One dock at the bottom of the column, as wide as the HUD above it, four pieces in a row: two
+// status panels — the pick in hand and the M.U.L.E. fleet, each opening its own dropdown above it —
+// then Map and Inventory. Map and Inventory keep their width; the two panels share what is left,
+// so the dock grows and shrinks with the column, and longer translations fit.
 
 const BOTTOM_BUTTON_Y = 28
 const BOTTOM_BUTTON_HEIGHT = 44
@@ -3226,8 +3224,6 @@ const BOTTOM_BUTTON_GAP = 8
 // a label didn't always fit ("Stuff" wrapped its last letter), and the mobile column has no
 // room for one anyway.
 const BOTTOM_BUTTON_WIDTH = 64
-const BOTTOM_PANEL_WIDTH = 228
-const BOTTOM_PANEL_WIDTH_MOBILE = 236
 const BOTTOM_PANEL_HEIGHT = 64
 const BOTTOM_PANEL_ICON = HUD_ICON_SIZE
 const BOTTOM_PANEL_BAR_HEIGHT = 4
@@ -3245,42 +3241,72 @@ function bottomButtonFont(): number {
     return isMobile() ? 16 : 18
 }
 
-function bottomPanelWidth(): number {
-    return isMobile() ? BOTTOM_PANEL_WIDTH_MOBILE : BOTTOM_PANEL_WIDTH
+/** The dock's share of the column (the HUD's width), centred: 80% of the HUD on desktop, 90% on
+ *  mobile, where the column is narrower and the tool and M.U.L.E. names need the room. */
+function dockWidth(): `${number}%` {
+    return isMobile() ? '90%' : '80%'
 }
-
-/** Where each piece of the dock starts, from the dock's left edge. */
-function dockPickLeft(): number {
-    return 0
-}
-function dockMuleLeft(): number {
-    return bottomPanelWidth() + BOTTOM_BUTTON_GAP
-}
-function dockMapLeft(): number {
-    return 2 * (bottomPanelWidth() + BOTTOM_BUTTON_GAP)
-}
-function dockInventoryLeft(): number {
-    return dockMapLeft() + bottomButtonWidth() + BOTTOM_BUTTON_GAP
-}
-function dockWidth(): number {
-    return dockInventoryLeft() + bottomButtonWidth()
+/** Half of what the dock leaves free, so it stays centred. */
+function dockLeft(): `${number}%` {
+    return isMobile() ? '5%' : '10%'
 }
 
 /**
- * Places something `left` pixels in from the dock's left edge. The column's width is a share of
- * the screen, so the dock is anchored at its centre and shifted back by half its width; the
- * shift goes in the margin, since percentages and pixels do not add.
+ * The dock's layout, dockWidth() of the column, centred: the pick slot, the M.U.L.E. slot (the two share what
+ * is left, equally), then Map and Inventory at their own width. The dropdowns open above it, in a
+ * box of their own (dockDropdowns).
  */
-function dockPosition(left: number, bottom: number) {
-    return { position: { bottom, left: '50%' as const }, margin: { left: left - dockWidth() / 2 } }
-}
+const dockRow = (
+    key: string,
+    bottom: number,
+    height: number,
+    pick: ReactEcs.JSX.Element | null,
+    mule: ReactEcs.JSX.Element | null,
+    map: ReactEcs.JSX.Element | null,
+    inventory: ReactEcs.JSX.Element | null
+) => (
+    <UiEntity
+        key={key}
+        uiTransform={{ positionType: 'absolute', position: { bottom, left: dockLeft() }, width: dockWidth(), height, flexDirection: 'row' }}
+    >
+        <UiEntity uiTransform={{ width: 0, flexGrow: 1, height: '100%' }}>{pick}</UiEntity>
+        <UiEntity uiTransform={{ width: 0, flexGrow: 1, height: '100%', margin: { left: BOTTOM_BUTTON_GAP } }}>{mule}</UiEntity>
+        <UiEntity uiTransform={{ width: bottomButtonWidth(), flexShrink: 0, height: '100%', margin: { left: BOTTOM_BUTTON_GAP } }}>{map}</UiEntity>
+        <UiEntity uiTransform={{ width: bottomButtonWidth(), flexShrink: 0, height: '100%', margin: { left: BOTTOM_BUTTON_GAP } }}>{inventory}</UiEntity>
+    </UiEntity>
+)
 
-/** Where a dropdown starts: just above the status panels. */
-const DROPDOWN_BOTTOM = BOTTOM_BUTTON_Y + BOTTOM_PANEL_HEIGHT + BOTTOM_BUTTON_GAP
+/** The four buttons, at the bottom of the column. */
+const dock = () => dockRow('dock', BOTTOM_BUTTON_Y, BOTTOM_PANEL_HEIGHT, pickButton(), muleButton(), mapButton(), inventoryButton())
+
+/**
+ * The open dropdown, if any, over the dock: a box as wide as the dock, from the top of its buttons
+ * to the top of the column. Late in the tree, so a dropdown draws over the panels.
+ *
+ * Every dropdown lies wholly inside this box: one hung outside its parent's rect (a box of no height,
+ * or a slot narrower than itself) could not be tapped on mobile. The box has no listener, so it
+ * takes no click from what is behind it (build-ui skill: only a listener or pointerFilter 'block'
+ * captures input). The pick's opens from its button's left edge; the M.U.L.E.'s from its button's
+ * right edge, leftwards, since the dock's middle is too close to the right for a whole dropdown.
+ */
+const dockDropdowns = () => (
+    <UiEntity
+        uiTransform={{
+            positionType: 'absolute',
+            position: { bottom: BOTTOM_BUTTON_Y + BOTTOM_PANEL_HEIGHT, top: 0, left: dockLeft() },
+            width: dockWidth()
+        }}
+    >
+        {pickSelector()}
+        {muleDropdown()}
+    </UiEntity>
+)
+
+/** From the dock's right edge to the M.U.L.E. button's: Map and Inventory with their gaps. */
+const DOCK_MULE_RIGHT = 2 * BOTTOM_BUTTON_WIDTH + 2 * BOTTOM_BUTTON_GAP
 
 type BottomPanel = {
     key: string
-    left: number
     open: boolean
     onToggle: () => void
     icon: Icon
@@ -3299,9 +3325,8 @@ const bottomPanel = (panel: BottomPanel) => (
     <UiEntity
         key={panel.key}
         uiTransform={{
-            positionType: 'absolute',
-            ...dockPosition(panel.left, BOTTOM_BUTTON_Y),
-            width: bottomPanelWidth(),
+            // Its dock slot's: the column's width shared with the other panel (see dockRow).
+            width: '100%',
             height: BOTTOM_PANEL_HEIGHT,
             flexDirection: 'row',
             alignItems: 'center',
@@ -3358,12 +3383,14 @@ const bottomPanel = (panel: BottomPanel) => (
 // The game's red close button, a size down to suit a dropdown.
 const DROPDOWN_CLOSE_SIZE = 30
 
-/** The frame both dropdowns share: wood, a gold title with the red close button, then their rows. */
-const dropdown = (left: number, title: string, onClose: () => void, children: ReactEcs.JSX.Element[]) => (
+/** The frame both dropdowns share: wood, a gold title with the red close button, then their rows.
+ *  Just above the dock, at `at` (see dockDropdowns). */
+const dropdown = (at: { left: number } | { right: number }, title: string, onClose: () => void, children: ReactEcs.JSX.Element[]) => (
     <UiEntity
         uiTransform={{
             positionType: 'absolute',
-            ...dockPosition(left, DROPDOWN_BOTTOM),
+            position: { bottom: 0, ...at },
+            margin: { bottom: BOTTOM_BUTTON_GAP },
             flexDirection: 'column',
             padding: { left: 8, right: 8, bottom: 8, top: 2 },
             borderRadius: 10,
@@ -3428,7 +3455,9 @@ const dropdownLine = (key: string, text: string, fontSize: number, color: Color4
 // selectable, the rest locked. Choosing is a request, answered by the wallet, so the highlight
 // moves when the server agrees.
 
-const PICK_ROW_WIDTH = 260
+/** The dropdowns' width: the pick rows, the cards and the title row. 30% wider than at first (260),
+ *  for the longer translations. */
+const PICK_ROW_WIDTH = Math.round(260 * 1.3)
 const PICK_ROW_HEIGHT = 48
 const PICK_ROW_ICON = 36
 const LOCKED_TINT = Color4.create(1, 1, 1, 0.35)
@@ -3444,7 +3473,6 @@ const pickButton = () => {
     const max = pick?.durability ?? 0
     return bottomPanel({
         key: 'pick-panel',
-        left: dockPickLeft(),
         open: pickSelectorOpen,
         onToggle: () => {
             pickSelectorOpen = !pickSelectorOpen
@@ -3522,14 +3550,14 @@ const pickSelector = () => {
     const pick = activePick((id) => getOwned(id), getEquipped())
     // No pick at all: say so, and where the free one comes from, like the M.U.L.E. dropdown does.
     if (pick === null) {
-        return dropdown(dockPickLeft(), t('dock.manualTool'), closePickSelector, [
+        return dropdown({ left: 0 }, t('dock.manualTool'), closePickSelector, [
             dropdownCard('pick-card', [
                 dropdownLine('state', t('dock.notOwned'), 17, MUTED_COLOR),
                 dropdownLine('hint', t('dock.claimWelcomePick'), 14, BANK_CAPTION, 2)
             ])
         ])
     }
-    return dropdown(dockPickLeft(), t('dock.manualTool'), closePickSelector, PICKS.map((item) => pickRow(item, item.id === pick.id)))
+    return dropdown({ left: 0 }, t('dock.manualTool'), closePickSelector, PICKS.map((item) => pickRow(item, item.id === pick.id)))
 }
 
 // --- M.U.L.E. summary ---------------------------------------------------------------------
@@ -3576,11 +3604,9 @@ const muleButton = () => {
             pickSelectorOpen = false
         }
     }
-    const left = dockMuleLeft()
     if (mules <= 0) {
         return bottomPanel({
             key: 'mule-panel',
-            left,
             open: muleDropdownOpen,
             onToggle,
             icon: ICON_MULE,
@@ -3595,7 +3621,6 @@ const muleButton = () => {
     const fuel = muleFuel()
     return bottomPanel({
         key: 'mule-panel',
-        left,
         open: muleDropdownOpen,
         onToggle,
         icon: ICON_MULE,
@@ -3624,14 +3649,14 @@ const muleDropdown = () => {
                 <Label value={state.label} fontSize={16} color={state.color} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 24 }} />
             </UiEntity>,
             ...(state.running ? [dropdownLine('output', t('dock.orePerHour', { ore: withCommas(Math.round(MULE_ORE_PER_HOUR * mules)) }), 15, BANK_CREAM)] : []),
-            dropdownLine('fuel', t('inv.fuelLeft', { left: hours > 0 ? durationText(hours).toUpperCase() : t('dock.empty') }), 15, fuel.gallons > 0 ? BANK_CREAM : SHORT_COLOR),
+            dropdownLine('fuel', t('inv.fuelLeft', { left: hours > 0 ? upper(durationText(hours)) : t('dock.empty') }), 15, fuel.gallons > 0 ? BANK_CREAM : SHORT_COLOR),
             <UiEntity key="fuel-bar" uiTransform={{ width: '100%', margin: { top: 4 } }}>
                 {muleBar('hud-fuel-bar', fuel.share, fuel.color)}
             </UiEntity>,
             dropdownLine('hint', t('dock.oreToStorage'), 13, BANK_CAPTION)
         )
     }
-    return dropdown(dockMuleLeft(), t('item.mule'), closeMuleDropdown, [dropdownCard('mule-card', rows)])
+    return dropdown({ right: DOCK_MULE_RIGHT }, t('item.mule'), closeMuleDropdown, [dropdownCard('mule-card', rows)])
 }
 
 // --- Objective tracker --------------------------------------------------------------------
@@ -3932,7 +3957,7 @@ const ownerCardPanel = () => {
             uiBackground={{ color: BANK_WOOD_DARK }}
         >
             <BitmapText value={t('owner.propertyOf')} fontSize={20} color={BANK_CAPTION} align="center" uiTransform={{ width: '100%' }} />
-            <BitmapText value={getOpenOwnerName().toUpperCase()} fontSize={40} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%', margin: { bottom: 12 } }} />
+            <BitmapText value={upper(getOpenOwnerName())} fontSize={40} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%', margin: { bottom: 12 } }} />
             {/* Closed from the corner, like the other screens. */}
             <Button
                 value="X"
@@ -4241,8 +4266,9 @@ const rewardsButton = () =>
 
 /** Half as wide again as the corner buttons, so the code fits beside the flag. */
 const LANGUAGE_BUTTON_WIDTH = BOTTOM_BUTTON_WIDTH * 1.5
-/** Two columns of languages, each as wide as the one-column list was. */
-const LANGUAGE_MENU_WIDTH = 460
+/** The title card's list (columns and padding) plus this one's frame. */
+const LANGUAGE_MENU_BORDER = 3
+const LANGUAGE_MENU_WIDTH = LANGUAGE_LIST_WIDTH + 2 * LANGUAGE_MENU_BORDER
 
 /** The button's top in the HUD's outer row, which starts hudBleed() above the screen. */
 function languageButtonTop(): number {
@@ -4330,24 +4356,17 @@ const languageMenu = () => {
                 margin: { top: FEEDBACK_MENU_GAP },
                 width: LANGUAGE_MENU_WIDTH,
                 flexDirection: 'row',
-                flexWrap: 'wrap',
+                alignItems: 'flex-start',
                 padding: 6,
                 borderRadius: PANEL_RADIUS,
-                borderWidth: 3,
+                borderWidth: LANGUAGE_MENU_BORDER,
                 borderColor: BANK_TRIM
             }}
             uiBackground={{ color: BANK_WOOD_DARK }}
         >
-            {LANGUAGES.map((language) => (
-                <LanguageRow
-                    key={language.id}
-                    language={language.id}
-                    name={language.name}
-                    onPicked={() => {
-                        languageMenuOpen = false
-                    }}
-                />
-            ))}
+            {languageColumns(() => {
+                languageMenuOpen = false
+            })}
         </UiEntity>
     )
 }
@@ -4824,7 +4843,7 @@ const casinoPanel = () => {
             <UiEntity uiTransform={{ width: '100%', height: SLOT_REEL_HEIGHT, flexShrink: 0, flexDirection: 'row', justifyContent: 'center', margin: { top: 10 } }}>
                 {getSlotReels().map((reel, index) => slotReel(reel, index))}
             </UiEntity>
-            <BitmapText value={getSlotMessage().toUpperCase()} fontSize={40} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%', margin: { top: 10 } }} />
+            <BitmapText value={upper(getSlotMessage())} fontSize={40} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%', margin: { top: 10 } }} />
 
             <UiEntity uiTransform={{ width: '100%', height: 60, flexDirection: 'row', justifyContent: 'space-between', margin: { top: 24 } }}>
                 {SLOT_BETS.map((option) => (
@@ -4955,10 +4974,7 @@ export const uiMenu = () => (
             {miningBar()}
             {moveCloserHint()}
             {orePopup()}
-            {pickButton()}
-            {muleButton()}
-            {mapButton()}
-            {inventoryButton()}
+            {dock()}
             {/* The panels go last so they draw over the HUD and the bottom buttons: on mobile
                 they are tall enough to reach both. */}
             {mapOpen ? mapPanel() : null}
@@ -4974,16 +4990,17 @@ export const uiMenu = () => (
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isMulePanelOpen() && getMuleCount() > 0 ? mulePanel() : null}
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isOwnerCardOpen() ? ownerCardPanel() : null}
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isCasinoPanelOpen() ? casinoPanel() : null}
-            {pickSelector()}
-            {muleDropdown()}
+            {dockDropdowns()}
             {/* Over every other panel: it waits for its button and nothing else. */}
-            {getCompensation() !== null ? compensationPanel(getCompensation()!) : null}
+            {/* Coins owed wait for play (world/game-phase.ts): never over the title card or the intro. */}
+            {getCompensation() !== null && isPlaying() ? compensationPanel(getCompensation()!) : null}
         </UiEntity>
         {welcomeOverlay()}
         {introScreen()}
         {/* Over everything, the title card included: nothing else here is saved any more, and a
-            player stuck loading must still see RECONNECT. Centred and as wide as main-container. */}
-        {getUpdateScreen() !== null ? (
+            player stuck loading must still see RECONNECT. Centred and as wide as main-container.
+            Not over the intro, though (world/game-phase.ts): it waits for play. */}
+        {getUpdateScreen() !== null && canShowBlockingScreen() ? (
             <UiEntity
                 uiTransform={{
                     positionType: 'absolute',

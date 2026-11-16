@@ -34,6 +34,7 @@ import { socialBonus } from '../shared/economy/constants'
 import { getNoteNews } from '../land-office/owner-card'
 import { getMiningStatus } from '../mining/rocks'
 import { itemName, t } from '../i18n'
+import { isPlaying } from '../world/game-phase'
 
 /** The Social Bonus note's id: the tracker paints its title in the bonus's own green. */
 export const SOCIAL_BONUS_ID = 'social'
@@ -287,6 +288,12 @@ function restack(): void {
 }
 
 function update(dt: number): void {
+  // Nothing over the title card or the intro (world/game-phase.ts). The clock waits too, so news
+  // that came in meanwhile (notes, what the rigs dug) is noticed, and shown in full, once play starts.
+  if (!isPlaying()) {
+    shown = []
+    return
+  }
   clock += dt
   // Before the purse arrives every figure is a placeholder: an empty tank that is not empty.
   if (!hasWallet()) {
