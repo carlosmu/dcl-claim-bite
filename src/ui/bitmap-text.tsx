@@ -28,7 +28,9 @@ const FONT_BY_LANGUAGE: Partial<Record<Language, string | null>> = {
     // Korean (Hangul), and Turkish: BouWeste lacks ğ ş ı İ, and a word half in one face and half in
     // another reads as broken. Both checked in-world, like Chinese and Japanese.
     ko: null,
-    tr: null
+    tr: null,
+    // Vietnamese: Latin with stacked accents, most of them missing from BouWeste. Checked in-world.
+    vi: null
 }
 
 /** The scene's TTF for the current language, or undefined for the built-in face. */

@@ -33,7 +33,9 @@ const FLAG_UVS: Record<Language, number[]> = {
     ja: smallIconUvs(2, 3), // B3
     tr: smallIconUvs(3, 3), // C3
     ko: smallIconUvs(4, 3), // D3
-    id: smallIconUvs(5, 3) // E3
+    id: smallIconUvs(5, 3), // E3
+    vi: smallIconUvs(6, 3) // F3
+    // G3: India, for Hindi once the explorer shapes Devanagari (it draws the letters unjoined today).
 }
 const TICK_UVS = smallIconUvs(2, 1) // B1
 

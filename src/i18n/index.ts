@@ -13,6 +13,7 @@ import { ja } from './ja'
 import { tr } from './tr'
 import { ko } from './ko'
 import { id } from './id'
+import { vi } from './vi'
 
 export type { StringKey } from './en'
 
@@ -41,7 +42,8 @@ export const LANGUAGES: { id: Language; name: string }[] = [
     { id: 'ru', name: 'Русский' },
     { id: 'zh', name: '中文' },
     { id: 'ja', name: '日本語' },
-    { id: 'ko', name: '한국어' }
+    { id: 'ko', name: '한국어' },
+    { id: 'vi', name: 'Tiếng Việt' }
 ]
 
 /**
@@ -51,7 +53,7 @@ export const LANGUAGES: { id: Language; name: string }[] = [
 export const LANGUAGE_COLUMNS: Language[][] = [
     ['en', 'es', 'pt', 'fr', 'it'],
     ['de', 'nl', 'ru', 'tr', 'id'],
-    ['zh', 'ja', 'ko']
+    ['zh', 'ja', 'ko', 'vi']
 ]
 
 /** A language's name in itself, as the selectors show it. */
@@ -59,7 +61,7 @@ export function languageName(language: Language): string {
     return LANGUAGES.find((entry) => entry.id === language)?.name ?? language
 }
 
-const STRINGS: Record<Language, Strings> = { en, es, pt, fr, de, it, nl, id, tr, ru, zh, ja, ko }
+const STRINGS: Record<Language, Strings> = { en, es, pt, fr, de, it, nl, id, tr, vi, ru, zh, ja, ko }
 
 /** What the player picked in the selector, or null to follow the client's language. */
 let picked: Language | null = null
