@@ -18,7 +18,7 @@ import { movePlayerTo } from '~system/RestrictedActions'
 import { MINE_REACH_METERS, ORE_PER_ROCK, SWING_SECONDS } from '../shared/economy/constants'
 import { getCarryCapacity, getHitsPerRock, sendRockDone, sendSwing } from '../net/economy-link'
 import { getOre } from '../shared/state/wallet'
-import { startMineEmote, stopMineEmote } from '../player/mine-emote'
+import { startMineEmote, stopMineEmote, swingCutByEmote } from '../player/mine-emote'
 import { playSfx } from '../world/sfx'
 import { showOrePopup } from '../ui/ore-popup'
 import { playHitFeedback, playRockBreak } from './pick-feel'
@@ -413,6 +413,10 @@ function trackStanding(dt: number): void {
   // explorer cancels the emote on the input itself, which left the hits and sparks going on an
   // idle avatar. Counting it as a move stops the loop and triggers it afresh once they settle.
   if (movementKeyHeld()) stillSeconds = 0
+
+  // And an emote of the player's own that cut the swing (player/mine-emote.ts): the loop is
+  // stopped and, once they settle, triggered afresh, instead of hits landing on an idle avatar.
+  if (swingCutByEmote()) stillSeconds = 0
 
   if (stillSeconds === 0 && !movingIn && !settlingAfterMoveIn) standWarningSeconds = STAND_WARNING_HOLD_SECONDS
   else standWarningSeconds = Math.max(0, standWarningSeconds - dt)
