@@ -105,7 +105,9 @@ import { introScreen } from './ui/intro-screen'
 import { giveFeedback, reportBug } from './playtest'
 import { welcomeOverlay } from './ui/welcome-overlay'
 import { canShowBlockingScreen, isPlaying } from './world/game-phase'
-import { getMusicStep, getSfxStep, setMusicStep, setSfxStep, VOLUME_STEPS } from './world/volume'
+import { getMusicStep, getSfxStep, VOLUME_STEPS } from './world/volume'
+import { isTrackEnabled, TRACKS } from './world/music'
+import { pickMusicStep, pickSfxStep, pickTrackEnabled } from './net/sound-link'
 import { clearObjectiveHistory, dismissObjective, getObjectiveClock, getObjectives, getObjectiveHistory, Objective, PastObjective, setupObjective, SOCIAL_BONUS_ID } from './ui/objective'
 
 export function setupUi() {
@@ -4376,11 +4378,9 @@ const languageMenu = () => {
 
 // --- Sound -------------------------------------------------------------------------------
 //
-// Music and SFX volume, each a row of VOLUME_STEPS segments: tap one to set the level there,
-// or step with - and +. The button sits left of Notifications and opens like it.
+// Music and SFX volume side by side, each a bar of VOLUME_STEPS segments: tap one to set the level
+// there, or step with - and +. Below them, the soundtrack's tracks to tick or untick. The button sits left of Notifications and opens like it.
 
-const SOUND_PANEL_WIDTH = 520
-const SOUND_SEGMENT_WIDTH = 26
 const SOUND_SEGMENT_HEIGHT = 32
 const SOUND_SEGMENT_GAP = 4
 const SOUND_STEP_SIZE = 40
@@ -4426,10 +4426,9 @@ const soundStepButton = (label: string, enabled: boolean, onPress: () => void) =
 const soundRow = (title: string, step: number, setStep: (step: number) => void) => (
     <UiEntity
         uiTransform={{
-            width: '100%',
+            width: '48%',
             flexDirection: 'column',
-            padding: { left: 14, right: 14, top: 8, bottom: 12 },
-            margin: { bottom: 10 },
+            padding: { left: 10, right: 10, top: 8, bottom: 12 },
             borderRadius: 10,
             borderWidth: 2,
             borderColor: BANK_TRIM
@@ -4442,12 +4441,14 @@ const soundRow = (title: string, step: number, setStep: (step: number) => void) 
         </UiEntity>
         <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             {soundStepButton('-', step > 0, () => setStep(step - 1))}
-            <UiEntity uiTransform={{ flexDirection: 'row', alignItems: 'center' }}>
+            {/* The segments share whatever the - and + buttons leave. */}
+            <UiEntity uiTransform={{ flexGrow: 1, flexDirection: 'row', alignItems: 'center', margin: { left: SOUND_SEGMENT_GAP * 2, right: SOUND_SEGMENT_GAP * 2 } }}>
                 {Array.from({ length: VOLUME_STEPS }, (_, i) => (
                     <UiEntity
                         key={`${title}-${i}`}
                         uiTransform={{
-                            width: SOUND_SEGMENT_WIDTH,
+                            flexGrow: 1,
+                            flexBasis: 0,
                             height: SOUND_SEGMENT_HEIGHT,
                             margin: { left: i === 0 ? 0 : SOUND_SEGMENT_GAP },
                             borderRadius: 4
@@ -4463,10 +4464,68 @@ const soundRow = (title: string, step: number, setStep: (step: number) => void) 
     </UiEntity>
 )
 
+// The soundtrack list is drawn 30% larger than the volume bars above it.
+const SOUND_CHECKBOX_SIZE = 36
+
+// One soundtrack row: the whole row is the tap target (it sits inside the panel, so it works on
+// mobile), the box is filled while the track is in the playlist.
+const soundtrackRow = (index: number) => {
+    const enabled = isTrackEnabled(index)
+    return (
+        <UiEntity
+            key={`track-${index}`}
+            uiTransform={{ width: '100%', height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+            onMouseDown={() => pickTrackEnabled(index, !enabled)}
+        >
+            <BitmapText value={TRACKS[index].title} fontSize={26} color={enabled ? BANK_CREAM : MUTED_COLOR} />
+            <UiEntity
+                uiTransform={{
+                    width: SOUND_CHECKBOX_SIZE,
+                    height: SOUND_CHECKBOX_SIZE,
+                    flexShrink: 0,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    margin: { left: 16 },
+                    borderRadius: 8,
+                    borderWidth: 3,
+                    borderColor: BANK_TRIM
+                }}
+                uiBackground={{ color: SOUND_SEGMENT_OFF }}
+            >
+                {enabled ? (
+                    <UiEntity uiTransform={{ width: SOUND_CHECKBOX_SIZE - 16, height: SOUND_CHECKBOX_SIZE - 16, borderRadius: 4 }} uiBackground={{ color: BANK_GOLD }} />
+                ) : null}
+            </UiEntity>
+        </UiEntity>
+    )
+}
+
+const soundtrackSection = () => (
+    <UiEntity
+        uiTransform={{
+            width: '100%',
+            flexDirection: 'column',
+            padding: { left: 18, right: 18, top: 10, bottom: 10 },
+            borderRadius: 10,
+            borderWidth: 2,
+            borderColor: BANK_TRIM
+        }}
+        uiBackground={{ color: BANK_WOOD }}
+    >
+        {/* The caption on the right heads the checkbox column, so it reads what a tick does. */}
+        <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', margin: { bottom: 5 } }}>
+            <BitmapText value={t('sound.soundtrack')} fontSize={29} color={BANK_GOLD_LIGHT} />
+            <BitmapText value={t('sound.trackEnabled')} fontSize={20} color={BANK_CREAM} align="right" />
+        </UiEntity>
+        {TRACKS.map((_, index) => soundtrackRow(index))}
+    </UiEntity>
+)
+
 const soundPanel = () => (
     <UiEntity
         uiTransform={{
-            width: SOUND_PANEL_WIDTH,
+            width: '100%',
+            minWidth: PANEL_MIN_WIDTH,
             flexDirection: 'column',
             alignItems: 'center',
             padding: BANK_PANEL_PADDING,
@@ -4476,7 +4535,7 @@ const soundPanel = () => (
         }}
         uiBackground={{ color: BANK_WOOD_DARK }}
     >
-        <BitmapText value={t('sound.title')} fontSize={40} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%', margin: { bottom: 12 } }} />
+        <BitmapText value={t('sound.title')} fontSize={40} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%', margin: { bottom: 24 } }} />
         <Button
             value="X"
             fontSize={30}
@@ -4487,8 +4546,11 @@ const soundPanel = () => (
                 soundOpen = false
             }}
         />
-        {soundRow(t('sound.music'), getMusicStep(), setMusicStep)}
-        {soundRow(t('sound.sfx'), getSfxStep(), setSfxStep)}
+        <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', justifyContent: 'space-between', margin: { bottom: 20 } }}>
+            {soundRow(t('sound.music'), getMusicStep(), pickMusicStep)}
+            {soundRow(t('sound.sfx'), getSfxStep(), pickSfxStep)}
+        </UiEntity>
+        {soundtrackSection()}
     </UiEntity>
 )
 

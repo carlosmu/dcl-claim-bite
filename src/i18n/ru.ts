@@ -385,6 +385,8 @@ export const ru: Strings = {
     'sound.title': 'ЗВУК',
     'sound.music': 'МУЗЫКА',
     'sound.sfx': 'ЭФФЕКТЫ',
+    'sound.soundtrack': 'САУНДТРЕК',
+    'sound.trackEnabled': 'ВКЛ.',
     'sound.off': 'Выкл.',
 
     // Town board

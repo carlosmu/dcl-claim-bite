@@ -381,6 +381,8 @@ export const pt: Strings = {
     'sound.title': 'SOM',
     'sound.music': 'MÚSICA',
     'sound.sfx': 'EFEITOS',
+    'sound.soundtrack': 'TRILHA SONORA',
+    'sound.trackEnabled': 'ATIVO',
     'sound.off': 'Desligado',
 
     // Town board

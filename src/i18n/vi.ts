@@ -383,6 +383,8 @@ export const vi: Strings = {
     'sound.title': 'ÂM THANH',
     'sound.music': 'NHẠC',
     'sound.sfx': 'HIỆU ỨNG',
+    'sound.soundtrack': 'NHẠC NỀN',
+    'sound.trackEnabled': 'BẬT',
     'sound.off': 'Tắt',
 
     // Town board

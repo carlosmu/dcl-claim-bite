@@ -1,5 +1,5 @@
-// Each player's preferences: for now, the language they picked, so they do not have to pick it
-// again on every visit. Kept with the player (./persistence), apart from the purse and outside
+// Each player's preferences: the language they picked and their Sound panel settings, so they do
+// not have to set them again on every visit. Kept with the player (./persistence), apart from the purse and outside
 // the seasons.
 //
 // A preference is read once per player and kept. A pick overwrites it whole and is written at
@@ -7,6 +7,7 @@
 
 import { room } from '../shared/net/protocol'
 import { isLanguage } from '../shared/languages'
+import { isTrackMask, isVolumeStep } from '../shared/sound-prefs'
 import { loadPrefs, savePrefs, StoredPrefs } from './persistence'
 
 /** Each player's preferences, once read. */
@@ -23,10 +24,16 @@ function prefsOf(address: string): Promise<StoredPrefs> {
   })
 }
 
-/** Sends a player the language they picked before ('' if none). A failed read sends nothing. */
+/** Sends a player what they set before ('' / -1 for what they never set). A failed read sends nothing. */
 export function sendPrefs(address: string): void {
   prefsOf(address)
-    .then((prefs) => room.send('prefs', { language: prefs.language ?? '' }, { to: [address] }))
+    .then((prefs) =>
+      room.send(
+        'prefs',
+        { language: prefs.language ?? '', music: prefs.music ?? -1, sfx: prefs.sfx ?? -1, tracks: prefs.tracks ?? -1 },
+        { to: [address] }
+      )
+    )
     .catch((error) => console.log(`[Server] could not read prefs for ${address}: ${error}`))
 }
 
@@ -34,6 +41,14 @@ export function sendPrefs(address: string): void {
 export function setLanguagePref(address: string, language: string): void {
   if (!isLanguage(language)) return
   const prefs: StoredPrefs = { ...(kept.get(address) ?? {}), language }
+  kept.set(address, prefs)
+  savePrefs(address, prefs).catch(() => {})
+}
+
+/** Keeps a player's Sound settings. Ignored whole if any value is out of range. */
+export function setSoundPrefs(address: string, music: number, sfx: number, tracks: number): void {
+  if (!isVolumeStep(music) || !isVolumeStep(sfx) || !isTrackMask(tracks)) return
+  const prefs: StoredPrefs = { ...(kept.get(address) ?? {}), music, sfx, tracks }
   kept.set(address, prefs)
   savePrefs(address, prefs).catch(() => {})
 }

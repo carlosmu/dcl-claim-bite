@@ -383,6 +383,8 @@ export const tr: Strings = {
     'sound.title': 'SES',
     'sound.music': 'MÜZİK',
     'sound.sfx': 'EFEKTLER',
+    'sound.soundtrack': 'MÜZİK LİSTESİ',
+    'sound.trackEnabled': 'AÇIK',
     'sound.off': 'Kapalı',
 
     // Town board

@@ -381,6 +381,8 @@ export const nl: Strings = {
     'sound.title': 'GELUID',
     'sound.music': 'MUZIEK',
     'sound.sfx': 'EFFECTEN',
+    'sound.soundtrack': 'SOUNDTRACK',
+    'sound.trackEnabled': 'AAN',
     'sound.off': 'Uit',
 
     // Town board

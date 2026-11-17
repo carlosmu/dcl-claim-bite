@@ -384,6 +384,8 @@ export const ja: Strings = {
     'sound.title': 'サウンド',
     'sound.music': '音楽',
     'sound.sfx': '効果音',
+    'sound.soundtrack': 'サウンドトラック',
+    'sound.trackEnabled': '再生',
     'sound.off': 'オフ',
 
     // Town board

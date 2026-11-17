@@ -383,6 +383,8 @@ export const en = {
     'sound.title': 'SOUND',
     'sound.music': 'MUSIC',
     'sound.sfx': 'SFX',
+    'sound.soundtrack': 'SOUNDTRACK',
+    'sound.trackEnabled': 'ENABLED',
     'sound.off': 'Off',
 
     // Town board

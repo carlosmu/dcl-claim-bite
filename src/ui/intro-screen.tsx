@@ -32,6 +32,8 @@ const BACKDROP_SCROLL_SECONDS = 15
 const LOGO_SIZE = 520
 /** How far below the screen's top edge the language selector sits. */
 const LANGUAGE_TOP = '10vh'
+/** The same on mobile: higher, so it clears the smaller column below. */
+const LANGUAGE_TOP_MOBILE = '4vh'
 const BUTTON_WIDTH = 360
 const BUTTON_HEIGHT = 90
 const FADE_SECONDS = 2
@@ -307,7 +309,7 @@ export function introScreen() {
                     uiTransform={{
                         positionType: 'absolute',
                         position: { top: 0, left: 0 },
-                        margin: { top: LANGUAGE_TOP },
+                        margin: { top: isMobile() ? LANGUAGE_TOP_MOBILE : LANGUAGE_TOP },
                         width: '100%',
                         flexDirection: 'column',
                         alignItems: 'center'

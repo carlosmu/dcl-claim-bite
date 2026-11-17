@@ -384,6 +384,8 @@ export const ko: Strings = {
     'sound.title': '소리',
     'sound.music': '음악',
     'sound.sfx': '효과음',
+    'sound.soundtrack': '사운드트랙',
+    'sound.trackEnabled': '재생',
     'sound.off': '끔',
 
     // Town board

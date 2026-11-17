@@ -40,6 +40,7 @@ import { setupConnectionWatch } from './ui/connection-watch'
 import { setupDeployStamp } from './net/deploy-stamp'
 import { setupEconomyLink } from './net/economy-link'
 import { setupLanguageLink } from './net/language-link'
+import { setupSoundLink } from './net/sound-link'
 import { setupGamePhase } from './world/game-phase'
 import { setupPlaytest } from './playtest'
 import { skipTitleCard } from './ui/intro-screen'
@@ -65,6 +66,7 @@ export async function main() {
     setupDeployStamp()
     setupEconomyLink()
     setupLanguageLink()
+    setupSoundLink()
     setupGamePhase()
     setupMusic()
     if (DEBUG_SKIP_INTRO) skipTitleCard()

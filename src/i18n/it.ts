@@ -381,6 +381,8 @@ export const it: Strings = {
     'sound.title': 'AUDIO',
     'sound.music': 'MUSICA',
     'sound.sfx': 'EFFETTI',
+    'sound.soundtrack': 'COLONNA SONORA',
+    'sound.trackEnabled': 'ATTIVO',
     'sound.off': 'Spento',
 
     // Town board

@@ -73,7 +73,7 @@ import {
 } from '../shared/economy/catalogue'
 import { addFuelGallons, fuelGallons, fuelHoursLeft, settleMule } from './mule'
 import { clearNotes, leaveNote, sendNotes, setupNotes } from './notes'
-import { sendPrefs, setLanguagePref } from './prefs'
+import { sendPrefs, setLanguagePref, setSoundPrefs } from './prefs'
 import { noteMined, noteNewOwner, noteSale, noteSlotWin, saveTitlesNow, setupTitles } from './titles'
 import { isCasinoReady, saveJackpotNow, setupCasino, spin } from './casino'
 import { saveCasinoStatsNow } from './casino-stats'
@@ -1706,6 +1706,11 @@ export function setupEconomy(): void {
   room.onMessage('setLanguage', (data, context) => {
     if (!context || inMaintenance()) return
     setLanguagePref(context.from, data.language)
+  })
+
+  room.onMessage('setSoundPrefs', (data, context) => {
+    if (!context || inMaintenance()) return
+    setSoundPrefs(context.from, data.music, data.sfx, data.tracks)
   })
 
   room.onMessage('clientBuild', (data, context) => {

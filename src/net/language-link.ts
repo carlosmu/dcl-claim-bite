@@ -4,6 +4,7 @@ import { isStateSyncronized } from '@dcl/sdk/network'
 import { restoreLanguage, setLanguage } from '../i18n'
 import { isLanguage, Language } from '../shared/languages'
 import { room } from '../shared/net/protocol'
+import { restoreSoundPrefs } from './sound-link'
 
 // The language the player picks is kept by the server (server/prefs.ts), so the next visit opens
 // in it. Picked on the title card the room is often not ready yet: the pick waits and goes out
@@ -28,6 +29,8 @@ function flush(): void {
 export function setupLanguageLink(): void {
   room.onMessage('prefs', (data) => {
     if (isLanguage(data.language)) restoreLanguage(data.language)
+    // The same message carries the Sound panel's settings.
+    restoreSoundPrefs(data.music, data.sfx, data.tracks)
   })
   engine.addSystem(flush, undefined, 'client:language-link')
 }

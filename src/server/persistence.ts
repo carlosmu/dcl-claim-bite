@@ -33,7 +33,7 @@ const PURSE_KEY = seasonKey('purse')
 const NOTES_KEY = seasonKey('notes')
 
 /**
- * Per-player key: their preferences (the language they picked). Not per season: a new season
+ * Per-player key: their preferences (the language they picked, the Sound panel). Not per season: a new season
  * resets progress, not how the player likes the game shown.
  */
 const PREFS_KEY = 'prefs'
@@ -248,7 +248,13 @@ export async function savePropertyLots(lots: StoredLot[]): Promise<boolean> {
   }
 }
 
-export type StoredPrefs = { language?: string }
+export type StoredPrefs = {
+  language?: string
+  /** Sound panel: music and SFX volume steps, and the ticked soundtrack tracks as a bitmask. */
+  music?: number
+  sfx?: number
+  tracks?: number
+}
 
 /** A player's preferences, or null if they never set any. Throws if the read failed. */
 export function loadPrefs(address: string): Promise<StoredPrefs | null> {

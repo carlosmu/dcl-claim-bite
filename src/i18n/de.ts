@@ -382,6 +382,8 @@ export const de: Strings = {
     'sound.title': 'TON',
     'sound.music': 'MUSIK',
     'sound.sfx': 'EFFEKTE',
+    'sound.soundtrack': 'SOUNDTRACK',
+    'sound.trackEnabled': 'AKTIV',
     'sound.off': 'Aus',
 
     // Town board

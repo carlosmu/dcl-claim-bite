@@ -57,6 +57,10 @@ export const Messages = {
   /** "Keep this as my language" (an id from shared/languages.ts). Ignored if it is not one. */
   setLanguage: Schemas.Map({ language: Schemas.String }),
 
+  /** "Keep these as my Sound settings": volume steps and the ticked tracks as a bitmask
+   * (shared/sound-prefs.ts). Ignored if any is out of range. */
+  setSoundPrefs: Schemas.Map({ music: Schemas.Number, sfx: Schemas.Number, tracks: Schemas.Number }),
+
   /** DEBUG: "give me coins." Refused by the server unless DEBUG_ADD_COINS is on (shared/debug-flags.ts). */
   debugCoins: Schemas.Map({ amount: Schemas.Number }),
 
@@ -176,9 +180,9 @@ export const Messages = {
   // ({ from, text, at }[], `at` in wall-clock ms). Sent on arrival and whenever one is left.
   notes: Schemas.Map({ json: Schemas.String }),
 
-  // Server -> one client: the language they picked on an earlier visit ('' if they never did).
-  // Sent on hello.
-  prefs: Schemas.Map({ language: Schemas.String }),
+  // Server -> one client: the language they picked on an earlier visit ('' if they never did),
+  // and their Sound settings (-1 each if they never changed them). Sent on hello.
+  prefs: Schemas.Map({ language: Schemas.String, music: Schemas.Number, sfx: Schemas.Number, tracks: Schemas.Number }),
 
   // Server -> one client: the outcome of something the player asked for, for the log and
   // for the sound. `ok` false means the request was refused.

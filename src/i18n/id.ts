@@ -382,6 +382,8 @@ export const id: Strings = {
     'sound.title': 'SUARA',
     'sound.music': 'MUSIK',
     'sound.sfx': 'EFEK',
+    'sound.soundtrack': 'SOUNDTRACK',
+    'sound.trackEnabled': 'AKTIF',
     'sound.off': 'Mati',
 
     // Town board

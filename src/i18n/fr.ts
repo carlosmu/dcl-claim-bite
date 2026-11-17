@@ -383,6 +383,8 @@ export const fr: Strings = {
     'sound.title': 'SON',
     'sound.music': 'MUSIQUE',
     'sound.sfx': 'EFFETS',
+    'sound.soundtrack': 'BANDE ORIGINALE',
+    'sound.trackEnabled': 'ACTIF',
     'sound.off': 'Coupé',
 
     // Town board

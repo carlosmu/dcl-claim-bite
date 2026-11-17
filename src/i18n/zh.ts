@@ -383,6 +383,8 @@ export const zh: Strings = {
     'sound.title': '声音',
     'sound.music': '音乐',
     'sound.sfx': '音效',
+    'sound.soundtrack': '原声音乐',
+    'sound.trackEnabled': '播放',
     'sound.off': '关闭',
 
     // Town board

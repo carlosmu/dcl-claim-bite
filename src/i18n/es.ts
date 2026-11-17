@@ -381,6 +381,8 @@ export const es: Strings = {
     'sound.title': 'SONIDO',
     'sound.music': 'MÚSICA',
     'sound.sfx': 'EFECTOS',
+    'sound.soundtrack': 'BANDA SONORA',
+    'sound.trackEnabled': 'ACTIVO',
     'sound.off': 'Apagado',
 
     // Town board

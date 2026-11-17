@@ -2,10 +2,12 @@
 // mining tap, the mayor's lines).
 //
 // Each is a multiplier from 0 to 1 over the volume the sound already plays at, so 1 is the mix
-// as tuned and the sliders can only turn it down. Kept in steps of 10% so the UI's bar and the
-// value it shows always agree.
+// as tuned and the sliders can only turn it down. Kept in steps of 20% (VOLUME_STEPS) so the UI's bar
+// and the value it shows always agree.
 
-export const VOLUME_STEPS = 10
+import { VOLUME_STEPS } from '../shared/sound-prefs'
+
+export { VOLUME_STEPS }
 
 let musicStep = VOLUME_STEPS
 let sfxStep = VOLUME_STEPS
