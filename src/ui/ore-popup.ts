@@ -2,16 +2,18 @@ import { engine } from '@dcl/sdk/ecs'
 
 import { ORE_PER_ROCK } from '../shared/economy/constants'
 
-// The "+10 Ore" that jumps out of a finished rock: big, centred, drifting up and fading out.
+// The "+10 Ore" of a finished rock: a small badge, centred, fading in, drifting up and fading out.
 //
 // State only — the drawing is in ui.tsx. One popup at a time: a second rock restarts it rather
 // than stacking, since the payout is the same every time and two overlapping numbers read as
 // a glitch.
 
-/** How long it stays fully opaque, then how long it takes to fade out. It rises throughout. */
-const HOLD_SECONDS = 1
-const FADE_SECONDS = 0.375
-const DURATION_SECONDS = HOLD_SECONDS + FADE_SECONDS
+/** How long it takes to fade in, stays fully opaque, then takes to fade out: 1.4s before the fade
+ *  starts, 1.7s in all. It rises throughout. */
+const FADE_IN_SECONDS = 0.15
+const HOLD_SECONDS = 1.25
+const FADE_SECONDS = 0.3
+const DURATION_SECONDS = FADE_IN_SECONDS + HOLD_SECONDS + FADE_SECONDS
 
 /** How far up it travels, as a share of screen height (the "10vh" of the design). */
 export const RISE_SHARE = 0.1
@@ -26,14 +28,14 @@ export type OrePopup = {
   bonus: number
   /** 0 at the rock, 1 fully risen and gone. */
   progress: number
-  /** Opacity: 1 through the hold, then down to 0 over the fade. */
+  /** Opacity: up from 0 over the fade-in, 1 through the hold, then down to 0 over the fade. */
   fade: number
 }
 
 /** The popup to draw, or null when there is none. */
 export function getOrePopup(): OrePopup | null {
   if (elapsed >= DURATION_SECONDS) return null
-  const fade = Math.min(1, (DURATION_SECONDS - elapsed) / FADE_SECONDS)
+  const fade = Math.min(1, elapsed / FADE_IN_SECONDS, (DURATION_SECONDS - elapsed) / FADE_SECONDS)
   return { amount, bonus, progress: elapsed / DURATION_SECONDS, fade }
 }
 

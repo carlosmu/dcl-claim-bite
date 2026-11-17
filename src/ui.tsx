@@ -2292,7 +2292,7 @@ const MINING_WARNING_COLOR = Color4.create(1, 0.35, 0.3, 1)
 const HINT_MAX_SCALE = 1.1
 
 const moveCloserHint = () => {
-    if (!showMoveCloserHint()) return null
+    if (!showMoveCloserHint() || isOrePopupShowing()) return null
     const k = getRingPulse() >= 0.5 ? HINT_MAX_SCALE : 1
     return (
         <UiEntity uiTransform={{ positionType: 'absolute', position: { top: MINING_PANEL_TOP }, margin: { top: MINING_PANEL_DROP }, width: '100%', flexDirection: 'row', justifyContent: 'center' }}>
@@ -2308,7 +2308,7 @@ const moveCloserHint = () => {
 
 const miningBar = () => {
     const status = getMiningStatus()
-    if (status === null) return null
+    if (status === null || isOrePopupShowing()) return null
 
     const progress = status.needed > 0 ? Math.min(1, status.hits / status.needed) : 0
     const left = Math.max(0, status.needed - status.hits)
@@ -2406,60 +2406,91 @@ const miningBar = () => {
 
 // --- The "+10 Ore" popup -----------------------------------------------------------------
 //
-// Centred, rising and fading: the payout of a finished rock. Drawn in the scene's bitmap
-// typeface, whose shadow is baked into the glyphs. It goes up where the mining panel sat before
-// it moved down, under the HUD, so the two do not cover each other.
+// Centred, rising a little and fading: the payout of a finished rock. Small and quiet, since it
+// shows several times a minute: two badges, no icons or effects. In the mining panel's place,
+// which (with the move-closer hint) gives way to it while it shows.
 //
-// The first line is the rock's base ore; the Social Bonus follows on its own line once the
-// server has said.
+// The first badge is the rock's base ore, all gold; the Social Bonus follows just under it, a
+// size smaller and all green, once the server has said.
 
-const POPUP_FONT_SIZE = 84
 const POPUP_FADE_STEPS = 4
-const POPUP_COLOR = Color4.create(1, 198 / 255, 0, 1)
-// The social bonus line under it: smaller, and green, like the bonus on the mining panel.
-const POPUP_BONUS_FONT_SIZE = 52
-const POPUP_BONUS_COLOR = SOCIAL_BONUS_COLOR
-/** How far it rises while it shows, in pixels, ending at MINING_PANEL_TOP (plus the drop). */
-const POPUP_RISE_PX = 40
-/** Where it shows, below MINING_PANEL_TOP; the units do not add, so it is a margin. */
-const POPUP_DROP = '5vh'
+const POPUP_ORE_FONT_SIZE = 34
+const POPUP_BONUS_FONT_SIZE = 24
+/** Between the two badges. */
+const POPUP_GAP = 4
+const POPUP_RADIUS = 8
+const POPUP_BORDER = 1
+/** The badges' backgrounds, at full opacity of the popup: dark enough to read over anything. */
+const POPUP_BACKGROUND_ALPHA = 0.82
+const POPUP_ORE_BACKGROUND = Color4.fromHexString('#1C1714FF')
+const POPUP_ORE_BORDER = Color4.fromHexString('#C99535FF')
+const POPUP_ORE_TEXT = Color4.fromHexString('#FFCC45FF')
+const POPUP_BONUS_BACKGROUND = Color4.fromHexString('#17451CFF')
+const POPUP_BONUS_BORDER = Color4.fromHexString('#579B36FF')
+const POPUP_BONUS_TEXT = Color4.fromHexString('#B5FF72FF')
+/** How far it rises while it shows, in pixels, ending in the mining panel's place. */
+const POPUP_RISE_PX = 16
+
+/** A colour at the popup's opacity, times its own. */
+const faded = (color: Color4, alpha: number) => Color4.create(color.r, color.g, color.b, color.a * alpha)
+
+/** One badge: a rounded box with a fine border, holding its text. */
+const popupBadge = (key: string, fontSize: number, background: Color4, border: Color4, alpha: number, value: string, color: Color4) => (
+    <UiEntity
+        key={key}
+        uiTransform={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            flexShrink: 0,
+            padding: { left: Math.round(fontSize * 0.45), right: Math.round(fontSize * 0.45), top: Math.round(fontSize * 0.2), bottom: Math.round(fontSize * 0.2) },
+            borderRadius: POPUP_RADIUS,
+            borderWidth: POPUP_BORDER,
+            borderColor: faded(border, alpha)
+        }}
+        uiBackground={{ color: faded(background, alpha * POPUP_BACKGROUND_ALPHA) }}
+    >
+        <BitmapText value={value} fontSize={fontSize} color={faded(color, alpha)} />
+    </UiEntity>
+)
 
 const orePopup = () => {
     const popup = getOrePopup()
     if (popup === null) return null
 
-    const text = t('popup.ore', { amount: popup.amount })
-    // Fully opaque for the hold, then fades (ore-popup.ts sets both). In a few steps rather than
-    // every frame: the fade recolours every glyph, and doing that each frame stalled mobile until
-    // the scene errored.
+    // Fades in, holds, fades out (ore-popup.ts sets the timing). In a few steps rather than every
+    // frame: the fade recolours every glyph, and doing that each frame stalled mobile until the
+    // scene errored.
     const alpha = Math.ceil(popup.fade * POPUP_FADE_STEPS) / POPUP_FADE_STEPS
-    const top = MINING_PANEL_TOP + POPUP_RISE_PX * (1 - popup.progress)
+    const rise = Math.round(POPUP_RISE_PX * (1 - popup.progress))
 
+    // Where the mining panel and the move-closer hint sit, which give it the place while it shows
+    // (see isOrePopupShowing). Ore on top, the Social Bonus just under it, starting a little lower
+    // and rising into place.
     return (
-        <UiEntity uiTransform={{ positionType: 'absolute', width: '100%', height: '100%', margin: { top: POPUP_DROP } }}>
-            <BitmapText
-                value={text}
-                fontSize={POPUP_FONT_SIZE}
-                color={Color4.create(POPUP_COLOR.r, POPUP_COLOR.g, POPUP_COLOR.b, alpha)}
-                align="center"
-                uiTransform={{ positionType: 'absolute', position: { top }, width: '100%' }}
-            />
-            {popup.bonus > 0 ? (
-                <BitmapText
-                    value={t('popup.socialBonus', { bonus: popup.bonus })}
-                    fontSize={POPUP_BONUS_FONT_SIZE}
-                    color={Color4.create(POPUP_BONUS_COLOR.r, POPUP_BONUS_COLOR.g, POPUP_BONUS_COLOR.b, alpha)}
-                    align="center"
-                    uiTransform={{
-                        positionType: 'absolute',
-                        position: { top: top + POPUP_FONT_SIZE },
-                        width: '100%'
-                    }}
-                />
-            ) : null}
+        <UiEntity
+            uiTransform={{
+                positionType: 'absolute',
+                position: { top: MINING_PANEL_TOP },
+                margin: { top: MINING_PANEL_DROP },
+                width: '100%',
+                flexDirection: 'column',
+                alignItems: 'center'
+            }}
+        >
+            <UiEntity uiTransform={{ width: '100%', flexShrink: 0, flexDirection: 'column', alignItems: 'center', position: { top: rise } }}>
+                {popupBadge('ore', POPUP_ORE_FONT_SIZE, POPUP_ORE_BACKGROUND, POPUP_ORE_BORDER, alpha, t('popup.ore', { amount: popup.amount }), POPUP_ORE_TEXT)}
+                {popup.bonus > 0 ? (
+                    <UiEntity key="bonus" uiTransform={{ margin: { top: POPUP_GAP }, flexShrink: 0 }}>
+                        {popupBadge('bonus-badge', POPUP_BONUS_FONT_SIZE, POPUP_BONUS_BACKGROUND, POPUP_BONUS_BORDER, alpha, t('popup.socialBonus', { bonus: popup.bonus }), POPUP_BONUS_TEXT)}
+                    </UiEntity>
+                ) : null}
+            </UiEntity>
         </UiEntity>
     )
 }
+
+/** While the reward shows, it has the mining panel's place: the panel and the hint wait. */
+const isOrePopupShowing = () => getOrePopup() !== null
 
 /** Drawn inside the debug box, under its buttons. */
 const serverStatus = () => {
