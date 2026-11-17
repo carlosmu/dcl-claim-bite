@@ -45,6 +45,8 @@ export function flagIcon(language: Language): { src: string; uvs: number[] } {
 }
 
 const PILL_HEIGHT = 52
+/** The pill is a button: the same corners as the game's buttons (bankButton's 10). */
+const PILL_RADIUS = 10
 const PILL_PADDING_X = 16
 const PILL_BORDER = 2
 const FLAG_SIZE = 28
@@ -162,7 +164,7 @@ export function LanguageSelector() {
                     padding: { left: PILL_PADDING_X, right: PILL_PADDING_X },
                     borderWidth: PILL_BORDER,
                     borderColor: GOLD,
-                    borderRadius: PILL_HEIGHT / 2
+                    borderRadius: PILL_RADIUS
                 }}
                 uiBackground={{ color: PANEL_COLOR }}
                 onMouseDown={() => {

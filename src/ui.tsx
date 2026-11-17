@@ -168,13 +168,13 @@ const DISABLED_COLOR = Color4.create(0.25, 0.25, 0.26, 1)
 // explorer's own interface. Ore, coins and rate, three segments split by hair lines. Ore is a
 // storage bar with the amount on it; the pick lives in its own selector at the bottom-left.
 //
-// Icons come from two atlases, UI_01.png and UI_02.png, each a 4x4 grid named like a spreadsheet:
-// columns are lettered A–D from the left, rows numbered 1–4 from the top, so B3 is column B,
-// row 3. Many cells are not used yet; UI_01's are mapped below anyway.
-const ATLAS = 'assets/images/UI_01.png'
-const ATLAS_2 = 'assets/images/UI_02.png'
-const ATLAS_COLUMNS = 4
-const ATLAS_ROWS = 4
+// Icons come from one atlas, HD_icons.png, an 8x8 grid named like a spreadsheet: columns are
+// lettered A–H from the left, rows numbered 1–8 from the top, so B3 is column B, row 3. The old
+// UI_01 is its top-left quarter (A–D, rows 1–4) and the old UI_02 its top-right (E–H, rows 1–4).
+// Many cells are not used yet; the A–D ones are mapped below anyway.
+const ATLAS = 'assets/images/HD_icons.png'
+const ATLAS_COLUMNS = 8
+const ATLAS_ROWS = 8
 
 const HUD_MARGIN = 16
 const HUD_HEIGHT = 64
@@ -273,18 +273,18 @@ const ICON_SHERIFF = atlasCell(2, 4) // B4
 const ICON_MAP = atlasCell(3, 4) // C4
 const ICON_NOTIFICATION = atlasCell(4, 4) // D4 — bell
 
-// UI_02.png.
-const ICON_WAGON = atlasCell(1, 1, ATLAS_2) // A1
-const ICON_CABIN = atlasCell(2, 1, ATLAS_2) // B1
-const ICON_HOUSE_HOME = atlasCell(3, 1, ATLAS_2) // C1
-const ICON_RANCH = atlasCell(4, 1, ATLAS_2) // D1
-const ICON_INVENTORY = atlasCell(1, 2, ATLAS_2) // A2
-const ICON_HORSE = atlasCell(2, 2, ATLAS_2) // B2
-const ICON_REVOLVER = atlasCell(3, 2, ATLAS_2) // C2
-const ICON_DYNAMITE = atlasCell(4, 2, ATLAS_2) // D2
-const ICON_RATE = atlasCell(1, 3, ATLAS_2) // A3
-const ICON_GIFT = atlasCell(3, 4, ATLAS_2) // C4 — gift box
-const ICON_FEEDBACK = atlasCell(4, 4, ATLAS_2) // D4 — speech bubble with stars
+// Columns E–H: what was UI_02.png.
+const ICON_WAGON = atlasCell(5, 1) // E1
+const ICON_CABIN = atlasCell(6, 1) // F1
+const ICON_HOUSE_HOME = atlasCell(7, 1) // G1
+const ICON_RANCH = atlasCell(8, 1) // H1
+const ICON_INVENTORY = atlasCell(5, 2) // E2
+const ICON_HORSE = atlasCell(6, 2) // F2
+const ICON_REVOLVER = atlasCell(7, 2) // G2
+const ICON_DYNAMITE = atlasCell(8, 2) // H2
+const ICON_RATE = atlasCell(5, 3) // E3
+const ICON_GIFT = atlasCell(7, 4) // G4 — gift box
+const ICON_FEEDBACK = atlasCell(8, 4) // H4 — speech bubble with stars
 
 // Small icons: an 8x8 grid, named like the other atlases (letter = column, number = row).
 const SMALL_ICONS_ATLAS = 'assets/images/Small_icons.png'
@@ -1743,6 +1743,17 @@ const storePanel = () => {
  * The frame the store and the Land Office share: title, purse, close, cards on the left, detail on
  * the right. With tabs, the cards and the detail stand in the box under them.
  */
+/** The player's coins, under a panel's title: on mobile the panel covers the HUD that shows them. */
+const coinPurse = () => (
+    <UiEntity
+        uiTransform={{ height: 44, flexDirection: 'row', alignItems: 'center', flexShrink: 0, padding: { left: 8, right: 14 }, margin: { top: 6 }, borderRadius: 22 }}
+        uiBackground={{ color: BANK_WOOD }}
+    >
+        <UiEntity uiTransform={{ width: 34, height: 34, margin: { right: 8 } }} uiBackground={iconBackground(ICON_COINS)} />
+        <BitmapText value={t('unit.coinsAmountCaps', { coins: withCommas(getCoins()) })} fontSize={26} color={COIN_COLOR} />
+    </UiEntity>
+)
+
 const counterPanel = (
     title: string,
     onClose: () => void,
@@ -1776,15 +1787,7 @@ const counterPanel = (
             {/* Title centred with the purse under it; the close button sits apart in the corner. */}
             <UiEntity uiTransform={{ width: '100%', flexDirection: 'column', alignItems: 'center', margin: { bottom: 12 } }}>
                 <BitmapText value={title} fontSize={40} color={BANK_GOLD_LIGHT} />
-                {showCoins ? (
-                    <UiEntity
-                        uiTransform={{ height: 44, flexDirection: 'row', alignItems: 'center', flexShrink: 0, padding: { left: 8, right: 14 }, margin: { top: 6 }, borderRadius: 22 }}
-                        uiBackground={{ color: BANK_WOOD }}
-                    >
-                        <UiEntity uiTransform={{ width: 34, height: 34, margin: { right: 8 } }} uiBackground={iconBackground(ICON_COINS)} />
-                        <BitmapText value={t('unit.coinsAmountCaps', { coins: withCommas(getCoins()) })} fontSize={26} color={COIN_COLOR} />
-                    </UiEntity>
-                ) : null}
+                {showCoins ? coinPurse() : null}
                 <Button
                     value="X"
                     fontSize={30}
@@ -3701,6 +3704,12 @@ const muleDropdown = () => {
 // saying something that matters now (see ui/objective.ts), the first on top. Each closes from its
 // X. Hidden when there is nothing to say. Alerts wear the warning colour; objectives the bank's gold.
 
+/** How far in from the screen's right edge the tracker and the rightmost corner button (Rewards) sit; more on mobile. */
+const SCREEN_RIGHT_MARGIN = 32
+const SCREEN_RIGHT_MARGIN_MOBILE = 48
+function screenRightMargin(): number {
+    return isMobile() ? SCREEN_RIGHT_MARGIN_MOBILE : SCREEN_RIGHT_MARGIN
+}
 const OBJECTIVE_WIDTH = 348
 const OBJECTIVE_ICON_SIZE = 28
 const OBJECTIVE_BAR_HEIGHT = 8
@@ -3721,7 +3730,7 @@ const objectiveTracker = () => {
         <UiEntity
             uiTransform={{
                 positionType: 'absolute',
-                position: { top: OBJECTIVE_TOP, right: HUD_MARGIN },
+                position: { top: OBJECTIVE_TOP, right: screenRightMargin() },
                 width: OBJECTIVE_WIDTH,
                 flexDirection: 'column'
             }}
@@ -4027,9 +4036,11 @@ const ownerCardPanel = () => {
 // the inventory, and like it, one screen at a time: opening it closes the map and the inventory.
 
 const NOTIFY_PANEL_WIDTH = 560
-/** How far in from the screen's right edge Notifications sits: far enough that the Town Board's left
- *  edge lines up with the objective tracker's below. */
-const CORNER_BUTTON_RIGHT = HUD_MARGIN + OBJECTIVE_WIDTH - (3 * BOTTOM_BUTTON_WIDTH + 2 * BOTTOM_BUTTON_GAP)
+/** How far in from the screen's right edge Notifications (slot 0) sits: two buttons further in than
+ *  Rewards (slot -2), which keeps screenRightMargin() to the edge, like the tracker below. */
+function cornerButtonRight(): number {
+    return screenRightMargin() + 2 * (BOTTOM_BUTTON_WIDTH + BOTTOM_BUTTON_GAP)
+}
 
 /** Town Board, Sound, Notifications, Feedback and Rewards: square icon buttons like Map and Inventory, side by
  *  side on the screen's top-right corner, Rewards (slot -2) at the edge. `slot` counts from the right. Centred
@@ -4038,7 +4049,7 @@ const cornerButton = (slot: number, open: boolean, icon: Icon, onPress: () => vo
     <UiEntity
         uiTransform={{
             positionType: 'absolute',
-            position: { top: (HUD_PILL_HEIGHT - BOTTOM_PANEL_HEIGHT) / 2, right: CORNER_BUTTON_RIGHT + slot * (bottomButtonWidth() + BOTTOM_BUTTON_GAP) },
+            position: { top: (HUD_PILL_HEIGHT - BOTTOM_PANEL_HEIGHT) / 2, right: cornerButtonRight() + slot * (bottomButtonWidth() + BOTTOM_BUTTON_GAP) },
             width: bottomButtonWidth(),
             height: BOTTOM_PANEL_HEIGHT,
             borderRadius: 8,
@@ -4213,7 +4224,7 @@ const feedbackMenu = () => (
             positionType: 'absolute',
             position: {
                 top: (HUD_PILL_HEIGHT - BOTTOM_PANEL_HEIGHT) / 2 + BOTTOM_PANEL_HEIGHT + FEEDBACK_MENU_GAP,
-                right: CORNER_BUTTON_RIGHT - (bottomButtonWidth() + BOTTOM_BUTTON_GAP)
+                right: cornerButtonRight() - (bottomButtonWidth() + BOTTOM_BUTTON_GAP)
             },
             width: FEEDBACK_MENU_WIDTH,
             flexDirection: 'column',
@@ -4809,8 +4820,8 @@ const SLOT_INFO_BAR_HEIGHT = 96
 const SLOT_INFO_BAR_OPEN_HEIGHT = 48
 const SLOT_JACKPOT_ROW_COLOR = Color4.create(0.88, 0.7, 0.32, 0.18)
 
-// On mobile the machine fills the screen from the HUD's bottom edge down, over the dock: 720 less
-// the plank leaves 640, and the unfolded tables must fit in it too, so every piece is a size smaller.
+// On mobile the machine fills the screen, over the HUD and the dock, like the store: 720 less its
+// margins, with the purse and the unfolded tables in it too, so every piece is a size smaller.
 const SLOT_MOBILE_REEL_HEIGHT = 96
 const SLOT_MOBILE_REEL_ICON_SIZE = 80
 const SLOT_MOBILE_PAY_ICON_SIZE = 22
@@ -4856,11 +4867,11 @@ const SLOT_SYMBOL_BACKGROUNDS: Record<string, Color4> = {
     heart: Color4.fromHexString('#F0DFC0FF')
 }
 const SLOT_SYMBOL_ICONS: Record<string, Icon> = {
-    horseshoe: atlasCell(2, 3, ATLAS_2), // B3
-    spade: atlasCell(3, 3, ATLAS_2), // C3
-    bell: atlasCell(4, 3, ATLAS_2), // D3
-    diamond: atlasCell(1, 4, ATLAS_2), // A4
-    heart: atlasCell(2, 4, ATLAS_2) // B4
+    horseshoe: atlasCell(6, 3), // F3
+    spade: atlasCell(7, 3), // G3
+    bell: atlasCell(8, 3), // H3
+    diamond: atlasCell(5, 4), // E4
+    heart: atlasCell(6, 4) // F4
 }
 
 const slotReel = (reel: number, index: number) => (
@@ -4958,14 +4969,15 @@ const casinoPanel = () => {
             ? t('slots.bellsPayMax', { coins: bellsPay })
             : t('slots.bellsPay', { coins: bellsPay, max: SLOT_MAX_BET })
     const layout = slotLayout()
-    const panel = (
+    return (
         <UiEntity
             uiTransform={{
                 width: '100%',
                 minWidth: PANEL_MIN_WIDTH,
-                // On mobile it fills its holder, and the four blocks spread out over the height:
-                // the free room goes between them. On desktop it fits its contents.
-                ...(layout.mobile ? { height: '100%', justifyContent: 'space-between' } : {}),
+                // On mobile, like the store: the full screen height, over the HUD (the purse under
+                // the title stands in for it), and the four blocks spread out over it. On desktop
+                // it fits its contents.
+                ...(layout.mobile ? { flexGrow: 1, margin: { top: HUD_MARGIN, bottom: HUD_MARGIN }, justifyContent: 'space-between' } : {}),
                 flexDirection: 'column',
                 alignItems: 'center',
                 padding: BANK_PANEL_PADDING,
@@ -4985,7 +4997,9 @@ const casinoPanel = () => {
                     color={BANK_CREAM}
                     textAlign="middle-center"
                     uiTransform={{ width: '100%', height: layout.taglineHeight, flexShrink: 0, margin: { top: layout.taglineGap } }}
-                />
+                />,
+                // What there is to bet with, as in the store.
+                coinPurse()
             )}
 
             {/* The machine: the reels, and what they just did. The message is not a button. */}
@@ -5092,22 +5106,6 @@ const casinoPanel = () => {
                 uiBackground={{ color: MAP_CLOSE_COLOR }}
                 onMouseDown={closeCasinoPanel}
             />
-        </UiEntity>
-    )
-    if (!layout.mobile) return panel
-    // On mobile: from the HUD's bottom edge to the bottom of the screen, as wide as the column.
-    // Drawn after the dock, so it covers it; the HUD stays in view above it.
-    return (
-        <UiEntity
-            uiTransform={{
-                positionType: 'absolute',
-                position: { top: HUD_PILL_HEIGHT, bottom: 0, left: 0 },
-                width: '100%',
-                flexDirection: 'column',
-                alignItems: 'center'
-            }}
-        >
-            {panel}
         </UiEntity>
     )
 }
