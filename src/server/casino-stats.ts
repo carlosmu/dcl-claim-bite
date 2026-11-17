@@ -7,6 +7,7 @@
 
 import { engine } from '@dcl/sdk/ecs'
 
+import { dayKeyOf } from '../shared/titles'
 import { CasinoDay, loadCasinoStats, saveCasinoStats, StoredCasinoStats } from './persistence'
 
 /** How many days are kept: enough to compare weeks, and the record stays a few KB. */
@@ -63,8 +64,8 @@ function apply(day: string, bet: number, win: number, jackpot: boolean, potChang
  * game, so what the casino won is the bet, less the win, less that.
  */
 export function noteSpin(bet: number, win: number, jackpot: boolean, potChange: number): void {
-  // UTC, the same day the town's titles count by.
-  const day = new Date(Date.now()).toISOString().slice(0, 10)
+  // The same game day the town's titles count by (it turns over at DAY_START_HOUR_UTC).
+  const day = dayKeyOf(Date.now())
   if (loaded) apply(day, bet, win, jackpot, potChange)
   else waiting.push(() => apply(day, bet, win, jackpot, potChange))
 }

@@ -20,6 +20,26 @@ let zone: ProximityZone | null = null
 // move while the panel is open, so the ore is worked out from the coins each time it is read.
 let sellCoins = 0
 
+// What the player is typing into the amount box, or null when the box just shows the selection.
+// Any other way of changing the selection (the steppers, 1/4, 1/2, MAX, opening the panel)
+// drops the draft, so the box goes back to showing the ore that actually converts.
+let sellOreDraft: string | null = null
+
+// Bumped each time a draft is dropped. The UI keys the input on it, so the box is rebuilt empty:
+// writing '' back into an input can be a no-op the renderer never hears about, because the SDK
+// does not store what the player typed in the component, and the old digits stay on screen.
+let sellOreInputGeneration = 0
+
+function dropSellOreDraft(): void {
+  if (sellOreDraft === null) return
+  sellOreDraft = null
+  sellOreInputGeneration++
+}
+
+export function getSellOreInputGeneration(): number {
+  return sellOreInputGeneration
+}
+
 export function isPlayerAtBank(): boolean {
   return zone !== null && zone.isPlayerInside()
 }
@@ -49,11 +69,33 @@ export function getSellAmount(): number {
 }
 
 export function changeSellCoins(delta: number): void {
+  dropSellOreDraft()
   sellCoins = clampToBag(getSellCoins() + delta)
 }
 
 export function setSellCoins(coins: number): void {
+  dropSellOreDraft()
   sellCoins = clampToBag(coins)
+}
+
+export function getSellOreDraft(): string | null {
+  return sellOreDraft
+}
+
+/**
+ * The player typed an ore amount. The selection follows it live, rounded down to the ore that
+ * converts (and to the bag), while the box keeps showing exactly what was typed.
+ */
+export function typeSellOre(text: string): void {
+  sellOreDraft = text
+  const ore = parseInt(text.replace(/[^0-9]/g, ''), 10)
+  sellCoins = clampToBag(Number.isFinite(ore) ? quoteSaleForDisplay(Math.min(ore, getOre())) : 0)
+}
+
+/** Enter in the amount box: the typed ore snaps to what it actually sells. */
+export function commitSellOre(text: string): void {
+  typeSellOre(text)
+  dropSellOreDraft()
 }
 
 /** The most coins the whole bag buys. */

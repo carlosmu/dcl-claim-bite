@@ -3,7 +3,7 @@
 // A title has one holder at a time. Titles are judged on the last seven days, today included, so
 // a title lapses only when what earned it does; the list of new owners never lapses at all.
 //
-// The days are UTC calendar days, kept one record each: that is all the detail a seven-day window
+// The days are game days, turning over at DAY_START_HOUR_UTC, kept one record each: that is all the detail a seven-day window
 // needs, and it keeps the stored record small.
 
 export type TitleId = 'whale' | 'panic' | 'active' | 'baron' | 'roller'
@@ -30,9 +30,19 @@ export const NEW_OWNERS_SHOWN = 3
 
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000
 
-/** Which UTC calendar day this moment falls in, so every player's day turns over at once. */
+/** The hour (UTC) the game's day turns over at, for everything that counts by day. */
+export const DAY_START_HOUR_UTC = 10
+
+const DAY_START_OFFSET_MS = DAY_START_HOUR_UTC * 60 * 60 * 1000
+
+/** Which game day this moment falls in, so every player's day turns over at once (at DAY_START_HOUR_UTC). */
 export function dayOf(now: number): number {
-  return Math.floor(now / MILLISECONDS_PER_DAY)
+  return Math.floor((now - DAY_START_OFFSET_MS) / MILLISECONDS_PER_DAY)
+}
+
+/** The game day this moment falls in, as YYYY-MM-DD: the UTC date its day started on. */
+export function dayKeyOf(now: number): string {
+  return new Date(now - DAY_START_OFFSET_MS).toISOString().slice(0, 10)
 }
 
 /** The days still inside the window on `today`. */

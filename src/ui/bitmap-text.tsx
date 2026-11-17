@@ -58,6 +58,13 @@ export type BitmapTextProps = {
 const BUILT_IN_FACE_LIFT = 0.2
 
 /**
+ * The mobile app's built-in face sits far lower still: "1 COIN" left a third of its button empty
+ * above it. There the text is moved up by this much of the font size instead, with a relative
+ * offset: it does not depend on how the renderer treats a Label's padding.
+ */
+const MOBILE_FACE_LIFT = 0.22
+
+/**
  * Whether the text shows in the built-in face rather than BouWeste: a language BouWeste cannot
  * write, or the mobile app, which ignores `fontSrc`. (A desktop preview without asset bundles shows
  * it too, but nothing here can tell.)
@@ -68,7 +75,12 @@ function showsBuiltInFace(): boolean {
 
 export function BitmapText(props: BitmapTextProps) {
     const { value, fontSize, color = Color4.White(), align = 'left', uiTransform } = props
-    const lift = showsBuiltInFace() ? { padding: { bottom: Math.round(fontSize * BUILT_IN_FACE_LIFT) } } : {}
+    // BouWeste is never moved: only the built-in face, by the mobile app's amount or desktop's.
+    const lift = !showsBuiltInFace()
+        ? {}
+        : isMobile()
+          ? { position: { top: -Math.round(fontSize * MOBILE_FACE_LIFT) } }
+          : { padding: { bottom: Math.round(fontSize * BUILT_IN_FACE_LIFT) } }
     return (
         <Label
             value={value}

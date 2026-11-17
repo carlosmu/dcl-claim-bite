@@ -124,7 +124,7 @@ export type StoredTitles = { days: TownDay[]; owners: NewOwner[] }
 /** One day of the slot machines. `won` is what left the game: bets, less wins, less the pot's growth. */
 export type CasinoDay = { spins: number; wagered: number; paid: number; jackpots: number; won: number }
 
-/** `won` is what the casino has won in all, the headline figure. `days` are by UTC day, as YYYY-MM-DD. */
+/** `won` is what the casino has won in all, the headline figure. `days` are by game day (turning over at 10:00 UTC), as YYYY-MM-DD. */
 export type StoredCasinoStats = { won: number; days: Record<string, CasinoDay> }
 
 export type StoredLot = { kind: string; lot: number; address: string; name: string }

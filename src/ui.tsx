@@ -4,7 +4,7 @@ import { Color4 } from "@dcl/sdk/math"
 import { isMobile } from '@dcl/sdk/platform'
 import { copyToClipboard } from '~system/RestrictedActions'
 import { getCoins, getOre } from './shared/state/wallet'
-import { changeSellCoins, closeBankPanel, getSellAmount, getSellCoins, isBankPanelOpen, maxSellCoins, sellSelectedOre, setSellCoins } from './bank/bank'
+import { changeSellCoins, closeBankPanel, commitSellOre, getSellAmount, getSellCoins, getSellOreDraft, getSellOreInputGeneration, isBankPanelOpen, maxSellCoins, sellSelectedOre, setSellCoins, typeSellOre } from './bank/bank'
 import {
     getCarryCapacity,
     getMuleCount,
@@ -293,6 +293,8 @@ const smallIcon = (column: number, row: number): Icon => atlasCell(column, row, 
 
 const ICON_COPY = smallIcon(1, 1) // A1
 const ICON_COPIED = smallIcon(2, 1) // B1
+const ICON_CHECKED = smallIcon(2, 1) // B1 — green tick
+const ICON_BULLET = smallIcon(3, 1) // C1
 
 // Property icon by catalogue id.
 const PROPERTY_ICONS: Record<string, Icon> = {
@@ -798,6 +800,8 @@ const bankPanel = () => {
     // The selection is counted in coins, so the ore shown is always the ore that converts.
     const payout = getSellCoins()
     const amount = getSellAmount()
+    // What the player is typing into the amount box, if anything.
+    const oreDraft = getSellOreDraft()
     // The rate as sales are priced, to one decimal; it doubles as the minimum to sell.
     const rate = quotedRate(getSyncedRate())
     const canSell = payout > 0
@@ -890,7 +894,25 @@ const bankPanel = () => {
                                 }}
                                 uiBackground={{ color: BANK_WOOD_DARK }}
                             >
-                                <BitmapText value={t('bank.oreAmount', { amount })} fontSize={42} color={BANK_GOLD_LIGHT} align="center" />
+                                {/* Tapping the amount lets the player type it. The input covers the box
+                                    and stays empty until they type, so the bitmap amount shows through. */}
+                                {oreDraft === null ? (
+                                    <BitmapText value={t('bank.oreAmount', { amount })} fontSize={42} color={BANK_GOLD_LIGHT} align="center" />
+                                ) : null}
+                                <Input
+                                    key={`ore-input-${getSellOreInputGeneration()}`}
+                                    value={oreDraft ?? ''}
+                                    // Every prop but value must stay the same while typing: changing one
+                                    // re-sends the whole input with its stale value and eats the keystroke.
+                                    placeholder=""
+                                    fontSize={42}
+                                    color={BANK_GOLD_LIGHT}
+                                    textAlign="middle-center"
+                                    uiTransform={{ positionType: 'absolute', position: { top: 0, left: 0 }, width: '100%', height: '100%' }}
+                                    uiBackground={{ color: Color4.Clear() }}
+                                    onChange={typeSellOre}
+                                    onSubmit={commitSellOre}
+                                />
                             </UiEntity>
                             {bankButton('+10', () => changeSellCoins(1), { width: 96, height: 60 }, 36, BANK_STEP_COLOR, BANK_CREAM)}
                         </UiEntity>,
@@ -1960,7 +1982,16 @@ function giftQuestStat(campaign: RewardCampaign): ReactEcs.JSX.Element {
     return detailStat(t('claim.quest'), done === total ? t('claim.complete') : `${done}/${total}`, done === total ? GIFT_DONE_COLOR : BANK_GOLD_LIGHT)
 }
 
-const giftRequirement = (done: boolean, text: string) => detailNote(`${done ? '✓' : '•'} ${text}`, done ? GIFT_DONE_COLOR : GIFT_TODO_COLOR)
+const GIFT_MARK_SIZE = 18
+const giftRequirement = (done: boolean, text: string) => (
+    <UiEntity key={text} uiTransform={{ flexDirection: 'row', alignItems: 'center', height: 24 }}>
+        <UiEntity
+            uiTransform={{ width: GIFT_MARK_SIZE, height: GIFT_MARK_SIZE, margin: { right: 6 }, flexShrink: 0 }}
+            uiBackground={iconBackground(done ? ICON_CHECKED : ICON_BULLET)}
+        />
+        <Label value={text} fontSize={16} color={done ? GIFT_DONE_COLOR : GIFT_TODO_COLOR} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 24 }} />
+    </UiEntity>
+)
 
 function giftDetail(campaign: RewardCampaign): Detail {
     const gift = getRewardStatus(campaign.id)
@@ -4777,6 +4808,45 @@ const SLOT_INFO_BAR_HEIGHT = 96
 /** Unfolded, the bar holds no pot and gives its room back, so the panel still fits a phone's 720. */
 const SLOT_INFO_BAR_OPEN_HEIGHT = 48
 const SLOT_JACKPOT_ROW_COLOR = Color4.create(0.88, 0.7, 0.32, 0.18)
+
+// On mobile the machine fills the screen from the HUD's bottom edge down, over the dock: 720 less
+// the plank leaves 640, and the unfolded tables must fit in it too, so every piece is a size smaller.
+const SLOT_MOBILE_REEL_HEIGHT = 96
+const SLOT_MOBILE_REEL_ICON_SIZE = 80
+const SLOT_MOBILE_PAY_ICON_SIZE = 22
+/** Six pay rows of SLOT_MOBILE_PAY_ICON_SIZE, plus the caption and the box's padding. */
+const SLOT_MOBILE_TABLES_HEIGHT = 178
+
+/** Every size the machine changes between desktop and mobile. */
+function slotLayout() {
+    const mobile = isMobile()
+    return {
+        mobile,
+        reelHeight: mobile ? SLOT_MOBILE_REEL_HEIGHT : SLOT_REEL_HEIGHT,
+        reelIcon: mobile ? SLOT_MOBILE_REEL_ICON_SIZE : SLOT_REEL_ICON_SIZE,
+        payIcon: mobile ? SLOT_MOBILE_PAY_ICON_SIZE : SLOT_PAY_ICON_SIZE,
+        tablesHeight: mobile ? SLOT_MOBILE_TABLES_HEIGHT : SLOT_TABLES_HEIGHT,
+        titleSize: mobile ? 40 : 52,
+        taglineHeight: mobile ? 24 : 28,
+        taglineGap: mobile ? 2 : 4,
+        // Between blocks: on mobile the panel's space-between puts the room there instead.
+        reelsGap: mobile ? 0 : 10,
+        messageSize: mobile ? 32 : 40,
+        messageGap: mobile ? 10 : 10,
+        betHeight: mobile ? 52 : 60,
+        betGap: mobile ? 0 : 24,
+        spinGap: mobile ? 10 : 12,
+        spinHeight: mobile ? 56 : 68,
+        infoGap: mobile ? 0 : 12
+    }
+}
+
+/** One of the machine's four blocks (title, reels, bets, info): kept whole, never squashed. */
+const slotBlock = (key: string, ...children: (ReactEcs.JSX.Element | null)[]) => (
+    <UiEntity key={key} uiTransform={{ width: '100%', flexShrink: 0, flexDirection: 'column', alignItems: 'center' }}>
+        {children}
+    </UiEntity>
+)
 /** Each reel's box changes colour with its symbol, picked to set the icon off. */
 const SLOT_SYMBOL_BACKGROUNDS: Record<string, Color4> = {
     horseshoe: Color4.fromHexString('#2F5D3AFF'),
@@ -4798,7 +4868,7 @@ const slotReel = (reel: number, index: number) => (
         key={`${index}`}
         uiTransform={{
             width: SLOT_REEL_WIDTH,
-            height: SLOT_REEL_HEIGHT,
+            height: slotLayout().reelHeight,
             flexShrink: 0,
             justifyContent: 'center',
             alignItems: 'center',
@@ -4810,7 +4880,7 @@ const slotReel = (reel: number, index: number) => (
         uiBackground={{ color: SLOT_SYMBOL_BACKGROUNDS[SLOT_SYMBOLS[reel].id] }}
     >
         <UiEntity
-            uiTransform={{ width: SLOT_REEL_ICON_SIZE, height: SLOT_REEL_ICON_SIZE }}
+            uiTransform={{ width: slotLayout().reelIcon, height: slotLayout().reelIcon }}
             uiBackground={iconBackground(SLOT_SYMBOL_ICONS[SLOT_SYMBOLS[reel].id])}
         />
     </UiEntity>
@@ -4822,7 +4892,7 @@ const slotPayLine = (key: string, symbolId: string, combination: string, pays: s
         key={key}
         uiTransform={{
             width: '100%',
-            height: SLOT_PAY_ICON_SIZE,
+            height: slotLayout().payIcon,
             flexShrink: 0,
             flexDirection: 'row',
             alignItems: 'center',
@@ -4832,11 +4902,11 @@ const slotPayLine = (key: string, symbolId: string, combination: string, pays: s
         uiBackground={highlighted ? { color: SLOT_JACKPOT_ROW_COLOR } : undefined}
     >
         <UiEntity
-            uiTransform={{ width: SLOT_PAY_ICON_SIZE, height: SLOT_PAY_ICON_SIZE, flexShrink: 0, margin: { right: 8 } }}
+            uiTransform={{ width: slotLayout().payIcon, height: slotLayout().payIcon, flexShrink: 0, margin: { right: 8 } }}
             uiBackground={iconBackground(SLOT_SYMBOL_ICONS[symbolId])}
         />
-        <Label value={combination} fontSize={16} color={BANK_CREAM} textAlign="middle-left" textWrap="nowrap" uiTransform={{ width: '46%', height: SLOT_PAY_ICON_SIZE, flexShrink: 0 }} />
-        <Label value={pays} fontSize={16} color={BANK_GOLD_LIGHT} textAlign="middle-right" textWrap="nowrap" uiTransform={{ flexGrow: 1, height: SLOT_PAY_ICON_SIZE }} />
+        <Label value={combination} fontSize={16} color={BANK_CREAM} textAlign="middle-left" textWrap="nowrap" uiTransform={{ width: '46%', height: slotLayout().payIcon, flexShrink: 0 }} />
+        <Label value={pays} fontSize={16} color={BANK_GOLD_LIGHT} textAlign="middle-right" textWrap="nowrap" uiTransform={{ flexGrow: 1, height: slotLayout().payIcon }} />
     </UiEntity>
 )
 
@@ -4851,7 +4921,7 @@ const slotInfoBar = (jackpot: number) => (
             justifyContent: 'space-between',
             alignItems: 'center',
             padding: { left: 18, right: 18 },
-            margin: { top: 12 },
+            margin: { top: slotLayout().infoGap },
             borderRadius: 10,
             borderWidth: 2,
             borderColor: BANK_TRIM
@@ -4887,11 +4957,15 @@ const casinoPanel = () => {
         bet >= SLOT_MAX_BET
             ? t('slots.bellsPayMax', { coins: bellsPay })
             : t('slots.bellsPay', { coins: bellsPay, max: SLOT_MAX_BET })
-    return (
+    const layout = slotLayout()
+    const panel = (
         <UiEntity
             uiTransform={{
                 width: '100%',
                 minWidth: PANEL_MIN_WIDTH,
+                // On mobile it fills its holder, and the four blocks spread out over the height:
+                // the free room goes between them. On desktop it fits its contents.
+                ...(layout.mobile ? { height: '100%', justifyContent: 'space-between' } : {}),
                 flexDirection: 'column',
                 alignItems: 'center',
                 padding: BANK_PANEL_PADDING,
@@ -4901,90 +4975,108 @@ const casinoPanel = () => {
             }}
             uiBackground={{ color: BANK_WOOD_DARK }}
         >
-            <BitmapText value={t('slots.title')} fontSize={52} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%' }} />
-            <Label value={`<i>${getSlotTagline()}</i>`} fontSize={20} color={BANK_CREAM} textAlign="middle-center" uiTransform={{ width: '100%', height: 28, margin: { top: 4 } }} />
+            {slotBlock(
+                'header',
+                <BitmapText value={t('slots.title')} fontSize={layout.titleSize} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%' }} />,
+                // flexShrink 0: shrunk to nothing, the reels drew over it.
+                <Label
+                    value={`<i>${getSlotTagline()}</i>`}
+                    fontSize={20}
+                    color={BANK_CREAM}
+                    textAlign="middle-center"
+                    uiTransform={{ width: '100%', height: layout.taglineHeight, flexShrink: 0, margin: { top: layout.taglineGap } }}
+                />
+            )}
 
             {/* The machine: the reels, and what they just did. The message is not a button. */}
-            <UiEntity uiTransform={{ width: '100%', height: SLOT_REEL_HEIGHT, flexShrink: 0, flexDirection: 'row', justifyContent: 'center', margin: { top: 10 } }}>
-                {getSlotReels().map((reel, index) => slotReel(reel, index))}
-            </UiEntity>
-            <BitmapText value={upper(getSlotMessage())} fontSize={40} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%', margin: { top: 10 } }} />
+            {slotBlock(
+                'machine',
+                <UiEntity uiTransform={{ width: '100%', height: layout.reelHeight, flexShrink: 0, flexDirection: 'row', justifyContent: 'center', margin: { top: layout.reelsGap } }}>
+                    {getSlotReels().map((reel, index) => slotReel(reel, index))}
+                </UiEntity>,
+                <BitmapText value={upper(getSlotMessage())} fontSize={layout.messageSize} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%', margin: { top: layout.messageGap } }} />
+            )}
 
-            <UiEntity uiTransform={{ width: '100%', height: 60, flexDirection: 'row', justifyContent: 'space-between', margin: { top: 24 } }}>
-                {SLOT_BETS.map((option) => (
-                    <UiEntity key={`${option}`} uiTransform={{ width: '32%', height: 60 }}>
-                        {bankButton(
-                            coinsCaps(option),
-                            () => setSlotBet(option),
-                            { width: '100%', height: 60 },
-                            30,
-                            option === bet ? BANK_GOLD : BANK_STEP_COLOR,
-                            option === bet ? BANK_INK : BANK_CREAM
-                        )}
-                    </UiEntity>
-                ))}
-            </UiEntity>
-
-            <UiEntity uiTransform={{ width: '100%', height: 12 }} />
-            {bankButton(
-                isSlotSpinning() ? t('slots.spinning') : getCoins() < bet ? t('slots.notEnough') : t('slots.spinFor', { bet }),
-                canSpin ? spinSlot : () => {},
-                { width: '100%', height: 68 },
-                40,
-                canSpin ? BANK_GOLD : DISABLED_COLOR,
-                canSpin ? BANK_INK : MUTED_COLOR
+            {slotBlock(
+                'bet',
+                <UiEntity uiTransform={{ width: '100%', height: layout.betHeight, flexShrink: 0, flexDirection: 'row', justifyContent: 'space-between', margin: { top: layout.betGap } }}>
+                    {SLOT_BETS.map((option) => (
+                        <UiEntity key={`${option}`} uiTransform={{ width: '32%', height: layout.betHeight }}>
+                            {bankButton(
+                                coinsCaps(option),
+                                () => setSlotBet(option),
+                                { width: '100%', height: layout.betHeight },
+                                30,
+                                option === bet ? BANK_GOLD : BANK_STEP_COLOR,
+                                option === bet ? BANK_INK : BANK_CREAM
+                            )}
+                        </UiEntity>
+                    ))}
+                </UiEntity>,
+                <UiEntity uiTransform={{ width: '100%', height: layout.spinGap, flexShrink: 0 }} />,
+                bankButton(
+                    isSlotSpinning() ? t('slots.spinning') : getCoins() < bet ? t('slots.notEnough') : t('slots.spinFor', { bet }),
+                    canSpin ? spinSlot : () => {},
+                    { width: '100%', height: layout.spinHeight },
+                    40,
+                    canSpin ? BANK_GOLD : DISABLED_COLOR,
+                    canSpin ? BANK_INK : MUTED_COLOR
+                )
             )}
 
             {/* What is at stake, and what pays: folded away until asked for. */}
-            {slotInfoBar(jackpot)}
-            {isSlotInfoOpen() ? (
-                <UiEntity uiTransform={{ width: '100%', flexShrink: 0, flexDirection: 'row', justifyContent: 'space-between' }}>
-                    {bankSection(
-                        t('slots.jackpot'),
-                        <UiEntity uiTransform={{ width: '100%', flexGrow: 1, flexDirection: 'column', justifyContent: 'center' }}>
-                            <BitmapText
-                                value={coinsCaps(jackpot)}
-                                fontSize={42}
-                                color={COIN_COLOR}
-                                align="left"
-                                uiTransform={{ width: '100%', height: 44 }}
-                            />
-                            <Label
-                                value={t('slots.grows')}
-                                fontSize={16}
-                                color={BANK_CREAM}
-                                textAlign="middle-left"
-                                uiTransform={{ width: '100%', height: 22 }}
-                            />
-                            <Label
-                                value={jackpotHint}
-                                fontSize={16}
-                                color={BANK_CAPTION}
-                                textAlign="middle-left"
-                                textWrap="wrap"
-                                uiTransform={{ width: '100%', height: 44 }}
-                            />
-                        </UiEntity>,
-                        { width: '49%', height: SLOT_TABLES_HEIGHT }
-                    )}
-                    {bankSection(
-                        t('slots.pays'),
-                        [
-                            slotPayLine('two', 'horseshoe', 'x2', `x${TWO_HORSESHOES_PAY}`),
-                            ...SLOT_SYMBOLS.map((symbol) =>
-                                slotPayLine(
-                                    symbol.id,
-                                    symbol.id,
-                                    'x3',
-                                    symbol.id === 'bell' ? `x${symbol.pays} + ${t('slots.jackpot')}` : `x${symbol.pays}`,
-                                    symbol.id === 'bell'
+            {slotBlock(
+                'info',
+                slotInfoBar(jackpot),
+                isSlotInfoOpen() ? (
+                    <UiEntity uiTransform={{ width: '100%', flexShrink: 0, flexDirection: 'row', justifyContent: 'space-between' }}>
+                        {bankSection(
+                            t('slots.jackpot'),
+                            <UiEntity uiTransform={{ width: '100%', flexGrow: 1, flexDirection: 'column', justifyContent: 'center' }}>
+                                <BitmapText
+                                    value={coinsCaps(jackpot)}
+                                    fontSize={42}
+                                    color={COIN_COLOR}
+                                    align="left"
+                                    uiTransform={{ width: '100%', height: 44 }}
+                                />
+                                <Label
+                                    value={t('slots.grows')}
+                                    fontSize={16}
+                                    color={BANK_CREAM}
+                                    textAlign="middle-left"
+                                    uiTransform={{ width: '100%', height: 22, flexShrink: 0 }}
+                                />
+                                <Label
+                                    value={jackpotHint}
+                                    fontSize={16}
+                                    color={BANK_CAPTION}
+                                    textAlign="middle-left"
+                                    textWrap="wrap"
+                                    uiTransform={{ width: '100%', height: 44, flexShrink: 0 }}
+                                />
+                            </UiEntity>,
+                            { width: '49%', height: layout.tablesHeight }
+                        )}
+                        {bankSection(
+                            t('slots.pays'),
+                            [
+                                slotPayLine('two', 'horseshoe', 'x2', `x${TWO_HORSESHOES_PAY}`),
+                                ...SLOT_SYMBOLS.map((symbol) =>
+                                    slotPayLine(
+                                        symbol.id,
+                                        symbol.id,
+                                        'x3',
+                                        symbol.id === 'bell' ? `x${symbol.pays} + ${t('slots.jackpot')}` : `x${symbol.pays}`,
+                                        symbol.id === 'bell'
+                                    )
                                 )
-                            )
-                        ],
-                        { width: '49%', height: SLOT_TABLES_HEIGHT }
-                    )}
-                </UiEntity>
-            ) : null}
+                            ],
+                            { width: '49%', height: layout.tablesHeight }
+                        )}
+                    </UiEntity>
+                ) : null
+            )}
 
             <Button
                 value="X"
@@ -5000,6 +5092,22 @@ const casinoPanel = () => {
                 uiBackground={{ color: MAP_CLOSE_COLOR }}
                 onMouseDown={closeCasinoPanel}
             />
+        </UiEntity>
+    )
+    if (!layout.mobile) return panel
+    // On mobile: from the HUD's bottom edge to the bottom of the screen, as wide as the column.
+    // Drawn after the dock, so it covers it; the HUD stays in view above it.
+    return (
+        <UiEntity
+            uiTransform={{
+                positionType: 'absolute',
+                position: { top: HUD_PILL_HEIGHT, bottom: 0, left: 0 },
+                width: '100%',
+                flexDirection: 'column',
+                alignItems: 'center'
+            }}
+        >
+            {panel}
         </UiEntity>
     )
 }
