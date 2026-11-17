@@ -479,8 +479,7 @@ const hud = () => {
             {hudDivider()}
             {rateSegment()}
         </UiEntity>
-        {/* Outside the pill, against its left edge: anchored to the HUD itself. */}
-        {languageSelector()}
+        {/* The language selector is not here but in languageLayer(), drawn last over everything. */}
         </UiEntity>
     )
 }
@@ -4306,7 +4305,7 @@ const rewardsButton = () =>
 // Outside the HUD, just left of it, at its height: the active language's flag and code. It drops
 // the list of languages under it, the current one ticked, like Feedback drops its menu.
 //
-// A holder in the HUD's outer row, which is as wide as the plank: `right: '100%'` puts its right
+// A holder in a copy of the HUD's outer row (languageLayer), which is as wide as the plank: `right: '100%'` puts its right
 // edge on the plank's left edge (less a gap), wherever the HUD is and however wide. It holds the
 // button and, under it, the list, from the button's left edge rightwards, below the plank. The
 // click lives on the button alone, so picking a language in the list does not toggle it again.
@@ -4355,6 +4354,25 @@ const languageSelector = () => (
     >
         {languageButton()}
         {languageMenu()}
+    </UiEntity>
+)
+
+/**
+ * A transparent copy of the HUD's outer row (same top, width and height), holding the selector
+ * where the HUD would. Rendered last in main-container, so the selector and its list draw over
+ * everything else in the game — mining bar, popups, panels: a player who cannot read the language
+ * must always be able to reach it.
+ */
+const languageLayer = () => (
+    <UiEntity
+        uiTransform={{
+            positionType: 'absolute',
+            position: { top: -hudBleed() },
+            width: '100%',
+            height: HUD_PILL_HEIGHT + hudBleed()
+        }}
+    >
+        {languageSelector()}
     </UiEntity>
 )
 
@@ -5165,6 +5183,8 @@ export const uiMenu = () => (
             {/* Over every other panel: it waits for its button and nothing else. */}
             {/* Coins owed wait for play (world/game-phase.ts): never over the title card or the intro. */}
             {getCompensation() !== null && isPlaying() ? compensationPanel(getCompensation()!) : null}
+            {/* Last of all: the language must always be reachable. */}
+            {languageLayer()}
         </UiEntity>
         {welcomeOverlay()}
         {introScreen()}
