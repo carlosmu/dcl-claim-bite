@@ -35,9 +35,20 @@ import { getNoteNews } from '../land-office/owner-card'
 import { getMiningStatus } from '../mining/rocks'
 import { itemName, t } from '../i18n'
 import { isPlaying } from '../world/game-phase'
+import { getCampaignStatus } from '../net/campaign-link'
 
 /** The Social Bonus note's id: the tracker paints its title in the bonus's own green. */
 export const SOCIAL_BONUS_ID = 'social'
+
+/** The Marketplace Credits campaign's entry. */
+export const CREDITS_ID = 'credits'
+
+/** "5h 20m", or "12m" under an hour: how long until the campaign's day 2 opens. */
+function formatCountdown(ms: number): string {
+  const minutes = Math.max(1, Math.ceil(ms / 60000))
+  const hours = Math.floor(minutes / 60)
+  return hours > 0 ? `${hours}h ${minutes % 60}m` : `${minutes}m`
+}
 
 export type Objective = {
   /** Which entry this is, steady while its lines change: what closing and stacking go by. */
@@ -217,6 +228,23 @@ function candidates(): Objective[] {
   const gallons = fuelGallons()
   if (mules > 0 && tank > 0 && gallons > 0 && gallons / tank < FUEL_LOW_SHARE) {
     list.push(alert('fuel-low', t('obj.fuelLow'), t('obj.refuel'), t('obj.hoursLeft', { n: Math.ceil(getMuleFuelHours()) })))
+  }
+
+  // The Marketplace Credits campaign, while it is open (net/campaign-link.ts). Not shown on its last
+  // day to someone who has not reserved: day 2 would never come.
+  const campaign = getCampaignStatus()
+  if (campaign !== null && campaign.phase !== 'late' && campaign.phase !== 'off') {
+    const { goal: rocksGoal, credits } = campaign
+    const title = t('obj.credits')
+    if (campaign.phase === 'day1' || campaign.phase === 'day2') {
+      const message = campaign.phase === 'day1' ? t('obj.creditsDay1', { goal: rocksGoal, credits }) : t('obj.creditsDay2', { goal: rocksGoal, credits })
+      list.push({ id: CREDITS_ID, title, message, detail: t('obj.creditsRocks', { rocks: campaign.rocks, goal: rocksGoal }), progress: campaign.rocks / rocksGoal, alert: false })
+    } else if (campaign.phase === 'reserved') {
+      const time = formatCountdown(campaign.nextDayAt - Date.now())
+      list.push({ id: CREDITS_ID, title, message: t('obj.creditsReserved'), detail: t('obj.creditsNextDay', { time }), progress: null, alert: false })
+    } else {
+      list.push({ id: CREDITS_ID, title, message: t('obj.creditsClaimed', { credits }), detail: t('obj.creditsDelivery'), progress: null, alert: false })
+    }
   }
 
   // How the bonus works, while it is news: the crowd's bonus when two or more are mining, or

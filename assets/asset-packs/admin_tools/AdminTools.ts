@@ -12,6 +12,9 @@ import {
 import { isServer } from '~system/EngineApi';
 import { renderAdminPanel } from './AdminPanel';
 
+/** Temporary switch: true keeps the Admin Tools panel off for everyone, admins included. */
+const HIDE_ADMIN_TOOLS = true;
+
 export class AdminTools {
   private uiRoot: Entity | null = null;
 
@@ -90,6 +93,9 @@ export class AdminTools {
   ) {}
 
   start() {
+    // Hidden for now: the panel is not mounted at all. Set HIDE_ADMIN_TOOLS to false to bring it back.
+    if (HIDE_ADMIN_TOOLS) return;
+
     // Feed the params into the shared admin UI, then mount it on the scene's own renderer.
     // The UI reads its config through `getAdminConfig`, which returns what we inject here (no
     // `asset-packs::AdminTools` component is created). The always-on legacy admin system finds

@@ -39,6 +39,7 @@ import { setupServerLink } from './net/server-link'
 import { setupConnectionWatch } from './ui/connection-watch'
 import { setupDeployStamp } from './net/deploy-stamp'
 import { setupEconomyLink } from './net/economy-link'
+import { setupCampaignLink } from './net/campaign-link'
 import { setupLanguageLink } from './net/language-link'
 import { setupSoundLink } from './net/sound-link'
 import { setupGamePhase } from './world/game-phase'
@@ -65,6 +66,7 @@ export async function main() {
     setupConnectionWatch()
     setupDeployStamp()
     setupEconomyLink()
+    setupCampaignLink()
     setupLanguageLink()
     setupSoundLink()
     setupGamePhase()

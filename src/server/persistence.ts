@@ -387,3 +387,109 @@ export function recordAlert(alert: Omit<StoredAlert, 'at'>): void {
     console.log(`[Server] ALERT NOT STORED, only in this log: ${JSON.stringify(entry)}`)
   })
 }
+
+// --- Marketplace Credits campaign (server/credits-campaign.ts) ----------------------------
+//
+// Not per season: "once per account" outlives a progress reset. The campaign id is in every key,
+// so a later campaign starts from nothing without touching this one's records.
+
+/** Scene-wide: the owner's live settings (start, end, soft cap), edited in the Storage panel. */
+export type StoredCampaignConfig = {
+  /** ISO dates (UTC). Empty or unparsable start: the campaign is off. */
+  start: string
+  end: string
+  /** Informational only: nothing is refused when it is passed. */
+  softCap: number
+  /** Local preview only: a "day" lasts this many minutes, to test day 2 without waiting. 0: real days. */
+  testDayMinutes?: number
+  /** Rocks to finish on each day. Missing or not a positive whole number: CAMPAIGN_ROCKS_PER_DAY. */
+  rocksPerDay?: number
+  /** Free text for the owner; never read. */
+  help?: string
+}
+
+/** Scene-wide: one entry per wallet that reserved, the winners being those with `claimedAt`. */
+export type StoredCampaignEntry = {
+  name: string
+  reservedDay: string
+  reservedAt: string
+  claimedDay?: string
+  claimedAt?: string
+}
+
+/** Per player: rocks counted on `day`, and the two milestones. */
+export type StoredCampaignProgress = {
+  day: string
+  rocks: number
+  reservedDay?: string
+  claimedDay?: string
+}
+
+const campaignConfigKey = (campaignId: string) => `${campaignId}-config`
+const campaignEntriesKey = (campaignId: string) => `${campaignId}-entries`
+const campaignProgressKey = (campaignId: string) => campaignId
+
+export function loadCampaignConfig(campaignId: string): Promise<StoredCampaignConfig | null> {
+  return readValue<StoredCampaignConfig>(`/values/${encodeURIComponent(campaignConfigKey(campaignId))}`)
+}
+
+/** Only ever called when the key is confirmed absent, to leave the owner a template to fill in. */
+export async function saveCampaignConfig(campaignId: string, config: StoredCampaignConfig): Promise<boolean> {
+  if (writesStopped) return true
+  try {
+    return await Storage.set(campaignConfigKey(campaignId), config)
+  } catch (error) {
+    console.log(`[Server] could not save the campaign config: ${error}`)
+    return false
+  }
+}
+
+export function loadCampaignEntries(campaignId: string): Promise<Record<string, StoredCampaignEntry> | null> {
+  return readValue<Record<string, StoredCampaignEntry>>(`/values/${encodeURIComponent(campaignEntriesKey(campaignId))}`)
+}
+
+/**
+ * Writes the entries merged over what is stored now, so a second server running at the same time
+ * (a deploy's overlap) does not lose the other's rows. `removed`: addresses to drop (debug reset).
+ * Resolves the merged list, or null when it could not be read or written.
+ */
+export async function mergeCampaignEntries(
+  campaignId: string,
+  entries: Record<string, StoredCampaignEntry>,
+  removed: readonly string[] = []
+): Promise<Record<string, StoredCampaignEntry> | null> {
+  if (writesStopped) return entries
+  try {
+    const stored = (await loadCampaignEntries(campaignId)) ?? {}
+    const merged: Record<string, StoredCampaignEntry> = { ...stored }
+    for (const [address, entry] of Object.entries(entries)) {
+      const old = merged[address]
+      // A claim is never undone by a row that has not seen it yet.
+      merged[address] = old?.claimedAt !== undefined && entry.claimedAt === undefined ? old : entry
+    }
+    for (const address of removed) delete merged[address]
+    return (await Storage.set(campaignEntriesKey(campaignId), merged)) ? merged : null
+  } catch (error) {
+    console.log(`[Server] could not save the campaign entries: ${error}`)
+    return null
+  }
+}
+
+export function loadCampaignProgress(campaignId: string, address: string): Promise<StoredCampaignProgress | null> {
+  return readValue<StoredCampaignProgress>(
+    `/players/${encodeURIComponent(address)}/values/${encodeURIComponent(campaignProgressKey(campaignId))}`
+  )
+}
+
+/** Resolves true once the write is confirmed, like savePurse. */
+export async function saveCampaignProgress(campaignId: string, address: string, progress: StoredCampaignProgress): Promise<boolean> {
+  if (writesStopped) return true
+  try {
+    const ok = await Storage.player.set(address, campaignProgressKey(campaignId), progress)
+    if (!ok) console.log(`[Server] could not save campaign progress for ${address}`)
+    return ok
+  } catch (error) {
+    console.log(`[Server] could not save campaign progress for ${address}: ${error}`)
+    return false
+  }
+}

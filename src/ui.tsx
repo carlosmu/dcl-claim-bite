@@ -95,6 +95,7 @@ import { DEBUG_ADD_COINS, DEBUG_ADD_ORE, DEBUG_RESET_PROGRESS, DEBUG_SERVER_STAT
 import { claimCompensation, closeCompensation, CompensationOffer, getCompensation, isClaimingCompensation } from './ui/compensation'
 import { canEscapeMaintenance, closeServerOutdated, didRejoinFail, getRejoinReason, getUpdateScreen, isMaintenanceOn, isRejoining, rejoinWorld } from './ui/server-outdated'
 import { isAdmin } from './shared/admins'
+import { getCampaignAdmin, getCampaignStatus, getWinnersCopied, onCampaignMilestone, sendAdminCampaignWinners } from './net/campaign-link'
 import { getPlayer } from '@dcl/sdk/players'
 import { isLocalPreview } from './shared/local-preview'
 import { quotedRate, secondsToRecover } from './shared/state/market'
@@ -108,12 +109,14 @@ import { canShowBlockingScreen, isPlaying } from './world/game-phase'
 import { getMusicStep, getSfxStep, VOLUME_STEPS } from './world/volume'
 import { isTrackEnabled, TRACKS } from './world/music'
 import { pickMusicStep, pickSfxStep, pickTrackEnabled } from './net/sound-link'
-import { clearObjectiveHistory, dismissObjective, getObjectiveClock, getObjectives, getObjectiveHistory, Objective, PastObjective, setupObjective, SOCIAL_BONUS_ID } from './ui/objective'
+import { clearObjectiveHistory, dismissObjective, getObjectiveClock, getObjectives, getObjectiveHistory, Objective, PastObjective, setupObjective, SOCIAL_BONUS_ID, CREDITS_ID } from './ui/objective'
 
 export function setupUi() {
     setupRollingCounters()
     setupOrePopup()
     setupObjective()
+    // Completing a day of the credits quest shows where it stands: the Claim Office, on Credits.
+    onCampaignMilestone(openCreditsRewards)
 
     // No screen inset: the SDK's default ('device') pulls the whole UI in by the phone's safe
     // margins. The game is landscape and everything sits in the centred column, where no notch
@@ -272,6 +275,7 @@ const ICON_FORBIDDEN = atlasCell(1, 4) // A4 — skull / prohibited
 const ICON_SHERIFF = atlasCell(2, 4) // B4
 const ICON_MAP = atlasCell(3, 4) // C4
 const ICON_NOTIFICATION = atlasCell(4, 4) // D4 — bell
+const ICON_CREDITS = atlasCell(1, 5) // A5 — Marketplace Credits
 
 // Columns E–H: what was UI_02.png.
 const ICON_WAGON = atlasCell(5, 1) // E1
@@ -1221,6 +1225,46 @@ const adminMaintenanceRow = () => {
     )
 }
 
+// --- Admin: Marketplace Credits campaign (server/credits-campaign.ts) ---------------------
+//
+// Under MAINTENANCE, for admins only: the campaign's figures from the server, and a button that
+// copies the winners (wallets that finished day 2) as CSV. Start, end and the soft cap are edited
+// at decentraland.org/storage, scene key `credits-1-config`.
+
+/** How long the button says COPIED after the winners land on the clipboard. */
+const WINNERS_COPIED_MS = 3000
+
+const adminCampaignRow = () => {
+    const campaign = getCampaignAdmin()
+    if (!amAdmin() || campaign === null) return null
+    const known = campaign.reserved >= 0
+    const summary = `Credits ${campaign.open ? 'OPEN' : 'closed'} · ${known ? `${campaign.reserved} reserved · ${campaign.claimed}/${campaign.softCap} won` : 'reading...'}`
+    const copied = getWinnersCopied()
+    const justCopied = Date.now() - copied.at < WINNERS_COPIED_MS
+    return (
+        <UiEntity key="campaign" uiTransform={{ width: '100%', flexDirection: 'column', margin: { top: FEEDBACK_MENU_GAP } }}>
+            <Label value={summary} fontSize={14} color={MUTED_COLOR} textAlign="middle-center" uiTransform={{ width: '100%', height: 20 }} />
+            <UiEntity
+                uiTransform={{
+                    width: '100%',
+                    height: FEEDBACK_MENU_ROW_HEIGHT,
+                    flexDirection: 'row',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    borderRadius: 8,
+                    borderWidth: 2,
+                    borderColor: BANK_TRIM
+                }}
+                uiBackground={{ color: STEP_BUTTON_COLOR }}
+                onMouseDown={() => sendAdminCampaignWinners()}
+            >
+                <UiEntity uiTransform={{ width: 28, height: 28, margin: { right: 8 }, flexShrink: 0 }} uiBackground={iconBackground(ICON_CREDITS)} />
+                <BitmapText value={justCopied ? `COPIED ${copied.count}` : 'COPY WINNERS'} fontSize={22} color={Color4.White()} />
+            </UiEntity>
+        </UiEntity>
+    )
+}
+
 const TILE_COLOR =Color4.create(0.16, 0.16, 0.18, 1)
 const TILE_SELECTED_COLOR = Color4.create(0.28, 0.1, 0.24, 1)
 const TILE_BORDER_COLOR = Color4.create(0.32, 0.32, 0.34, 1)
@@ -1498,6 +1542,10 @@ type Detail = {
     actions: ReactEcs.JSX.Element[]
     /** Two halves: a big picture on the left, the stats and notes on the right. */
     bigIcon?: boolean
+    /** A layout of its own in place of the icon, stats and notes (the Credits tab). */
+    body?: ReactEcs.JSX.Element
+    /** A quiet line under the action, centred. */
+    footnote?: string
 }
 
 function pickDetail(item: ShopItem): Detail {
@@ -1657,14 +1705,14 @@ function detailFor(key: ProductKey): Detail {
     return pick !== null && pick.line === 'pick' ? pickDetail(pick) : pickDetail(PICKS[0])
 }
 
-const storeDetail = (detail: Detail) => (
+const storeDetail = (detail: Detail, besideList: boolean = true) => (
     <UiEntity
         uiTransform={{
             flexGrow: 1,
             width: 0,
             flexDirection: 'column',
-            padding: 18,
-            margin: { left: 12 },
+            padding: detail.body !== undefined ? 14 : 18,
+            margin: { left: besideList ? 12 : 0 },
             borderRadius: PANEL_RADIUS,
             borderWidth: 2,
             borderColor: BANK_TRIM
@@ -1673,7 +1721,9 @@ const storeDetail = (detail: Detail) => (
     >
         <BitmapText value={upper(detail.title)} fontSize={40} color={BANK_GOLD_LIGHT} />
         <Label value={detail.description} fontSize={16} color={BANK_CAPTION} textAlign="middle-left" uiTransform={{ height: 26 }} />
-        {detail.bigIcon === true ? (
+        {detail.body !== undefined ? (
+            detail.body
+        ) : detail.bigIcon === true ? (
             <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', margin: { top: 12 } }}>
                 {/* Against the text, not centred in its half: centred left a gap as wide as the pane allows. */}
                 <UiEntity uiTransform={{ width: '50%', flexDirection: 'column', alignItems: 'flex-end' }}>
@@ -1696,12 +1746,15 @@ const storeDetail = (detail: Detail) => (
                 <UiEntity uiTransform={{ flexGrow: 1, flexDirection: 'column' }}>{detail.stats}</UiEntity>
             </UiEntity>
         )}
-        {detail.bigIcon === true ? null : (
+        {detail.bigIcon === true || detail.body !== undefined ? null : (
             <UiEntity uiTransform={{ width: '100%', flexDirection: 'column', margin: { top: 6 } }}>{detail.notes}</UiEntity>
         )}
         {/* The action sits at the bottom, however much the product above has to say. */}
         <UiEntity uiTransform={{ flexGrow: 1 }} />
         {detail.actions}
+        {detail.footnote !== undefined ? (
+            <Label value={detail.footnote} fontSize={14} color={BANK_CAPTION} textAlign="middle-center" textWrap="nowrap" uiTransform={{ width: '100%', height: 22, margin: { top: 6 } }} />
+        ) : null}
     </UiEntity>
 )
 
@@ -1802,8 +1855,16 @@ const counterPanel = (
     )
 }
 
-/** Cards on the left, a page at a time, and the selected one's detail on the right. */
+/** Cards on the left, a page at a time, and the selected one's detail on the right. No cards: the
+ *  detail alone, as tall as a page of cards so switching tabs does not resize the panel. */
 const counterContent = (products: Product[], key: string, onSelect: (key: string) => void, detail: Detail, listWidth: number) => {
+    if (products.length === 0) {
+        return (
+            <UiEntity uiTransform={{ width: '100%', flexGrow: 1, flexDirection: 'row', minHeight: STORE_CARDS_PER_PAGE * (STORE_CARD_HEIGHT + STORE_CARD_GAP) }}>
+                {storeDetail(detail, false)}
+            </UiEntity>
+        )
+    }
     // The page is wherever the selected card is, so a page turn selects that page's first card and
     // the panel always opens on the page of what it shows.
     const pages = Math.ceil(products.length / STORE_CARDS_PER_PAGE)
@@ -1951,7 +2012,6 @@ const CLAIM_TABS: { id: ClaimTab; readonly label: string }[] = [
 let claimTab: ClaimTab = 'collectibles'
 
 function claimOfficeProducts(): Product[] {
-    if (claimTab === 'credits') return [{ key: CREDITS_KEY, title: t('tab.credits'), icon: ICON_COINS, hint: '', status: STATUS_SOON, muted: true }]
     // Quest x/3 while under way; Ready to claim / Claimed take its place after.
     return CLAIM_CAMPAIGNS.map((campaign) => {
         const status = giftCardStatus(campaign)
@@ -1960,14 +2020,123 @@ function claimOfficeProducts(): Product[] {
     })
 }
 
+// The Marketplace Credits campaign (shared/credits-campaign.ts): the server counts and decides, this
+// only shows where the player stands. Nothing to press: the claim happens by itself on day 2's last rock.
+
+/** The tracker's More info: the Claim Office, on its Credits tab, from anywhere. */
+function openCreditsRewards(): void {
+    claimTab = 'credits'
+    if (!isClaimOfficePanelOpen()) toggleClaimOfficeFromButton()
+}
+
+/** "2d 5h", "5h 20m" or "12m": time left to something. */
+function creditsCountdown(ms: number): string {
+    const minutes = Math.max(1, Math.ceil(ms / 60000))
+    const hours = Math.floor(minutes / 60)
+    if (hours >= 24) return `${Math.floor(hours / 24)}d ${hours % 24}h`
+    return hours > 0 ? `${hours}h ${minutes % 60}m` : `${minutes}m`
+}
+
+// The Credits tab's own layout: the reward on the left (35%), one card per day on the right (65%).
+const CREDITS_REWARD_ICON = 96
+const CREDITS_DAY_CHECK = 26
+const CREDITS_DAY_DONE_BACKGROUND = Color4.create(0.2, 0.32, 0.1, 0.55)
+const CREDITS_DAY_DONE_BORDER = Color4.create(0.45, 0.6, 0.2, 1)
+const CREDITS_DAY_BACKGROUND = Color4.create(0, 0, 0, 0.22)
+
+/** "opens in 5h" to "Opens in 5h": the second line of a card starts a sentence. */
+function capitalised(text: string): string {
+    return text.charAt(0).toUpperCase() + text.slice(1)
+}
+
+/** One day of the quest: a checkbox, what to do in large text, and where it stands in a second line. */
+const creditsDayCard = (done: boolean, label: string, status: string, statusColor: Color4, first: boolean) => (
+    <UiEntity
+        key={label}
+        uiTransform={{
+            width: '100%',
+            flexDirection: 'row',
+            alignItems: 'center',
+            padding: { left: 10, right: 10, top: 8, bottom: 8 },
+            margin: { top: first ? 0 : 8 },
+            borderRadius: 8,
+            borderWidth: 2,
+            borderColor: done ? CREDITS_DAY_DONE_BORDER : BANK_TRIM
+        }}
+        uiBackground={{ color: done ? CREDITS_DAY_DONE_BACKGROUND : CREDITS_DAY_BACKGROUND }}
+    >
+        <UiEntity
+            uiTransform={{ width: CREDITS_DAY_CHECK, height: CREDITS_DAY_CHECK, margin: { right: 10 }, flexShrink: 0 }}
+            uiBackground={iconBackground(done ? ICON_CHECKED : ICON_BULLET)}
+        />
+        <UiEntity uiTransform={{ flexGrow: 1, width: 0, flexDirection: 'column' }}>
+            <Label value={label} fontSize={20} color={done ? GIFT_DONE_COLOR : BANK_CREAM} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 28 }} />
+            <Label value={status} fontSize={16} color={statusColor} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 22 }} />
+        </UiEntity>
+    </UiEntity>
+)
+
 function creditsDetail(): Detail {
+    const campaign = getCampaignStatus()
+    if (campaign === null) {
+        return {
+            title: t('tab.credits'),
+            description: t('claim.creditsSoon'),
+            icon: ICON_CREDITS,
+            stats: [],
+            notes: [],
+            actions: [storeActionButton({ label: t('action.comingSoon'), kind: 'off' })]
+        }
+    }
+    const { phase, goal, credits } = campaign
+    const now = Date.now()
+    const rocks = t('obj.creditsRocks', { rocks: campaign.rocks, goal })
+    const completed = t('claim.creditsCompleted')
+
+    // Day 1: done once reserved; counting while on it; too late on the campaign's last day.
+    const day1Done = phase === 'reserved' || phase === 'day2' || phase === 'claimed'
+    const day1Status = day1Done ? completed : phase === 'late' ? t('claim.creditsLate') : rocks
+    const day1Color = day1Done ? GIFT_DONE_COLOR : phase === 'late' ? SHORT_COLOR : BANK_GOLD_LIGHT
+
+    // Day 2: when it opens, then the count, then done.
+    const day2Done = phase === 'claimed'
+    let day2Status = t('claim.creditsLaterDay')
+    if (day2Done) day2Status = completed
+    else if (phase === 'day2') day2Status = rocks
+    else if (phase === 'reserved') day2Status = capitalised(t('claim.creditsOpensIn', { time: creditsCountdown(campaign.nextDayAt - now) }))
+    const day2Color = day2Done ? GIFT_DONE_COLOR : BANK_GOLD_LIGHT
+
+    const body = (
+        <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', alignItems: 'center', margin: { top: 10 } }}>
+            <UiEntity uiTransform={{ width: '35%', flexDirection: 'column', alignItems: 'center', padding: { right: 12 } }}>
+                <UiEntity uiTransform={{ width: CREDITS_REWARD_ICON, height: CREDITS_REWARD_ICON, flexShrink: 0 }} uiBackground={iconBackground(ICON_CREDITS)} />
+                <BitmapText value={t('claim.creditsAmount', { credits })} fontSize={34} color={BANK_GOLD_LIGHT} />
+                <UiEntity uiTransform={{ width: '80%', height: 2, margin: { top: 8, bottom: 6 } }} uiBackground={{ color: BANK_TRIM }} />
+                <Label value={t('claim.creditsEnds')} fontSize={14} color={BANK_CAPTION} textAlign="middle-center" textWrap="nowrap" uiTransform={{ height: 20 }} />
+                <BitmapText value={creditsCountdown(campaign.endsAt - now)} fontSize={24} color={BANK_CREAM} />
+            </UiEntity>
+            <UiEntity uiTransform={{ width: '65%', flexDirection: 'column' }}>
+                {creditsDayCard(day1Done, t('claim.creditsDay1', { goal }), day1Status, day1Color, true)}
+                {creditsDayCard(day2Done, t('claim.creditsDay2', { goal }), day2Status, day2Color, false)}
+            </UiEntity>
+        </UiEntity>
+    )
+
+    let action: Action
+    if (phase === 'claimed') action = { label: t('action.claimed'), kind: 'equipped' }
+    else if (phase === 'reserved') action = { label: t('action.reserved'), kind: 'off' }
+    else if (phase === 'late') action = { label: t('action.locked'), kind: 'off' }
+    else action = { label: t('action.inProgress'), kind: 'off' }
+
     return {
-        title: t('tab.credits'),
-        description: t('claim.creditsSoon'),
-        icon: ICON_COINS,
+        title: t('claim.creditsName'),
+        description: t('claim.creditsDesc', { credits }),
+        icon: ICON_CREDITS,
         stats: [],
         notes: [],
-        actions: [storeActionButton({ label: t('action.comingSoon'), kind: 'off' })]
+        actions: [storeActionButton(action)],
+        body,
+        footnote: t('claim.creditsOnce')
     }
 }
 
@@ -2031,7 +2200,8 @@ const claimOfficePanel = () => {
     return counterPanel(
         t('claim.title'),
         closeClaimOfficePanel,
-        claimOfficeProducts(),
+        // Credits is one campaign: its detail alone, without a list of one card.
+        credits ? [] : claimOfficeProducts(),
         credits ? CREDITS_KEY : rewardKey(reward),
         (key) => {
             const picked = CLAIM_CAMPAIGNS.find((campaign) => rewardKey(campaign) === key)
@@ -2429,7 +2599,7 @@ const POPUP_BONUS_BACKGROUND = Color4.fromHexString('#17451CFF')
 const POPUP_BONUS_BORDER = Color4.fromHexString('#579B36FF')
 const POPUP_BONUS_TEXT = Color4.fromHexString('#B5FF72FF')
 /** How far it rises while it shows, in pixels, ending in the mining panel's place. */
-const POPUP_RISE_PX = 16
+const POPUP_RISE_PX = 48
 
 /** A colour at the popup's opacity, times its own. */
 const faded = (color: Color4, alpha: number) => Color4.create(color.r, color.g, color.b, color.a * alpha)
@@ -3740,13 +3910,63 @@ const SCREEN_RIGHT_MARGIN_MOBILE = 48
 function screenRightMargin(): number {
     return isMobile() ? SCREEN_RIGHT_MARGIN_MOBILE : SCREEN_RIGHT_MARGIN
 }
-const OBJECTIVE_WIDTH = 348
+/** From the left edge of the Town Board button to the right edge of Rewards: the five corner buttons above it. */
+const OBJECTIVE_WIDTH = 5 * BOTTOM_BUTTON_WIDTH + 4 * BOTTOM_BUTTON_GAP
 const OBJECTIVE_ICON_SIZE = 28
 const OBJECTIVE_BAR_HEIGHT = 8
 const OBJECTIVE_GAP = 8
 /** Just under the HUD's bottom edge, the same gap as between the cards. */
 const OBJECTIVE_TOP = HUD_PILL_HEIGHT + OBJECTIVE_GAP
 const OBJECTIVE_CLOSE_SIZE = 32
+const OBJECTIVE_MORE_INFO_HEIGHT = 24
+
+// The CREDIT REWARDS card stands out: a bright yellow border, and spinner.png turning behind it,
+// spilling past its edges like a glow. The spinner is the card's sibling, drawn first, so the card
+// covers its middle. The UI cannot rotate an entity, so the texture's UVs turn instead, about the
+// image's centre; the corners that reach past the image clamp to its transparent edge.
+// It only draws: no pointer events, and the card's own taps stay inside the card.
+const CREDITS_BORDER_COLOR = Color4.create(1, 0.86, 0.1, 1)
+const CREDITS_BORDER_WIDTH = 3
+/** The HUD's background made opaque, so the glow behind never shows through the card. */
+const CREDITS_BACKGROUND = Color4.create(HUD_BACKGROUND.r, HUD_BACKGROUND.g, HUD_BACKGROUND.b, 1)
+const CREDITS_SPINNER_SRC = 'assets/images/spinner.png'
+const CREDITS_SPINNER_TINT = Color4.create(1, 0.85, 0.3, 0.5)
+/** Degrees per second. */
+const CREDITS_SPINNER_SPEED = 20
+/** The glow's side, a square centred on the card: how far it spills past it. */
+const CREDITS_SPINNER_SIZE = 480
+
+function creditsSpinnerUvs(): number[] {
+    const angle = ((uiClock * CREDITS_SPINNER_SPEED) % 360) * (Math.PI / 180)
+    const cos = Math.cos(angle)
+    const sin = Math.sin(angle)
+    // Bottom-left, top-left, top-right, bottom-right, like every other uvs here.
+    const corners = [
+        [-0.5, -0.5],
+        [-0.5, 0.5],
+        [0.5, 0.5],
+        [0.5, -0.5]
+    ]
+    return corners.flatMap(([x, y]) => [0.5 + x * cos - y * sin, 0.5 + x * sin + y * cos])
+}
+
+const creditsSpinner = () => (
+    <UiEntity
+        uiTransform={{
+            positionType: 'absolute',
+            position: { top: '50%', left: '50%' },
+            margin: { top: -CREDITS_SPINNER_SIZE / 2, left: -CREDITS_SPINNER_SIZE / 2 },
+            width: CREDITS_SPINNER_SIZE,
+            height: CREDITS_SPINNER_SIZE
+        }}
+        uiBackground={{
+            texture: { src: CREDITS_SPINNER_SRC, wrapMode: 'clamp' },
+            textureMode: 'stretch',
+            uvs: creditsSpinnerUvs(),
+            color: CREDITS_SPINNER_TINT
+        }}
+    />
+)
 
 /** The Social Bonus wears its own green; other alerts the warning colour, objectives gold. */
 const objectiveTitleColor = (objective: Objective) =>
@@ -3771,24 +3991,26 @@ const objectiveTracker = () => {
 }
 
 const objectiveCard = (objective: Objective, index: number) => {
-    return (
+    const credits = objective.id === CREDITS_ID
+    const marginTop = index === 0 ? 0 : OBJECTIVE_GAP
+    const card = (
         <UiEntity
             key={objective.id}
             uiTransform={{
                 width: '100%',
                 flexDirection: 'column',
-                margin: { top: index === 0 ? 0 : OBJECTIVE_GAP },
+                margin: { top: credits ? 0 : marginTop },
                 padding: { left: 14, right: 14, top: 10, bottom: 12 },
                 borderRadius: PANEL_RADIUS,
-                borderWidth: 2,
-                borderColor: objective.alert ? SHORT_COLOR : BANK_TRIM
+                borderWidth: credits ? CREDITS_BORDER_WIDTH : 2,
+                borderColor: credits ? CREDITS_BORDER_COLOR : objective.alert ? SHORT_COLOR : BANK_TRIM
             }}
-            uiBackground={{ color: HUD_BACKGROUND }}
+            uiBackground={{ color: credits ? CREDITS_BACKGROUND : HUD_BACKGROUND }}
         >
             <UiEntity uiTransform={{ flexDirection: 'row', alignItems: 'center', margin: { bottom: 4 } }}>
                 <UiEntity
                     uiTransform={{ width: OBJECTIVE_ICON_SIZE, height: OBJECTIVE_ICON_SIZE, margin: { right: 8 }, flexShrink: 0 }}
-                    uiBackground={iconBackground(ICON_NOTIFICATION)}
+                    uiBackground={iconBackground(objective.id === CREDITS_ID ? ICON_CREDITS : ICON_NOTIFICATION)}
                 />
                 <BitmapText value={objective.title} fontSize={20} color={objectiveTitleColor(objective)} />
             </UiEntity>
@@ -3829,6 +4051,23 @@ const objectiveCard = (objective: Objective, index: number) => {
                     />
                 </UiEntity>
             ) : null}
+            {objective.id === CREDITS_ID ? (
+                // Inside the card, so the tap lands on mobile too: opens the Claim Office on its Credits tab.
+                <UiEntity
+                    uiTransform={{ height: OBJECTIVE_MORE_INFO_HEIGHT, margin: { top: 6 }, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center' }}
+                    onMouseDown={openCreditsRewards}
+                >
+                    <Label value={`${t('obj.moreInfo')} ›`} fontSize={15} color={BANK_GOLD_LIGHT} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: OBJECTIVE_MORE_INFO_HEIGHT }} />
+                </UiEntity>
+            ) : null}
+        </UiEntity>
+    )
+    if (!credits) return card
+    // The glow first, so the card is drawn over it.
+    return (
+        <UiEntity key={objective.id} uiTransform={{ width: '100%', flexDirection: 'column', margin: { top: marginTop } }}>
+            {creditsSpinner()}
+            {card}
         </UiEntity>
     )
 }
@@ -4268,6 +4507,7 @@ const feedbackMenu = () => (
         {feedbackMenuRow(t('feedback.give'), true, giveFeedback)}
         {feedbackMenuRow(t('feedback.reportBug'), false, reportBug)}
         {adminMaintenanceRow()}
+        {adminCampaignRow()}
         {feedbackMenuBuild()}
     </UiEntity>
 )

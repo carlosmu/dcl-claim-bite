@@ -51,6 +51,9 @@ export const Messages = {
   /** ADMIN: "start (or end) maintenance" before a deploy. Refused unless the sender is in shared/admins.ts. */
   adminMaintenance: Schemas.Map({ on: Schemas.Boolean }),
 
+  /** ADMIN: "send me the Marketplace Credits campaign's winners." Answered with `campaignWinners`. Refused unless in shared/admins.ts. */
+  adminCampaignWinners: Schemas.Map({ ready: Schemas.Boolean }),
+
   /** "Throw away the notes left at my door." */
   clearNotes: Schemas.Map({ ready: Schemas.Boolean }),
 
@@ -183,6 +186,34 @@ export const Messages = {
   // Server -> one client: the language they picked on an earlier visit ('' if they never did),
   // and their Sound settings (-1 each if they never changed them). Sent on hello.
   prefs: Schemas.Map({ language: Schemas.String, music: Schemas.Number, sfx: Schemas.Number, tracks: Schemas.Number }),
+
+  // Server -> one client: where they stand in the Marketplace Credits campaign (shared/credits-campaign.ts).
+  // Sent on arrival, on hello, on each counted rock and when the campaign opens or closes. `phase` is a
+  // CampaignPhase. The times are milliseconds from the moment it was sent, so the client's clock never
+  // matters: to the next game day, and to the campaign's end.
+  campaignStatus: Schemas.Map({
+    phase: Schemas.String,
+    rocks: Schemas.Number,
+    goal: Schemas.Number,
+    credits: Schemas.Number,
+    msToNextDay: Schemas.Number,
+    msToEnd: Schemas.Number
+  }),
+
+  // Server -> admins only: the campaign's figures, for the admin row in the bug-report menu. `start`
+  // and `end` as stored (ISO, UTC). The cap is informational: nothing is refused past it.
+  campaignAdmin: Schemas.Map({
+    open: Schemas.Boolean,
+    start: Schemas.String,
+    end: Schemas.String,
+    softCap: Schemas.Number,
+    reserved: Schemas.Number,
+    claimed: Schemas.Number
+  }),
+
+  // Server -> one admin: the winners as CSV (address,name,reservedDay,claimedDay,claimedAt), in parts
+  // under the message size limit. The client joins parts 0..parts-1.
+  campaignWinners: Schemas.Map({ part: Schemas.Number, parts: Schemas.Number, csv: Schemas.String }),
 
   // Server -> one client: the outcome of something the player asked for, for the log and
   // for the sound. `ok` false means the request was refused.

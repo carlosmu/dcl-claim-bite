@@ -87,6 +87,7 @@ import { Compensation, compensationsFor } from './compensations'
 import { isAdmin } from '../shared/admins'
 import { getGenerationId, getNewestEntity } from './generation'
 import { readSceneEntityId } from '../shared/scene-entity'
+import { campaignArrive, campaignLeave, noteCampaignRock, resetCampaignProgress, sendCampaignHello, setupCreditsCampaign } from './credits-campaign'
 
 type Purse = {
   ore: number
@@ -651,6 +652,8 @@ function handleRockDone(address: string, seq: number): void {
   const paid = Math.min(ORE_PER_ROCK + bonus, space)
   purse.ore += paid
   if (!tutorial) noteMined(address, displayNameOf(address), paid, 0)
+  // The Marketplace Credits campaign counts shared rocks only, whatever they paid.
+  if (!tutorial) noteCampaignRock(address, displayNameOf(address))
 
   // Durability counts destroyed rocks and nothing else: one rock, one point, whatever it paid.
   const broke = wearPick(purse, pick)
@@ -957,6 +960,7 @@ function handleDebugReset(address: string): void {
   lastSwing.delete(address)
   lastMinedAt.delete(address)
   tutorialPaid.delete(address)
+  resetCampaignProgress(address)
 
   dirty.add(address)
   sendWallet(address)
@@ -995,6 +999,7 @@ function checkPresence(dt: number) {
     present.add(address)
     // The wallet message is sent by the load itself, once there is something true to send.
     beginLoad(address)
+    campaignArrive(address)
     const purse = purses.get(address)
     if (purse !== undefined) {
       // Back while the purse was still held: the rigs were not settled while they were gone.
@@ -1019,6 +1024,7 @@ function checkPresence(dt: number) {
     // Gone from the scene is gone from the crowd, without waiting out the active window.
     lastMinedAt.delete(address)
     lastSwing.delete(address)
+    campaignLeave(address)
     // Written out now rather than at the next flush: leaving is exactly when a player is
     // most likely to not come back before the server stops. Then let go (releasePurse).
     if (dirty.has(address)) flushPurse(address)
@@ -1701,6 +1707,7 @@ export function setupEconomy(): void {
     sendNotes(context.from)
     sendPrefs(context.from)
     sendMaintenanceState(context.from)
+    sendCampaignHello(context.from)
   })
 
   room.onMessage('setLanguage', (data, context) => {
@@ -1831,4 +1838,5 @@ export function setupEconomy(): void {
   setupNotes()
   setupTitles()
   setupCasino()
+  setupCreditsCampaign()
 }
