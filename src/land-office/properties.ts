@@ -19,7 +19,7 @@ import {
 import { Color3, Color4, Quaternion, Vector3 } from '@dcl/sdk/math'
 import { getPlayer } from '@dcl/sdk/players'
 
-import { DEBUG_FILL_PROPERTY_LOTS } from '../shared/debug-flags'
+import { DEBUG_FILL_PROPERTY_LOTS, DEBUG_OWN_CABIN } from '../shared/debug-flags'
 import { setBitmapText3d } from '../world/bitmap-text-3d'
 import { openOwnerCard } from './owner-card'
 import { getLanguage, hoverText, itemName, t, upper } from '../i18n'
@@ -386,6 +386,9 @@ function syncLots(): void {
 
   // The wallet shows up a few frames after the scene starts; until then nothing reads as ours.
   const me = (getPlayer()?.userId ?? '').toLowerCase()
+  if (DEBUG_OWN_CABIN && me !== '' && !entries.some((entry) => entry.address.toLowerCase() === me)) {
+    owners.set('cabin:0', { address: me, name: getPlayer()?.name ?? 'Me' })
+  }
 
   for (const [key, property] of standing) {
     const owner = owners.get(key)

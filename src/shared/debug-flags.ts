@@ -28,9 +28,17 @@ export const DEBUG_RESET_PROGRESS = DEBUG_ENABLED && true
  * rigs are actually doing, so their wording and layout can be checked without draining a tank. */
 export const DEBUG_SHOW_MULE_ALERTS = DEBUG_ENABLED && false
 
+/** Stacks one tracker card of every kind on screen at once — objective, news, alert, Social Bonus,
+ * Marketplace Credits — whatever the game state, so their colours can be compared side by side. */
+export const DEBUG_SHOW_ALL_NOTIFICATIONS = DEBUG_ENABLED && false
+
 /** Fills every lot of every property area with a stand-in owner, on this client only, so the
  * whole neighbourhood can be seen at once. Real owners still take their own lots. */
 export const DEBUG_FILL_PROPERTY_LOTS = DEBUG_ENABLED && false
+
+/** Gives the local player the first cabin lot, on this client only, so the pin floating over
+ * their own property can be seen without buying one. Skipped while they really own a property. */
+export const DEBUG_OWN_CABIN = DEBUG_ENABLED && true
 
 /** Parks a stand-in M.U.L.E. on every free spot of the yard, on this client only, so the full
  * yard (and its smoke) can be seen at once. Real owners still take their own spots. */

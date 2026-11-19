@@ -109,7 +109,7 @@ import { canShowBlockingScreen, isPlaying } from './world/game-phase'
 import { getMusicStep, getSfxStep, VOLUME_STEPS } from './world/volume'
 import { isTrackEnabled, TRACKS } from './world/music'
 import { pickMusicStep, pickSfxStep, pickTrackEnabled } from './net/sound-link'
-import { clearObjectiveHistory, dismissObjective, getObjectiveClock, getObjectives, getObjectiveHistory, Objective, PastObjective, setupObjective, SOCIAL_BONUS_ID, CREDITS_ID } from './ui/objective'
+import { clearObjectiveHistory, dismissObjective, getObjectiveClock, getObjectives, getObjectiveHistory, Objective, PastObjective, setupObjective, SOCIAL_BONUS_ID, CREDITS_ID, MULE_AWAY_ID } from './ui/objective'
 
 export function setupUi() {
     setupRollingCounters()
@@ -3920,7 +3920,13 @@ const OBJECTIVE_BAR_HEIGHT = 8
 const OBJECTIVE_GAP = 8
 /** Just under the HUD's bottom edge, the same gap as between the cards. */
 const OBJECTIVE_TOP = HUD_PILL_HEIGHT + OBJECTIVE_GAP
+/** The close button's tap area; the white circle drawn in its middle is smaller. */
 const OBJECTIVE_CLOSE_SIZE = 32
+const OBJECTIVE_CLOSE_CIRCLE_SIZE = 22
+const OBJECTIVE_CLOSE_FONT_SIZE = 16
+/** Pixels the X is moved inside its circle, to sit it in the middle by eye: + is down / right. */
+const OBJECTIVE_CLOSE_X_NUDGE_Y = 1
+const OBJECTIVE_CLOSE_X_NUDGE_X = 0
 const OBJECTIVE_MORE_INFO_HEIGHT = 24
 
 // The CREDIT REWARDS card stands out: a bright yellow border, and spinner.png turning behind it,
@@ -3971,9 +3977,26 @@ const creditsSpinner = () => (
     />
 )
 
-/** The Social Bonus wears its own green; other alerts the warning colour, objectives gold. */
-const objectiveTitleColor = (objective: Objective) =>
-    objective.id === SOCIAL_BONUS_ID ? SOCIAL_BONUS_COLOR : objective.alert ? STORAGE_FULL_COLOR : BANK_GOLD_LIGHT
+// Each kind of tracker card has one colour, worn by its title and its border. Ordinary cards keep
+// the border faint (the colour at NOTIFY_SOFT_BORDER_ALPHA over the dark card); warnings and the
+// Credits card keep it at full strength, so they stand out from the rest.
+const NOTIFY_OBJECTIVE_COLOR = Color4.fromHexString('#F4C84BFF')
+const NOTIFY_AWAY_COLOR = Color4.fromHexString('#8BB9E8FF')
+/** Storage full, and every other alert: a pick broke, fuel ran low, a note, a price move, an upgrade. */
+const NOTIFY_WARNING_COLOR = Color4.fromHexString('#FF7168FF')
+const NOTIFY_SOCIAL_COLOR = Color4.fromHexString('#70D980FF')
+const NOTIFY_SOFT_BORDER_ALPHA = 0.45
+
+const softBorder = (color: Color4) => Color4.create(color.r, color.g, color.b, NOTIFY_SOFT_BORDER_ALPHA)
+
+/** The title's colour and the border's, by kind. The Credits card keeps the look it had. */
+const objectiveColors = (objective: Objective): { title: Color4; border: Color4 } => {
+    if (objective.id === CREDITS_ID) return { title: BANK_GOLD_LIGHT, border: CREDITS_BORDER_COLOR }
+    if (objective.id === SOCIAL_BONUS_ID) return { title: NOTIFY_SOCIAL_COLOR, border: softBorder(NOTIFY_SOCIAL_COLOR) }
+    if (objective.id === MULE_AWAY_ID) return { title: NOTIFY_AWAY_COLOR, border: softBorder(NOTIFY_AWAY_COLOR) }
+    if (objective.alert) return { title: NOTIFY_WARNING_COLOR, border: NOTIFY_WARNING_COLOR }
+    return { title: NOTIFY_OBJECTIVE_COLOR, border: softBorder(NOTIFY_OBJECTIVE_COLOR) }
+}
 
 const objectiveTracker = () => {
     const objectives = getObjectives()
@@ -4006,25 +4029,54 @@ const objectiveCard = (objective: Objective, index: number) => {
                 padding: { left: 14, right: 14, top: 10, bottom: 12 },
                 borderRadius: PANEL_RADIUS,
                 borderWidth: credits ? CREDITS_BORDER_WIDTH : 2,
-                borderColor: credits ? CREDITS_BORDER_COLOR : objective.alert ? SHORT_COLOR : BANK_TRIM
+                borderColor: objectiveColors(objective).border
             }}
-            uiBackground={{ color: credits ? CREDITS_BACKGROUND : HUD_BACKGROUND }}
+            uiBackground={{ color: CREDITS_BACKGROUND }}
         >
             <UiEntity uiTransform={{ flexDirection: 'row', alignItems: 'center', margin: { bottom: 4 } }}>
                 <UiEntity
                     uiTransform={{ width: OBJECTIVE_ICON_SIZE, height: OBJECTIVE_ICON_SIZE, margin: { right: 8 }, flexShrink: 0 }}
                     uiBackground={iconBackground(objective.id === CREDITS_ID ? ICON_CREDITS : ICON_NOTIFICATION)}
                 />
-                <BitmapText value={objective.title} fontSize={20} color={objectiveTitleColor(objective)} />
+                <BitmapText value={objective.title} fontSize={20} color={objectiveColors(objective).title} />
             </UiEntity>
-            <Button
-                value="X"
-                fontSize={24}
-                color={BANK_GOLD_LIGHT}
-                uiTransform={{ positionType: 'absolute', position: { top: 6, right: 8 }, width: OBJECTIVE_CLOSE_SIZE, height: OBJECTIVE_CLOSE_SIZE }}
-                uiBackground={{ color: Color4.Clear() }}
+            {/* A white circle with a black X, in the middle of a larger tap area inside the card. */}
+            <UiEntity
+                uiTransform={{
+                    positionType: 'absolute',
+                    position: { top: 6, right: 8 },
+                    width: OBJECTIVE_CLOSE_SIZE,
+                    height: OBJECTIVE_CLOSE_SIZE,
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                }}
                 onMouseDown={() => dismissObjective(objective.id)}
-            />
+            >
+                <UiEntity
+                    uiTransform={{
+                        width: OBJECTIVE_CLOSE_CIRCLE_SIZE,
+                        height: OBJECTIVE_CLOSE_CIRCLE_SIZE,
+                        borderRadius: OBJECTIVE_CLOSE_CIRCLE_SIZE / 2,
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                    }}
+                    uiBackground={{ color: Color4.White() }}
+                >
+                    <BitmapText
+                        value="X"
+                        fontSize={OBJECTIVE_CLOSE_FONT_SIZE}
+                        color={Color4.Black()}
+                        align="center"
+                        uiTransform={{
+                            positionType: 'absolute',
+                            position: { top: OBJECTIVE_CLOSE_X_NUDGE_Y, left: OBJECTIVE_CLOSE_X_NUDGE_X },
+                            width: OBJECTIVE_CLOSE_CIRCLE_SIZE,
+                            height: OBJECTIVE_CLOSE_CIRCLE_SIZE,
+                            padding: 0
+                        }}
+                    />
+                </UiEntity>
+            </UiEntity>
             <Label
                 value={objective.message}
                 fontSize={17}
@@ -4372,12 +4424,12 @@ const notificationRow = (entry: PastObjective, index: number) => (
             margin: { bottom: 8 },
             borderRadius: 10,
             borderWidth: 2,
-            borderColor: entry.alert ? SHORT_COLOR : BANK_TRIM
+            borderColor: objectiveColors(entry).border
         }}
         uiBackground={{ color: BANK_WOOD }}
     >
         <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <BitmapText value={entry.title} fontSize={20} color={objectiveTitleColor(entry)} />
+            <BitmapText value={entry.title} fontSize={20} color={objectiveColors(entry).title} />
             <Label value={timeAgo(entry.at)} fontSize={13} color={BANK_CAPTION} textAlign="middle-right" textWrap="nowrap" uiTransform={{ height: 20 }} />
         </UiEntity>
         <Label value={entry.message} fontSize={16} color={BANK_CREAM} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 22 }} />

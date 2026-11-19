@@ -36,9 +36,13 @@ import { getMiningStatus } from '../mining/rocks'
 import { itemName, t } from '../i18n'
 import { isPlaying } from '../world/game-phase'
 import { getCampaignStatus } from '../net/campaign-link'
+import { DEBUG_SHOW_ALL_NOTIFICATIONS } from '../shared/debug-flags'
 
 /** The Social Bonus note's id: the tracker paints its title in the bonus's own green. */
 export const SOCIAL_BONUS_ID = 'social'
+
+/** The news of what the rigs dug while the player was away: the tracker paints it light blue. */
+export const MULE_AWAY_ID = 'mule-away'
 
 /** The Marketplace Credits campaign's entry. */
 export const CREDITS_ID = 'credits'
@@ -135,7 +139,19 @@ let history: PastObjective[] = []
 
 /** What the tracker shows right now, top first; empty to hide it. */
 export function getObjectives(): readonly Objective[] {
+  if (DEBUG_SHOW_ALL_NOTIFICATIONS) return debugSamples()
   return shown
+}
+
+/** One card of every kind, for DEBUG_SHOW_ALL_NOTIFICATIONS. */
+function debugSamples(): Objective[] {
+  return [
+    goal('debug-goal', t('obj.mineFirstOre', { goal: FIRST_ORE_GOAL }), `4/${FIRST_ORE_GOAL}`, 4 / FIRST_ORE_GOAL),
+    { id: MULE_AWAY_ID, title: t('obj.whileAway'), message: t('obj.muleDugOne', { ore: 120 }), detail: t('obj.addedToStorage'), progress: null, alert: false },
+    alert('debug-alert', t('hud.storageFull'), t('obj.sellAtBank'), t('obj.oreReady', { ore: 50 })),
+    alert(SOCIAL_BONUS_ID, t('obj.socialBonus'), t('obj.minersBonus', { miners: 3, bonus: socialBonus(3) }), t('obj.moreMiners')),
+    { id: CREDITS_ID, title: t('obj.credits'), message: t('obj.creditsDay1', { goal: 50, credits: 10 }), detail: t('obj.creditsRocks', { rocks: 20, goal: 50 }), progress: 0.4, alert: false }
+  ]
 }
 
 /** The player closed an entry: it goes now and stays gone while the same line still applies. */
@@ -205,7 +221,7 @@ function candidates(): Objective[] {
   if (clock < muleAwayUntil) {
     const away = getMuleAway()
     const message = mules === 1 ? t('obj.muleDugOne', { ore: away.ore }) : t('obj.muleDugMany', { ore: away.ore })
-    list.push({ id: 'mule-away', title: t('obj.whileAway'), message, detail: t('obj.addedToStorage'), progress: null, alert: false })
+    list.push({ id: MULE_AWAY_ID, title: t('obj.whileAway'), message, detail: t('obj.addedToStorage'), progress: null, alert: false })
   }
 
   // Somebody left a note at the door, while the player was here or away.
