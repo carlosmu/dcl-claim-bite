@@ -16,9 +16,9 @@ import { HeldPicks } from '../shared/net/held-picks-sync'
 
 // One model per pick tier, by catalogue id.
 const PICK_MODELS: Record<string, string> = {
-  pick: 'assets/models/pick-0.glb',
-  'steel-pick': 'assets/models/pick-1.glb',
-  'miners-pick': 'assets/models/pick-2.glb'
+  pick: 'assets/models/pick-0.gltf',
+  'steel-pick': 'assets/models/pick-1.gltf',
+  'miners-pick': 'assets/models/pick-2.gltf'
 }
 
 const HELD_POSITION = Vector3.create(0.05, 0.1, 0)

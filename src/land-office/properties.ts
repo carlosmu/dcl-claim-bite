@@ -50,7 +50,7 @@ const LOD_LOW_RADIUS_METERS = 52
 const LOD_CHECK_SECONDS = 0.25
 
 /** The same sign stands by every kind of property. */
-const OWNER_SIGN_MODEL = 'assets/models/owner.glb'
+const OWNER_SIGN_MODEL = 'assets/models/owner.gltf'
 
 // Rows pair up face to face, a street between them, and back to back with the next pair:
 // even rows face +Z, odd rows are turned round to face -Z. Each model's origin is a front

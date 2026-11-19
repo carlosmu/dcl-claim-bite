@@ -141,7 +141,7 @@ const parked = new Map<string, ParkedMule>()
 let spots: Vector3[] = []
 let yardRoot: Entity | null = null
 /** The rig's model; a `MULE` placed in the Creator Hub overrides it (see adoptTemplate). */
-let muleModel = 'assets/animations/mule-1.glb'
+let muleModel = 'assets/animations/mule.gltf'
 /** The clip that comes with the rig's model, played on a loop. */
 const MULE_ANIMATION_CLIP = 'mule'
 let myAddress = ''
@@ -384,7 +384,7 @@ function isInFront(spot: Vector3, player: Vector3 | undefined, halfAngleDegrees:
 
 // Rigs further off wear a low-detail model with no animation, so a full yard stays cheap. Same
 // give as the rest: a rig goes back to the low-detail one a little further out than it leaves it.
-const MULE_LOD_MODEL = 'assets/animations/mule-LOD.glb'
+const MULE_LOD_MODEL = 'assets/animations/mule_LOD1.gltf'
 /** A rig wears the full model once the player comes this close to it. */
 const MULE_FULL_RADIUS_METERS = 5
 /** And the low-detail one once they are this far from it. */

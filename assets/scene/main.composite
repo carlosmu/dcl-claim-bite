@@ -1213,27 +1213,6 @@
             "parent": 0
           }
         },
-        "571": {
-          "json": {
-            "position": {
-              "x": -16,
-              "y": 0,
-              "z": 24
-            },
-            "scale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
-            },
-            "rotation": {
-              "x": 0,
-              "y": 0,
-              "z": 0,
-              "w": 1
-            },
-            "parent": 0
-          }
-        },
         "572": {
           "json": {
             "position": {
@@ -5253,13 +5232,6 @@
             "invisibleMeshesCollisionMask": 3
           }
         },
-        "571": {
-          "json": {
-            "src": "assets/asset-packs/barrel_4/Barrel 4.glb",
-            "visibleMeshesCollisionMask": 0,
-            "invisibleMeshesCollisionMask": 3
-          }
-        },
         "572": {
           "json": {
             "src": "assets/asset-packs/cactus_4/Cactus 4.glb",
@@ -5400,28 +5372,28 @@
         },
         "593": {
           "json": {
-            "src": "assets/models/billboard.glb",
+            "src": "assets/models/billboard.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "596": {
           "json": {
-            "src": "assets/models/billboard.glb",
+            "src": "assets/models/billboard.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "598": {
           "json": {
-            "src": "assets/models/billboard.glb",
+            "src": "assets/models/billboard.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "1558": {
           "json": {
-            "src": "assets/animations/town-mayor.glb",
+            "src": "assets/animations/town-mayor.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
@@ -5895,11 +5867,6 @@
         "569": {
           "json": {
             "value": "Cart Small 2"
-          }
-        },
-        "571": {
-          "json": {
-            "value": "Barrel 4"
           }
         },
         "572": {
@@ -6903,7 +6870,6 @@
                   567,
                   568,
                   569,
-                  571,
                   581,
                   582,
                   583,
@@ -7003,7 +6969,7 @@
               },
               {
                 "entity": 535,
-                "open": false,
+                "open": true,
                 "children": [
                   67090,
                   525,
@@ -7243,10 +7209,6 @@
                 "children": []
               },
               {
-                "entity": 571,
-                "children": []
-              },
-              {
                 "entity": 572,
                 "children": []
               },
@@ -7417,7 +7379,7 @@
               },
               {
                 "entity": 600,
-                "open": true,
+                "open": false,
                 "children": [
                   652,
                   551,
@@ -7471,7 +7433,7 @@
               },
               {
                 "entity": 601,
-                "open": true,
+                "open": false,
                 "children": [
                   600,
                   602,
@@ -8292,9 +8254,6 @@
         "569": {
           "json": {}
         },
-        "571": {
-          "json": {}
-        },
         "572": {
           "json": {}
         },
@@ -8525,6 +8484,126 @@
         },
         "67090": {
           "json": {}
+        }
+      }
+    },
+    {
+      "name": "inspector::Hide",
+      "jsonSchema": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "boolean",
+            "serializationType": "boolean"
+          }
+        },
+        "serializationType": "map"
+      },
+      "data": {
+        "525": {
+          "json": {
+            "value": true
+          }
+        },
+        "526": {
+          "json": {
+            "value": true
+          }
+        },
+        "527": {
+          "json": {
+            "value": true
+          }
+        },
+        "529": {
+          "json": {
+            "value": true
+          }
+        },
+        "532": {
+          "json": {
+            "value": true
+          }
+        },
+        "533": {
+          "json": {
+            "value": true
+          }
+        },
+        "534": {
+          "json": {
+            "value": true
+          }
+        },
+        "535": {
+          "json": {
+            "value": true
+          }
+        },
+        "539": {
+          "json": {
+            "value": true
+          }
+        },
+        "540": {
+          "json": {
+            "value": true
+          }
+        },
+        "541": {
+          "json": {
+            "value": true
+          }
+        },
+        "572": {
+          "json": {
+            "value": true
+          }
+        },
+        "573": {
+          "json": {
+            "value": true
+          }
+        },
+        "574": {
+          "json": {
+            "value": true
+          }
+        },
+        "575": {
+          "json": {
+            "value": true
+          }
+        },
+        "576": {
+          "json": {
+            "value": true
+          }
+        },
+        "577": {
+          "json": {
+            "value": true
+          }
+        },
+        "578": {
+          "json": {
+            "value": true
+          }
+        },
+        "579": {
+          "json": {
+            "value": true
+          }
+        },
+        "580": {
+          "json": {
+            "value": true
+          }
+        },
+        "67090": {
+          "json": {
+            "value": true
+          }
         }
       }
     },
@@ -10358,12 +10437,12 @@
       "data": {
         "551": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "562": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "592": {
@@ -10618,7 +10697,7 @@
         },
         "652": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "653": {
@@ -10793,7 +10872,7 @@
         },
         "687": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "688": {
@@ -10808,7 +10887,7 @@
         },
         "690": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "691": {
@@ -10818,7 +10897,7 @@
         },
         "692": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "693": {
@@ -10828,12 +10907,12 @@
         },
         "694": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "695": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "696": {
@@ -10843,12 +10922,12 @@
         },
         "697": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "698": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "699": {
@@ -10858,7 +10937,7 @@
         },
         "700": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "701": {
@@ -10868,7 +10947,7 @@
         },
         "702": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "703": {
@@ -10883,12 +10962,12 @@
         },
         "705": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "706": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "707": {
@@ -10903,12 +10982,12 @@
         },
         "709": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "710": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "711": {
@@ -10918,7 +10997,7 @@
         },
         "712": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "713": {
@@ -10928,157 +11007,157 @@
         },
         "714": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "715": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "716": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "717": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "718": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "719": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "720": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "721": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "722": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "723": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "724": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "725": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "726": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "727": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "728": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "729": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "730": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "731": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "732": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "733": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "734": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "735": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "736": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "737": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "738": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "739": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "740": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "741": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "742": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "743": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         },
         "744": {
           "json": {
-            "src": "assets/models/house.glb"
+            "src": "assets/models/house.gltf"
           }
         }
       }

@@ -75,8 +75,8 @@
 	"images":[
 		{
 			"mimeType":"image/jpeg",
-			"name":"house.glb_basecolor.jpg",
-			"uri":"textures/house.glb_basecolor.jpg.jpg"
+			"name":"house",
+			"uri":"textures/house.jpg"
 		}
 	],
 	"accessors":[
