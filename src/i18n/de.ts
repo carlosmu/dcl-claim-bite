@@ -370,6 +370,8 @@ export const de: Strings = {
     'claim.creditsReward': 'Belohnung',
     'claim.creditsAmount': '{credits} CREDITS',
     'claim.creditsEnds': 'Endet in',
+
+    'claim.creditsStarts': 'Beginnt in',
     'action.inProgress': 'LÄUFT',
     'action.reserved': 'RESERVIERT',
 

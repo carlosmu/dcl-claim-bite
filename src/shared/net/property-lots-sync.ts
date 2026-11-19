@@ -14,8 +14,12 @@ export const PROPERTY_LOTS_ENTITY_ENUM_ID = 7
 export type PropertyKind = 'cabin' | 'house' | 'ranch'
 
 type PropertyArea = {
-  /** The plane in the scene the lots are laid over. */
+  /**
+   * The plane in the scene the lots are laid over. With `placeholderPrefix`, instead the parent
+   * of one placeholder per lot, named `<prefix><n>`: lot 0 is the lowest n, and so on up.
+   */
   areaName: string
+  placeholderPrefix?: string
   /**
    * A lot's width (X) and depth (Z) in metres, the street in front included: the model brings
    * its own half of the street, so lots sit edge to edge.
@@ -30,12 +34,12 @@ type PropertyArea = {
 }
 
 export const PROPERTY_AREAS: Record<PropertyKind, PropertyArea> = {
-  // 40 x 80 m at 6 x 8 m: 6 x 10.
-  cabin: { areaName: 'Cabins_Area', spacingX: 6, spacingZ: 8, maxLots: 60 },
+  // One placeholder per lot under Cabin_Places (Cabin_1 … Cabin_64); spacing unused.
+  cabin: { areaName: 'Cabin_Places', placeholderPrefix: 'Cabin_', spacingX: 6, spacingZ: 8, maxLots: 64 },
   // 40 x 80 m at 8 x 10 m: 5 x 8.
   house: { areaName: 'Houses_Area', spacingX: 8, spacingZ: 10, maxLots: 40 },
-  // 160 x 32 m at 16 x 16 m: 10 x 2.
-  ranch: { areaName: 'Ranches_Area', spacingX: 16, spacingZ: 16, maxLots: 20 }
+  // One placeholder per lot under Ranches_Places (Ranch_1 … Ranch_48); spacing unused.
+  ranch: { areaName: 'Ranches_Places', placeholderPrefix: 'Ranch_', spacingX: 16, spacingZ: 16, maxLots: 48 }
 }
 
 export const PROPERTY_KINDS = Object.keys(PROPERTY_AREAS) as PropertyKind[]

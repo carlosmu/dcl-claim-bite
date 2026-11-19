@@ -13,9 +13,10 @@ export type CampaignStatus = {
   rocks: number
   goal: number
   credits: number
-  /** Wall-clock ms on this client when the next game day starts, and when the campaign ends. */
+  /** Wall-clock ms on this client when the next game day starts, when the campaign ends, and when it starts. */
   nextDayAt: number
   endsAt: number
+  startsAt: number
 }
 
 export type CampaignAdmin = {
@@ -88,7 +89,8 @@ export function setupCampaignLink(): void {
       goal: data.goal,
       credits: data.credits,
       nextDayAt: now + data.msToNextDay,
-      endsAt: now + data.msToEnd
+      endsAt: now + data.msToEnd,
+      startsAt: now + data.msToStart
     }
     if (milestone) onMilestone?.()
   })

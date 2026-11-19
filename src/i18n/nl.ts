@@ -369,6 +369,8 @@ export const nl: Strings = {
     'claim.creditsReward': 'Beloning',
     'claim.creditsAmount': '{credits} CREDITS',
     'claim.creditsEnds': 'Eindigt over',
+
+    'claim.creditsStarts': 'Begint over',
     'action.inProgress': 'BEZIG',
     'action.reserved': 'GERESERVEERD',
 

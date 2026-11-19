@@ -233,7 +233,7 @@ function candidates(): Objective[] {
   // The Marketplace Credits campaign, while it is open (net/campaign-link.ts). Not shown on its last
   // day to someone who has not reserved: day 2 would never come.
   const campaign = getCampaignStatus()
-  if (campaign !== null && campaign.phase !== 'late' && campaign.phase !== 'off') {
+  if (campaign !== null && campaign.phase !== 'late' && campaign.phase !== 'off' && campaign.phase !== 'soon') {
     const { goal: rocksGoal, credits } = campaign
     const title = t('obj.credits')
     if (campaign.phase === 'day1' || campaign.phase === 'day2') {

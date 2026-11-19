@@ -371,6 +371,8 @@ export const en = {
     'claim.creditsReward': 'Reward',
     'claim.creditsAmount': '{credits} CREDITS',
     'claim.creditsEnds': 'Ends in',
+
+    'claim.creditsStarts': 'Starts in',
     'action.inProgress': 'IN PROGRESS',
     'action.reserved': 'RESERVED',
 

@@ -372,6 +372,8 @@ export const ko: Strings = {
     'claim.creditsReward': '보상',
     'claim.creditsAmount': '{credits} 크레딧',
     'claim.creditsEnds': '종료까지',
+
+    'claim.creditsStarts': '시작까지',
     'action.inProgress': '진행 중',
     'action.reserved': '예약됨',
 

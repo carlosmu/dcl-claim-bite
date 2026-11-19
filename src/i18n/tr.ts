@@ -371,6 +371,8 @@ export const tr: Strings = {
     'claim.creditsReward': 'Ödül',
     'claim.creditsAmount': '{credits} KREDİ',
     'claim.creditsEnds': 'Bitişe',
+
+    'claim.creditsStarts': 'Başlamaya',
     'action.inProgress': 'DEVAM EDİYOR',
     'action.reserved': 'AYRILDI',
 

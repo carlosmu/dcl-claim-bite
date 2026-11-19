@@ -371,6 +371,8 @@ export const zh: Strings = {
     'claim.creditsReward': '奖励',
     'claim.creditsAmount': '{credits} 积分',
     'claim.creditsEnds': '剩余时间',
+
+    'claim.creditsStarts': '距离开始',
     'action.inProgress': '进行中',
     'action.reserved': '已预约',
 

@@ -372,6 +372,8 @@ export const ja: Strings = {
     'claim.creditsReward': '報酬',
     'claim.creditsAmount': '{credits} クレジット',
     'claim.creditsEnds': '終了まで',
+
+    'claim.creditsStarts': '開始まで',
     'action.inProgress': '進行中',
     'action.reserved': '予約済み',
 

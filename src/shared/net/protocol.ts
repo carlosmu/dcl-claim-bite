@@ -190,14 +190,15 @@ export const Messages = {
   // Server -> one client: where they stand in the Marketplace Credits campaign (shared/credits-campaign.ts).
   // Sent on arrival, on hello, on each counted rock and when the campaign opens or closes. `phase` is a
   // CampaignPhase. The times are milliseconds from the moment it was sent, so the client's clock never
-  // matters: to the next game day, and to the campaign's end.
+  // matters: to the next game day, to the campaign's end, and to its start (0 once started).
   campaignStatus: Schemas.Map({
     phase: Schemas.String,
     rocks: Schemas.Number,
     goal: Schemas.Number,
     credits: Schemas.Number,
     msToNextDay: Schemas.Number,
-    msToEnd: Schemas.Number
+    msToEnd: Schemas.Number,
+    msToStart: Schemas.Number
   }),
 
   // Server -> admins only: the campaign's figures, for the admin row in the bug-report menu. `start`

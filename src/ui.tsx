@@ -2090,8 +2090,10 @@ function creditsDetail(): Detail {
     }
     const { phase, goal, credits } = campaign
     const now = Date.now()
-    const rocks = t('obj.creditsRocks', { rocks: campaign.rocks, goal })
+    const rocks = t('obj.creditsRocks', { rocks: phase === 'soon' ? 0 : campaign.rocks, goal })
     const completed = t('claim.creditsCompleted')
+    // Not started yet: the same layout, counting down to the start instead of the end.
+    const soon = phase === 'soon'
 
     // Day 1: done once reserved; counting while on it; too late on the campaign's last day.
     const day1Done = phase === 'reserved' || phase === 'day2' || phase === 'claimed'
@@ -2112,8 +2114,8 @@ function creditsDetail(): Detail {
                 <UiEntity uiTransform={{ width: CREDITS_REWARD_ICON, height: CREDITS_REWARD_ICON, flexShrink: 0 }} uiBackground={iconBackground(ICON_CREDITS)} />
                 <BitmapText value={t('claim.creditsAmount', { credits })} fontSize={34} color={BANK_GOLD_LIGHT} />
                 <UiEntity uiTransform={{ width: '80%', height: 2, margin: { top: 8, bottom: 6 } }} uiBackground={{ color: BANK_TRIM }} />
-                <Label value={t('claim.creditsEnds')} fontSize={14} color={BANK_CAPTION} textAlign="middle-center" textWrap="nowrap" uiTransform={{ height: 20 }} />
-                <BitmapText value={creditsCountdown(campaign.endsAt - now)} fontSize={24} color={BANK_CREAM} />
+                <Label value={t(soon ? 'claim.creditsStarts' : 'claim.creditsEnds')} fontSize={14} color={BANK_CAPTION} textAlign="middle-center" textWrap="nowrap" uiTransform={{ height: 20 }} />
+                <BitmapText value={creditsCountdown((soon ? campaign.startsAt : campaign.endsAt) - now)} fontSize={24} color={BANK_CREAM} />
             </UiEntity>
             <UiEntity uiTransform={{ width: '65%', flexDirection: 'column' }}>
                 {creditsDayCard(day1Done, t('claim.creditsDay1', { goal }), day1Status, day1Color, true)}
@@ -2126,6 +2128,7 @@ function creditsDetail(): Detail {
     if (phase === 'claimed') action = { label: t('action.claimed'), kind: 'equipped' }
     else if (phase === 'reserved') action = { label: t('action.reserved'), kind: 'off' }
     else if (phase === 'late') action = { label: t('action.locked'), kind: 'off' }
+    else if (soon) action = { label: t('action.comingSoon'), kind: 'off' }
     else action = { label: t('action.inProgress'), kind: 'off' }
 
     return {

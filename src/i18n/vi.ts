@@ -371,6 +371,8 @@ export const vi: Strings = {
     'claim.creditsReward': 'Phần thưởng',
     'claim.creditsAmount': '{credits} TÍN DỤNG',
     'claim.creditsEnds': 'Kết thúc sau',
+
+    'claim.creditsStarts': 'Bắt đầu sau',
     'action.inProgress': 'ĐANG LÀM',
     'action.reserved': 'ĐÃ GIỮ',
 

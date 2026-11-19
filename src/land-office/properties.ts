@@ -6,6 +6,7 @@ import {
   InputAction,
   Material,
   MeshRenderer,
+  Name,
   pointerEventsSystem,
   Transform
 } from '@dcl/sdk/ecs'
@@ -76,15 +77,19 @@ const FIRST_ROW_FORWARD_METERS: Record<PropertyKind, number> = {
 }
 
 /** Where the sign stands from the lot's origin (a front corner), and which way it faces. */
-const OWNER_SIGN_OFFSET = Vector3.create(0, 0, 0)
+const OWNER_SIGN_OFFSET: Record<PropertyKind, Vector3> = {
+  cabin: Vector3.create(-1.5, 0, 0.5),
+  house: Vector3.create(0, 0, 0),
+  ranch: Vector3.create(0, 0, 0)
+}
 const OWNER_SIGN_YAW_DEGREES = 0
 
 /** How high above the sign's foot the lettering starts, and which way it faces. */
 const OWNER_NAME_HEIGHT_METERS = 1.0
 const OWNER_TEXT_YAW_DEGREES = 180
 /** Where the board stands within owner.glb, from its origin, as the scene sees it (X mirrored from the glTF). */
-const OWNER_BOARD_X_METERS = 1.54
-const OWNER_BOARD_Z_METERS = -2.75
+const OWNER_BOARD_X_METERS = 0
+const OWNER_BOARD_Z_METERS = 0
 /** How far in front of the sign's centre the lettering sits, so it does not sink into the board. */
 const OWNER_TEXT_FORWARD_METERS = -0.06
 
@@ -121,7 +126,15 @@ const LOTS_FROM_PLUS_X: Record<PropertyKind, boolean> = {
   ranch: false
 }
 
-type Lot = { corner: Vector3; yawDegrees: number }
+/** Kinds whose property stands on a lot nobody owns; the others only stand once someone has them. */
+const SHOW_VACANT_PROPERTY: Record<PropertyKind, boolean> = {
+  cabin: false,
+  house: true,
+  ranch: false
+}
+
+/** A lot on the area's grid, or (`parent`) a placeholder in the scene the property stands on as it is. */
+type Lot = { corner: Vector3; yawDegrees: number; parent?: Entity }
 type Area = { root: Entity; lots: Lot[] }
 type StandingProperty = {
   kind: PropertyKind
@@ -146,6 +159,11 @@ function buildArea(kind: PropertyKind): void {
   const area = engine.getEntityOrNullByName(areaName)
   if (area === null) {
     console.error(`[properties] no entity named "${areaName}" in the scene — ${kind}s have nowhere to stand`)
+    return
+  }
+  const prefix = PROPERTY_AREAS[kind].placeholderPrefix
+  if (prefix !== undefined) {
+    buildPlaceholderArea(kind, area, prefix)
     return
   }
   const areaTransform = Transform.get(area)
@@ -186,22 +204,44 @@ function buildArea(kind: PropertyKind): void {
   lots.forEach((lot, index) => standing.set(`${kind}:${index}`, build(kind, built, lot)))
 }
 
+// The placeholders (children of Ranches_Places for ranches) already stand where and how the model should: lot n is the n-th by number
+// (Ranch_1, Ranch_2, … skipping any number missing), and the property stands on it unmoved.
+function buildPlaceholderArea(kind: PropertyKind, area: Entity, prefix: string): void {
+  const pattern = new RegExp(`^${prefix}(\\d+)$`)
+  const placeholders: { entity: Entity; number: number }[] = []
+  for (const [entity, transform] of engine.getEntitiesWith(Transform, Name)) {
+    if (transform.parent !== area) continue
+    const match = pattern.exec(Name.get(entity).value)
+    if (match !== null) placeholders.push({ entity, number: Number(match[1]) })
+  }
+  placeholders.sort((a, b) => a.number - b.number)
+  const { maxLots } = PROPERTY_AREAS[kind]
+  if (placeholders.length !== maxLots) {
+    console.error(`[properties] ${placeholders.length} "${prefix}<n>" placeholders for ${kind}s, but the server hands out ${maxLots} lots`)
+  }
+  const lots: Lot[] = placeholders.slice(0, maxLots).map(({ entity }) => ({ corner: Vector3.Zero(), yawDegrees: 0, parent: entity }))
+  const built = { root: area, lots }
+  areas.set(kind, built)
+  lots.forEach((lot, index) => standing.set(`${kind}:${index}`, build(kind, built, lot)))
+}
+
 function build(kind: PropertyKind, area: Area, lot: Lot): StandingProperty {
   const root = engine.addEntity()
   Transform.create(root, {
-    parent: area.root,
+    parent: lot.parent ?? area.root,
     position: Vector3.clone(lot.corner),
     rotation: Quaternion.fromEulerDegrees(0, lot.yawDegrees, 0)
   })
 
   const model = engine.addEntity()
   Transform.create(model, { parent: root, rotation: Quaternion.fromEulerDegrees(0, PROPERTY_YAW_DEGREES, 0) })
-  GltfContainer.create(model, { src: PROPERTY_MODELS[kind] })
+  // A kind that stands only once owned gets its model when syncLots finds the owner.
+  if (SHOW_VACANT_PROPERTY[kind]) GltfContainer.create(model, { src: PROPERTY_MODELS[kind] })
 
   const ownerSign = engine.addEntity()
   Transform.create(ownerSign, {
     parent: root,
-    position: OWNER_SIGN_OFFSET,
+    position: Vector3.clone(OWNER_SIGN_OFFSET[kind]),
     rotation: Quaternion.fromEulerDegrees(0, OWNER_SIGN_YAW_DEGREES, 0)
   })
 
@@ -243,6 +283,9 @@ function syncLots(): void {
     property.shownName = shown
     Transform.getMutable(property.text).position.y = OWNER_NAME_HEIGHT_METERS - (owner === undefined ? FOR_SALE_DROP_METERS : 0)
     // The model is taken away, not just hidden, so a bare lot has no sign to bump into either.
+    const hasModel = owner !== undefined || SHOW_VACANT_PROPERTY[property.kind]
+    if (!hasModel) GltfContainer.deleteFrom(property.model)
+    else if (!GltfContainer.has(property.model)) GltfContainer.create(property.model, { src: PROPERTY_MODELS[property.kind] })
     const hasSign = owner !== undefined || SHOW_VACANT_SIGN
     if (!hasSign) GltfContainer.deleteFrom(property.sign)
     else if (!GltfContainer.has(property.sign)) GltfContainer.create(property.sign, { src: OWNER_SIGN_MODEL })

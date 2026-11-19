@@ -373,6 +373,8 @@ export const ru: Strings = {
     'claim.creditsReward': 'Награда',
     'claim.creditsAmount': '{credits} КРЕДИТОВ',
     'claim.creditsEnds': 'До конца',
+
+    'claim.creditsStarts': 'До начала',
     'action.inProgress': 'В ПРОЦЕССЕ',
     'action.reserved': 'ЗАБРОНИРОВАНО',
 

@@ -370,6 +370,8 @@ export const id: Strings = {
     'claim.creditsReward': 'Hadiah',
     'claim.creditsAmount': '{credits} KREDIT',
     'claim.creditsEnds': 'Berakhir dalam',
+
+    'claim.creditsStarts': 'Dimulai dalam',
     'action.inProgress': 'BERJALAN',
     'action.reserved': 'DIPESAN',
 

@@ -369,6 +369,8 @@ export const it: Strings = {
     'claim.creditsReward': 'Ricompensa',
     'claim.creditsAmount': '{credits} CREDITI',
     'claim.creditsEnds': 'Finisce tra',
+
+    'claim.creditsStarts': 'Inizia tra',
     'action.inProgress': 'IN CORSO',
     'action.reserved': 'PRENOTATO',
 

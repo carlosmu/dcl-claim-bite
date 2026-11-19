@@ -149,7 +149,8 @@ function nextDayAt(now: number): number {
 
 function phaseOf(record: StoredCampaignProgress, now: number): CampaignPhase {
   const span = campaignWindow()
-  if (span === null || !isOpen(now)) return 'off'
+  if (span === null || now >= span.end) return 'off'
+  if (now < span.start) return 'soon'
   if (record.claimedDay !== undefined) return 'claimed'
   if (record.reservedDay !== undefined) return record.reservedDay === dayKey(now) ? 'reserved' : 'day2'
   return nextDayAt(now) >= span.end ? 'late' : 'day1'
@@ -168,7 +169,8 @@ function sendStatus(address: string): void {
       goal: rocksGoal(),
       credits: CAMPAIGN_REWARD_CREDITS,
       msToNextDay: Math.max(0, nextDayAt(now) - now),
-      msToEnd: span === null ? 0 : Math.max(0, span.end - now)
+      msToEnd: span === null ? 0 : Math.max(0, span.end - now),
+      msToStart: span === null ? 0 : Math.max(0, span.start - now)
     },
     { to: [address] }
   )
@@ -222,7 +224,7 @@ function applyRocks(address: string, record: StoredCampaignProgress, rocks: numb
     record.rocks = 0
   }
   const phase = phaseOf(record, now)
-  if (phase === 'off' || phase === 'late' || phase === 'claimed') return
+  if (phase === 'off' || phase === 'soon' || phase === 'late' || phase === 'claimed') return
   record.rocks += rocks
   dirty.add(address)
 
