@@ -4989,7 +4989,7 @@
         },
         "521": {
           "json": {
-            "src": "assets/asset-packs/cart_big_closed/Cart Big Closed.glb",
+            "src": "assets/models/cart_big_closed.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
@@ -5017,21 +5017,21 @@
         },
         "525": {
           "json": {
-            "src": "assets/asset-packs/cactus_4/Cactus 4.glb",
+            "src": "assets/models/cactus_4.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "526": {
           "json": {
-            "src": "assets/asset-packs/cactus_4/Cactus 4.glb",
+            "src": "assets/models/cactus_4.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "527": {
           "json": {
-            "src": "assets/asset-packs/cactus_4/Cactus 4.glb",
+            "src": "assets/models/cactus_4.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
@@ -5045,7 +5045,7 @@
         },
         "529": {
           "json": {
-            "src": "assets/asset-packs/cactus_4/Cactus 4.glb",
+            "src": "assets/models/cactus_4.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
@@ -5059,21 +5059,21 @@
         },
         "532": {
           "json": {
-            "src": "assets/asset-packs/cactus_4/Cactus 4.glb",
+            "src": "assets/models/cactus_4.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "533": {
           "json": {
-            "src": "assets/asset-packs/cactus_4/Cactus 4.glb",
+            "src": "assets/models/cactus_4.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "534": {
           "json": {
-            "src": "assets/asset-packs/cactus_4/Cactus 4.glb",
+            "src": "assets/models/cactus_4.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
@@ -5101,21 +5101,21 @@
         },
         "539": {
           "json": {
-            "src": "assets/asset-packs/cactus_4/Cactus 4.glb",
+            "src": "assets/models/cactus_4.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "540": {
           "json": {
-            "src": "assets/asset-packs/cactus_4/Cactus 4.glb",
+            "src": "assets/models/cactus_4.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "541": {
           "json": {
-            "src": "assets/asset-packs/cactus_4/Cactus 4.glb",
+            "src": "assets/models/cactus_4.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
@@ -5129,14 +5129,14 @@
         },
         "543": {
           "json": {
-            "src": "assets/asset-packs/cart_big_closed/Cart Big Closed.glb",
+            "src": "assets/models/cart_big_closed.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "544": {
           "json": {
-            "src": "assets/asset-packs/cart_big_closed/Cart Big Closed.glb",
+            "src": "assets/models/cart_big_closed.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
@@ -5150,28 +5150,28 @@
         },
         "546": {
           "json": {
-            "src": "assets/asset-packs/cart_big_closed/Cart Big Closed.glb",
+            "src": "assets/models/cart_big_closed.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "547": {
           "json": {
-            "src": "assets/asset-packs/cart_big_closed/Cart Big Closed.glb",
+            "src": "assets/models/cart_big_closed.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "548": {
           "json": {
-            "src": "assets/asset-packs/cart_big_closed/Cart Big Closed.glb",
+            "src": "assets/models/cart_big_closed.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "549": {
           "json": {
-            "src": "assets/asset-packs/cart_big_closed/Cart Big Closed.glb",
+            "src": "assets/models/cart_big_closed.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
@@ -5185,119 +5185,119 @@
         },
         "552": {
           "json": {
-            "src": "assets/asset-packs/cistern/Cistern.glb",
+            "src": "assets/models/cistern.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "564": {
           "json": {
-            "src": "assets/asset-packs/cistern/Cistern.glb",
+            "src": "assets/models/cistern.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "565": {
           "json": {
-            "src": "assets/asset-packs/cistern/Cistern.glb",
+            "src": "assets/models/cistern.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "566": {
           "json": {
-            "src": "assets/asset-packs/windmill/Windmill.glb",
+            "src": "assets/models/windmill.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "567": {
           "json": {
-            "src": "assets/asset-packs/windmill/Windmill.glb",
+            "src": "assets/models/windmill.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "568": {
           "json": {
-            "src": "assets/asset-packs/windmill/Windmill.glb",
+            "src": "assets/models/windmill.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "569": {
           "json": {
-            "src": "assets/asset-packs/cart_small_2/Cart Small 2.glb",
+            "src": "assets/models/cart_small_2.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "572": {
           "json": {
-            "src": "assets/asset-packs/cactus_4/Cactus 4.glb",
+            "src": "assets/models/cactus_4.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "573": {
           "json": {
-            "src": "assets/asset-packs/cactus_4/Cactus 4.glb",
+            "src": "assets/models/cactus_4.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "574": {
           "json": {
-            "src": "assets/asset-packs/cactus_4/Cactus 4.glb",
+            "src": "assets/models/cactus_4.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "575": {
           "json": {
-            "src": "assets/asset-packs/cactus_4/Cactus 4.glb",
+            "src": "assets/models/cactus_4.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "576": {
           "json": {
-            "src": "assets/asset-packs/cactus_4/Cactus 4.glb",
+            "src": "assets/models/cactus_4.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "577": {
           "json": {
-            "src": "assets/asset-packs/cactus_4/Cactus 4.glb",
+            "src": "assets/models/cactus_4.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "578": {
           "json": {
-            "src": "assets/asset-packs/cactus_4/Cactus 4.glb",
+            "src": "assets/models/cactus_4.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "579": {
           "json": {
-            "src": "assets/asset-packs/cactus_4/Cactus 4.glb",
+            "src": "assets/models/cactus_4.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "580": {
           "json": {
-            "src": "assets/asset-packs/cactus_4/Cactus 4.glb",
+            "src": "assets/models/cactus_4.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
         },
         "581": {
           "json": {
-            "src": "assets/asset-packs/grass_2/Grass 2.glb",
+            "src": "assets/models/grass_2.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }
@@ -5400,7 +5400,7 @@
         },
         "67090": {
           "json": {
-            "src": "assets/asset-packs/cactus_4/Cactus 4.glb",
+            "src": "assets/models/cactus_4.gltf",
             "visibleMeshesCollisionMask": 0,
             "invisibleMeshesCollisionMask": 3
           }

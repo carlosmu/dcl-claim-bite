@@ -1,0 +1,192 @@
+{
+  "asset": {
+    "generator": "Khronos glTF Blender I/O v1.5.17",
+    "version": "2.0"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        0,
+        1
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "Grass 2"
+    },
+    {
+      "mesh": 1,
+      "name": "Grass 2_collider"
+    }
+  ],
+  "materials": [
+    {
+      "doubleSided": true,
+      "name": "Asset Pack Diffuse Color",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicFactor": 0
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Grass 2",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "Grass 2_collider",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 4,
+            "NORMAL": 5
+          },
+          "indices": 6
+        }
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    }
+  ],
+  "images": [
+    {
+      "mimeType": "image/png",
+      "name": "FanstasyPack_TX",
+      "uri": "textures/FanstasyPack_TX.png"
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 1086,
+      "max": [
+        1.1108253002166748,
+        0.9217516779899597,
+        1.1827354431152344
+      ],
+      "min": [
+        -1.2356491088867188,
+        -0.04943495988845825,
+        -0.7783432006835938
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 1086,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 1086,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 3966,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 48,
+      "max": [
+        0.5733261108398438,
+        0.6712762117385864,
+        1.1838874816894531
+      ],
+      "min": [
+        -1.3229827880859375,
+        -0.029344042763113976,
+        -0.7446136474609375
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 48,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5123,
+      "count": 72,
+      "type": "SCALAR"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 13032,
+      "byteOffset": 0
+    },
+    {
+      "buffer": 0,
+      "byteLength": 13032,
+      "byteOffset": 13032
+    },
+    {
+      "buffer": 0,
+      "byteLength": 8688,
+      "byteOffset": 26064
+    },
+    {
+      "buffer": 0,
+      "byteLength": 7932,
+      "byteOffset": 34752
+    },
+    {
+      "buffer": 0,
+      "byteLength": 576,
+      "byteOffset": 42684
+    },
+    {
+      "buffer": 0,
+      "byteLength": 576,
+      "byteOffset": 43260
+    },
+    {
+      "buffer": 0,
+      "byteLength": 144,
+      "byteOffset": 43836
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 43980,
+      "uri": "grass_2.bin"
+    }
+  ]
+}

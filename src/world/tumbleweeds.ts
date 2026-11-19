@@ -10,7 +10,7 @@ import { Quaternion, Vector3 } from '@dcl/sdk/math'
 
 const EMITTER_PREFIX = 'Weed-Emiter'
 
-const WEED_MODEL = 'assets/models/tumbleweed.glb'
+const WEED_MODEL = 'assets/models/tumbleweed.gltf'
 
 const TRAVEL_METERS = 20
 const SPEED_METERS_PER_SECOND = 3

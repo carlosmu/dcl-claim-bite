@@ -1,0 +1,192 @@
+{
+  "asset": {
+    "generator": "Khronos glTF Blender I/O v1.5.17",
+    "version": "2.0"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        0,
+        1
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "Cistern"
+    },
+    {
+      "mesh": 1,
+      "name": "Cistern_collider"
+    }
+  ],
+  "materials": [
+    {
+      "doubleSided": true,
+      "name": "Asset Pack Diffuse Color",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicFactor": 0
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Cistern",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "Cistern_collider",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 4,
+            "NORMAL": 5
+          },
+          "indices": 6
+        }
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    }
+  ],
+  "images": [
+    {
+      "mimeType": "image/png",
+      "name": "FanstasyPack_TX",
+      "uri": "textures/FanstasyPack_TX.png"
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 1766,
+      "max": [
+        0.8690527677536011,
+        8.015776634216309,
+        1.4803663492202759
+      ],
+      "min": [
+        -0.9228703379631042,
+        -0.06893701106309891,
+        -1.0415823459625244
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 1766,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 1766,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 2646,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 504,
+      "max": [
+        0.9825066328048706,
+        8.109910011291504,
+        1.5721207857131958
+      ],
+      "min": [
+        -1.0824631452560425,
+        -0.0561736524105072,
+        -1.0990160703659058
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 504,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5123,
+      "count": 744,
+      "type": "SCALAR"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 21192,
+      "byteOffset": 0
+    },
+    {
+      "buffer": 0,
+      "byteLength": 21192,
+      "byteOffset": 21192
+    },
+    {
+      "buffer": 0,
+      "byteLength": 14128,
+      "byteOffset": 42384
+    },
+    {
+      "buffer": 0,
+      "byteLength": 5292,
+      "byteOffset": 56512
+    },
+    {
+      "buffer": 0,
+      "byteLength": 6048,
+      "byteOffset": 61804
+    },
+    {
+      "buffer": 0,
+      "byteLength": 6048,
+      "byteOffset": 67852
+    },
+    {
+      "buffer": 0,
+      "byteLength": 1488,
+      "byteOffset": 73900
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 75388,
+      "uri": "cistern.bin"
+    }
+  ]
+}

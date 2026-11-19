@@ -1,0 +1,192 @@
+{
+  "asset": {
+    "generator": "Khronos glTF Blender I/O v1.5.17",
+    "version": "2.0"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        0,
+        1
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "Windmill"
+    },
+    {
+      "mesh": 1,
+      "name": "Windmill_collider"
+    }
+  ],
+  "materials": [
+    {
+      "doubleSided": true,
+      "name": "Asset Pack Diffuse Color",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicFactor": 0
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Windmill",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "Windmill_collider",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 4,
+            "NORMAL": 5
+          },
+          "indices": 6
+        }
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    }
+  ],
+  "images": [
+    {
+      "mimeType": "image/png",
+      "name": "FanstasyPack_TX",
+      "uri": "textures/FanstasyPack_TX.png"
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 2098,
+      "max": [
+        1.5279879570007324,
+        7.315958499908447,
+        0.728655219078064
+      ],
+      "min": [
+        -0.89784175157547,
+        -0.06215168163180351,
+        -0.7597882747650146
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 2098,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 2098,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 3132,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 24,
+      "max": [
+        0.7517573833465576,
+        6.562046051025391,
+        0.7159941792488098
+      ],
+      "min": [
+        -0.7298321723937988,
+        -0.051688194274902344,
+        -0.8590828776359558
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5123,
+      "count": 36,
+      "type": "SCALAR"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 25176,
+      "byteOffset": 0
+    },
+    {
+      "buffer": 0,
+      "byteLength": 25176,
+      "byteOffset": 25176
+    },
+    {
+      "buffer": 0,
+      "byteLength": 16784,
+      "byteOffset": 50352
+    },
+    {
+      "buffer": 0,
+      "byteLength": 6264,
+      "byteOffset": 67136
+    },
+    {
+      "buffer": 0,
+      "byteLength": 288,
+      "byteOffset": 73400
+    },
+    {
+      "buffer": 0,
+      "byteLength": 288,
+      "byteOffset": 73688
+    },
+    {
+      "buffer": 0,
+      "byteLength": 72,
+      "byteOffset": 73976
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 74048,
+      "uri": "windmill.bin"
+    }
+  ]
+}

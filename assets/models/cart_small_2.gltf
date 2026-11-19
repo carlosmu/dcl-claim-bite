@@ -1,0 +1,192 @@
+{
+  "asset": {
+    "generator": "Khronos glTF Blender I/O v1.5.17",
+    "version": "2.0"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        0,
+        1
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "Cart Small size 2"
+    },
+    {
+      "mesh": 1,
+      "name": "Cart Small size 2_collider"
+    }
+  ],
+  "materials": [
+    {
+      "doubleSided": true,
+      "name": "Asset Pack Diffuse Color",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicFactor": 0
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Cart Small size 2",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "Cart Small size 2_collider",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 4,
+            "NORMAL": 5
+          },
+          "indices": 6
+        }
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    }
+  ],
+  "images": [
+    {
+      "mimeType": "image/png",
+      "name": "FanstasyPack_TX",
+      "uri": "textures/FanstasyPack_TX.png"
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 2896,
+      "max": [
+        0.6926660537719727,
+        1.0099881887435913,
+        1.8784278631210327
+      ],
+      "min": [
+        -0.6793399453163147,
+        -0.006361792795360088,
+        -1.3517156839370728
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 2896,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 2896,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 4128,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 72,
+      "max": [
+        0.6670564413070679,
+        1.0889523029327393,
+        1.283262848854065
+      ],
+      "min": [
+        -0.650658130645752,
+        -0.007666826248168945,
+        -1.268760085105896
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 72,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5123,
+      "count": 108,
+      "type": "SCALAR"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 34752,
+      "byteOffset": 0
+    },
+    {
+      "buffer": 0,
+      "byteLength": 34752,
+      "byteOffset": 34752
+    },
+    {
+      "buffer": 0,
+      "byteLength": 23168,
+      "byteOffset": 69504
+    },
+    {
+      "buffer": 0,
+      "byteLength": 8256,
+      "byteOffset": 92672
+    },
+    {
+      "buffer": 0,
+      "byteLength": 864,
+      "byteOffset": 100928
+    },
+    {
+      "buffer": 0,
+      "byteLength": 864,
+      "byteOffset": 101792
+    },
+    {
+      "buffer": 0,
+      "byteLength": 216,
+      "byteOffset": 102656
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 102872,
+      "uri": "cart_small_2.bin"
+    }
+  ]
+}
