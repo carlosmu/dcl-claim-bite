@@ -393,6 +393,7 @@ export const es: Strings = {
     'owner.notesAtDoor': 'NOTAS EN TU PUERTA',
     'owner.mailboxFull': 'Buzón lleno: vacíalo para recibir más',
     'owner.noNotes': 'Nadie te ha dejado una nota aún',
+    'owner.emptyMailbox': 'VACIAR BUZÓN',
     'owner.propertyOf': 'PROPIEDAD DE',
     'owner.noteLeft': 'Nota dejada en la puerta',
     'owner.notSent': 'No enviada: {detail}',

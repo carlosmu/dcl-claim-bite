@@ -120,6 +120,22 @@ export function clearNotes(address: string): void {
     .catch((error) => console.log(`[Server] could not read notes for ${address}: ${error}`))
 }
 
+/**
+ * Throws away one note at a player's door: the one left at `at` by `from`. Found by what it is,
+ * not where it sits, so a note arriving meanwhile cannot make it throw away the wrong one.
+ */
+export function deleteNote(address: string, at: number, from: string): void {
+  inboxOf(address)
+    .then((notes) => {
+      const index = notes.findIndex((note) => note.at === at && note.from === from)
+      if (index < 0) return
+      notes.splice(index, 1)
+      dirty.add(address)
+      room.send('notes', { json: JSON.stringify(notes) }, { to: [address] })
+    })
+    .catch((error) => console.log(`[Server] could not read notes for ${address}: ${error}`))
+}
+
 function flushNotes(dt: number): void {
   sinceLastSave += dt
   if (sinceLastSave < SAVE_PERIOD_SECONDS) return

@@ -393,6 +393,7 @@ export const it: Strings = {
     'owner.notesAtDoor': 'BIGLIETTI ALLA PORTA',
     'owner.mailboxFull': 'Cassetta piena: svuotala per riceverne altri',
     'owner.noNotes': 'Nessuno ha ancora lasciato un biglietto',
+    'owner.emptyMailbox': 'SVUOTA CASSETTA',
     'owner.propertyOf': 'PROPRIETÀ DI',
     'owner.noteLeft': 'Biglietto lasciato alla porta',
     'owner.notSent': 'Non inviato: {detail}',

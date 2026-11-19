@@ -397,6 +397,7 @@ export const ru: Strings = {
     'owner.notesAtDoor': 'ЗАПИСКИ У ДВЕРИ',
     'owner.mailboxFull': 'Ящик полон: очисти его для новых записок',
     'owner.noNotes': 'Записок пока нет',
+    'owner.emptyMailbox': 'ОЧИСТИТЬ ЯЩИК',
     'owner.propertyOf': 'ВЛАДЕЛЕЦ',
     'owner.noteLeft': 'Записка оставлена у двери',
     'owner.notSent': 'Не отправлено: {detail}',

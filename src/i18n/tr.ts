@@ -395,6 +395,7 @@ export const tr: Strings = {
     'owner.notesAtDoor': 'KAPINDAKİ NOTLAR',
     'owner.mailboxFull': 'Posta kutusu dolu: yeni notlar için boşalt',
     'owner.noNotes': 'Henüz kimse not bırakmadı',
+    'owner.emptyMailbox': 'KUTUYU BOŞALT',
     'owner.propertyOf': 'SAHİBİ',
     'owner.noteLeft': 'Not kapıya bırakıldı',
     'owner.notSent': 'Gönderilmedi: {detail}',

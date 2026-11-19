@@ -393,6 +393,7 @@ export const nl: Strings = {
     'owner.notesAtDoor': 'BRIEFJES AAN JE DEUR',
     'owner.mailboxFull': 'Brievenbus vol: maak hem leeg voor nieuwe briefjes',
     'owner.noNotes': 'Nog niemand heeft een briefje achtergelaten',
+    'owner.emptyMailbox': 'BUS LEEGMAKEN',
     'owner.propertyOf': 'EIGENDOM VAN',
     'owner.noteLeft': 'Briefje aan de deur achtergelaten',
     'owner.notSent': 'Niet verstuurd: {detail}',

@@ -395,6 +395,7 @@ export const zh: Strings = {
     'owner.notesAtDoor': '门口的便条',
     'owner.mailboxFull': '信箱满了：清空后才能收新便条',
     'owner.noNotes': '还没有人留便条',
+    'owner.emptyMailbox': '清空信箱',
     'owner.propertyOf': '房产主人',
     'owner.noteLeft': '便条已留在门口',
     'owner.notSent': '未发送：{detail}',

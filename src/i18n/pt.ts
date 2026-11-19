@@ -393,6 +393,7 @@ export const pt: Strings = {
     'owner.notesAtDoor': 'RECADOS NA SUA PORTA',
     'owner.mailboxFull': 'Caixa cheia: esvazie para receber mais',
     'owner.noNotes': 'Ninguém deixou recado ainda',
+    'owner.emptyMailbox': 'ESVAZIAR CAIXA',
     'owner.propertyOf': 'PROPRIEDADE DE',
     'owner.noteLeft': 'Recado deixado na porta',
     'owner.notSent': 'Não enviado: {detail}',

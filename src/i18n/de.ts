@@ -394,6 +394,7 @@ export const de: Strings = {
     'owner.notesAtDoor': 'NOTIZEN AN DEINER TÜR',
     'owner.mailboxFull': 'Briefkasten voll: leere ihn für neue Notizen',
     'owner.noNotes': 'Noch hat niemand eine Notiz hinterlassen',
+    'owner.emptyMailbox': 'BRIEFKASTEN LEEREN',
     'owner.propertyOf': 'EIGENTUM VON',
     'owner.noteLeft': 'Notiz an der Tür hinterlassen',
     'owner.notSent': 'Nicht gesendet: {detail}',

@@ -101,7 +101,7 @@ const FIRST_ROW_FORWARD_METERS: Record<PropertyKind, number> = {
 const OWNER_SIGN_OFFSET: Record<PropertyKind, Vector3> = {
   cabin: Vector3.create(-1.5, 0, 0.5),
   house: Vector3.create(-2, 0, 0.5),
-  ranch: Vector3.create(-3, 0, 0)
+  ranch: Vector3.create(0, 0, 0)
 }
 const OWNER_SIGN_YAW_DEGREES = 0
 
@@ -183,6 +183,12 @@ type StandingProperty = {
   root: Entity
   /** The property and its sign, which open the owner's card while the lot is owned. */
   model: Entity
+  /**
+   * The low-detail model, for kinds that have one: a sibling of the full one, both loaded once and
+   * the unused one scaled to zero. Swapping src on one entity reloads the glTF, and on mobile the
+   * fresh instance flashes at the scene origin for a frame before it takes its parent.
+   */
+  lowModel?: Entity
   /** Whether the model is the low-detail one, and where its origin stands in the world (worked out on first need). */
   lowDetail: boolean
   worldPosition?: Vector3
@@ -284,8 +290,11 @@ function build(kind: PropertyKind, area: Area, lot: Lot): StandingProperty {
 
   const model = engine.addEntity()
   Transform.create(model, { parent: root, rotation: Quaternion.fromEulerDegrees(0, PROPERTY_YAW_DEGREES, 0) })
-  // A kind that stands only once owned gets its model when syncLots finds the owner.
-  if (SHOW_VACANT_PROPERTY[kind]) GltfContainer.create(model, { src: PROPERTY_MODELS[kind] })
+  let lowModel: Entity | undefined
+  if (PROPERTY_LOD_MODELS[kind] !== undefined) {
+    lowModel = engine.addEntity()
+    Transform.create(lowModel, { parent: root, rotation: Quaternion.fromEulerDegrees(0, PROPERTY_YAW_DEGREES, 0), scale: Vector3.Zero() })
+  }
 
   const ownerSign = engine.addEntity()
   Transform.create(ownerSign, {
@@ -314,7 +323,31 @@ function build(kind: PropertyKind, area: Area, lot: Lot): StandingProperty {
 
   const pin = buildPin(root, kind)
 
-  return { kind, root, model, lowDetail: false, sign: ownerSign, text, picture, pin: pin.root, pinParts: pin.parts, pinPicture: pin.picture, shownName: null }
+  const property: StandingProperty = { kind, root, model, lowModel, lowDetail: false, sign: ownerSign, text, picture, pin: pin.root, pinParts: pin.parts, pinPicture: pin.picture, shownName: null }
+  // A kind that stands only once owned gets its model when syncLots finds the owner.
+  setModels(property, SHOW_VACANT_PROPERTY[kind])
+  return property
+}
+
+// Loads (or takes away) the full model and, for kinds that have one, the low-detail one beside it.
+function setModels(property: StandingProperty, shown: boolean): void {
+  const low = PROPERTY_LOD_MODELS[property.kind]
+  const models: [Entity | undefined, string | undefined][] = [
+    [property.model, PROPERTY_MODELS[property.kind]],
+    [property.lowModel, low]
+  ]
+  for (const [entity, src] of models) {
+    if (entity === undefined || src === undefined) continue
+    if (!shown) GltfContainer.deleteFrom(entity)
+    else if (!GltfContainer.has(entity)) GltfContainer.create(entity, { src })
+  }
+}
+
+// Shows whichever of the two models the distance calls for, without reloading either.
+function showLod(property: StandingProperty): void {
+  if (property.lowModel === undefined) return
+  Transform.getMutable(property.model).scale = property.lowDetail ? Vector3.Zero() : Vector3.One()
+  Transform.getMutable(property.lowModel).scale = property.lowDetail ? Vector3.One() : Vector3.Zero()
 }
 
 // Every piece lies side by side in the pin's plane, none in front of another, so it reads the
@@ -401,8 +434,7 @@ function syncLots(): void {
     Transform.getMutable(property.text).position.y = OWNER_NAME_HEIGHT_METERS - (owner === undefined ? FOR_SALE_DROP_METERS : 0)
     // The model is taken away, not just hidden, so a bare lot has no sign to bump into either.
     const hasModel = owner !== undefined || SHOW_VACANT_PROPERTY[property.kind]
-    if (!hasModel) GltfContainer.deleteFrom(property.model)
-    else if (!GltfContainer.has(property.model)) GltfContainer.create(property.model, { src: modelSrc(property) })
+    setModels(property, hasModel)
     const hasSign = owner !== undefined || SHOW_VACANT_SIGN
     if (!hasSign) GltfContainer.deleteFrom(property.sign)
     else if (!GltfContainer.has(property.sign)) GltfContainer.create(property.sign, { src: OWNER_SIGN_MODEL })
@@ -428,11 +460,6 @@ function syncLots(): void {
   }
 }
 
-function modelSrc(property: StandingProperty): string {
-  const low = PROPERTY_LOD_MODELS[property.kind]
-  return property.lowDetail && low !== undefined ? low : PROPERTY_MODELS[property.kind]
-}
-
 let lodTimer = 0
 
 function syncLod(dt: number): void {
@@ -449,8 +476,7 @@ function syncLod(dt: number): void {
     const lowDetail = Vector3.distanceSquared(property.worldPosition, player.position) > radius * radius
     if (lowDetail === property.lowDetail) continue
     property.lowDetail = lowDetail
-    // A lot standing bare has no model to swap; it gets the right one when it is put up (syncLots).
-    if (GltfContainer.has(property.model)) GltfContainer.createOrReplace(property.model, { src: modelSrc(property) })
+    showLod(property)
   }
 }
 
@@ -470,7 +496,8 @@ function worldPosition(entity: Entity): Vector3 {
 
 // A lot on sale answers no click: the Land Office is where it is bought.
 function setOwnerClick(property: StandingProperty, owner: { address: string; name: string } | undefined): void {
-  for (const entity of [property.model, property.sign]) {
+  for (const entity of [property.model, property.lowModel, property.sign]) {
+    if (entity === undefined) continue
     pointerEventsSystem.removeOnPointerDown(entity)
     if (owner === undefined) continue
     pointerEventsSystem.onPointerDown(

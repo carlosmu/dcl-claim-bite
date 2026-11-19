@@ -1318,27 +1318,6 @@
             "parent": 535
           }
         },
-        "577": {
-          "json": {
-            "position": {
-              "x": 37.5,
-              "y": 0,
-              "z": 27.5
-            },
-            "scale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
-            },
-            "rotation": {
-              "x": 0,
-              "y": 0,
-              "z": 0,
-              "w": 1
-            },
-            "parent": 535
-          }
-        },
         "578": {
           "json": {
             "position": {
@@ -5267,13 +5246,6 @@
             "invisibleMeshesCollisionMask": 3
           }
         },
-        "577": {
-          "json": {
-            "src": "assets/models/cactus_4.gltf",
-            "visibleMeshesCollisionMask": 0,
-            "invisibleMeshesCollisionMask": 3
-          }
-        },
         "578": {
           "json": {
             "src": "assets/models/cactus_4.gltf",
@@ -5892,11 +5864,6 @@
         "576": {
           "json": {
             "value": "Cactus 4_16"
-          }
-        },
-        "577": {
-          "json": {
-            "value": "Cactus 4_17"
           }
         },
         "578": {
@@ -6981,7 +6948,6 @@
                   574,
                   575,
                   576,
-                  577,
                   578,
                   579,
                   580,
@@ -7226,10 +7192,6 @@
               },
               {
                 "entity": 576,
-                "children": []
-              },
-              {
-                "entity": 577,
                 "children": []
               },
               {
@@ -8269,9 +8231,6 @@
         "576": {
           "json": {}
         },
-        "577": {
-          "json": {}
-        },
         "578": {
           "json": {}
         },
@@ -8484,126 +8443,6 @@
         },
         "67090": {
           "json": {}
-        }
-      }
-    },
-    {
-      "name": "inspector::Hide",
-      "jsonSchema": {
-        "type": "object",
-        "properties": {
-          "value": {
-            "type": "boolean",
-            "serializationType": "boolean"
-          }
-        },
-        "serializationType": "map"
-      },
-      "data": {
-        "525": {
-          "json": {
-            "value": true
-          }
-        },
-        "526": {
-          "json": {
-            "value": true
-          }
-        },
-        "527": {
-          "json": {
-            "value": true
-          }
-        },
-        "529": {
-          "json": {
-            "value": true
-          }
-        },
-        "532": {
-          "json": {
-            "value": true
-          }
-        },
-        "533": {
-          "json": {
-            "value": true
-          }
-        },
-        "534": {
-          "json": {
-            "value": true
-          }
-        },
-        "535": {
-          "json": {
-            "value": true
-          }
-        },
-        "539": {
-          "json": {
-            "value": true
-          }
-        },
-        "540": {
-          "json": {
-            "value": true
-          }
-        },
-        "541": {
-          "json": {
-            "value": true
-          }
-        },
-        "572": {
-          "json": {
-            "value": true
-          }
-        },
-        "573": {
-          "json": {
-            "value": true
-          }
-        },
-        "574": {
-          "json": {
-            "value": true
-          }
-        },
-        "575": {
-          "json": {
-            "value": true
-          }
-        },
-        "576": {
-          "json": {
-            "value": true
-          }
-        },
-        "577": {
-          "json": {
-            "value": true
-          }
-        },
-        "578": {
-          "json": {
-            "value": true
-          }
-        },
-        "579": {
-          "json": {
-            "value": true
-          }
-        },
-        "580": {
-          "json": {
-            "value": true
-          }
-        },
-        "67090": {
-          "json": {
-            "value": true
-          }
         }
       }
     },

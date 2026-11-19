@@ -396,6 +396,7 @@ export const ko: Strings = {
     'owner.notesAtDoor': '문 앞의 쪽지',
     'owner.mailboxFull': '우편함이 가득 찼어요: 비워야 새 쪽지를 받아요',
     'owner.noNotes': '아직 아무도 쪽지를 남기지 않았어요',
+    'owner.emptyMailbox': '우편함 비우기',
     'owner.propertyOf': '주인',
     'owner.noteLeft': '문 앞에 쪽지를 남겼어요',
     'owner.notSent': '보내지 못했어요: {detail}',

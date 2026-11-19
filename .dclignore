@@ -19,3 +19,6 @@ README.md
 *.rar
 *.md
 src
+# Editor and agent files, never part of the deployed scene
+cursor.config
+cursorignore

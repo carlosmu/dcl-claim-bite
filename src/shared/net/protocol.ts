@@ -57,6 +57,12 @@ export const Messages = {
   /** "Throw away the notes left at my door." */
   clearNotes: Schemas.Map({ ready: Schemas.Boolean }),
 
+  /**
+   * "Throw away this one note at my door": the one left at `at` by `from` (their display name).
+   * `at` is wall-clock ms: a Double, since `Schemas.Number` is a Float32 and would round it.
+   */
+  deleteNote: Schemas.Map({ at: Schemas.Double, from: Schemas.String }),
+
   /** "Keep this as my language" (an id from shared/languages.ts). Ignored if it is not one. */
   setLanguage: Schemas.Map({ language: Schemas.String }),
 

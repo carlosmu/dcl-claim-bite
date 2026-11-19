@@ -66,7 +66,6 @@ export enum EntityNames {
   Cactus_4_14 = "Cactus 4_14",
   Cactus_4_15 = "Cactus 4_15",
   Cactus_4_16 = "Cactus 4_16",
-  Cactus_4_17 = "Cactus 4_17",
   Cactus_4_18 = "Cactus 4_18",
   Cactus_4_19 = "Cactus 4_19",
   Cactus_4_2 = "Cactus 4_2",

@@ -72,7 +72,7 @@ import {
   STARTING_ITEMS
 } from '../shared/economy/catalogue'
 import { addFuelGallons, fuelGallons, fuelHoursLeft, settleMule } from './mule'
-import { clearNotes, leaveNote, sendNotes, setupNotes } from './notes'
+import { clearNotes, deleteNote, leaveNote, sendNotes, setupNotes } from './notes'
 import { sendPrefs, setLanguagePref, setSoundPrefs } from './prefs'
 import { noteMined, noteNewOwner, noteSale, noteSlotWin, saveTitlesNow, setupTitles } from './titles'
 import { isCasinoReady, saveJackpotNow, setupCasino, spin } from './casino'
@@ -1748,6 +1748,11 @@ export function setupEconomy(): void {
   room.onMessage('clearNotes', (_data, context) => {
     if (!context || inMaintenance()) return
     clearNotes(context.from)
+  })
+
+  room.onMessage('deleteNote', (data, context) => {
+    if (!context || inMaintenance()) return
+    deleteNote(context.from, data.at, data.from)
   })
 
   room.onMessage('claimPick', (_data, context) => {

@@ -395,6 +395,7 @@ export const vi: Strings = {
     'owner.notesAtDoor': 'LỜI NHẮN TRƯỚC CỬA',
     'owner.mailboxFull': 'Hộp thư đầy: dọn đi để nhận lời nhắn mới',
     'owner.noNotes': 'Chưa ai để lại lời nhắn',
+    'owner.emptyMailbox': 'DỌN HỘP THƯ',
     'owner.propertyOf': 'CHỦ NHÀ',
     'owner.noteLeft': 'Đã để lời nhắn trước cửa',
     'owner.notSent': 'Chưa gửi được: {detail}',

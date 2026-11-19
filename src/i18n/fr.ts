@@ -395,6 +395,7 @@ export const fr: Strings = {
     'owner.notesAtDoor': 'MOTS À TA PORTE',
     'owner.mailboxFull': 'Boîte pleine : vide-la pour en recevoir d’autres',
     'owner.noNotes': 'Personne n’a encore laissé de mot',
+    'owner.emptyMailbox': 'VIDER LA BOÎTE',
     'owner.propertyOf': 'PROPRIÉTÉ DE',
     'owner.noteLeft': 'Mot laissé à la porte',
     'owner.notSent': 'Non envoyé : {detail}',

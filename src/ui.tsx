@@ -47,6 +47,7 @@ import {
     canSendNote,
     clearMyNotes,
     closeOwnerCard,
+    deleteMyNote,
     getMyNotes,
     getNoteDraft,
     getNoteStatus,
@@ -4235,7 +4236,8 @@ const ownerNoteRow = (note: Note) => (
     <UiEntity
         uiTransform={{
             width: '100%',
-            flexDirection: 'column',
+            flexDirection: 'row',
+            alignItems: 'flex-start',
             padding: { left: 14, right: 14, top: 8, bottom: 10 },
             margin: { bottom: 8 },
             borderRadius: 10,
@@ -4244,12 +4246,26 @@ const ownerNoteRow = (note: Note) => (
         }}
         uiBackground={{ color: BANK_WOOD }}
     >
-        <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Label value={note.from} fontSize={17} color={BANK_GOLD_LIGHT} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 22 }} />
-            <Label value={noteAge(note.at)} fontSize={13} color={BANK_CAPTION} textAlign="middle-right" textWrap="nowrap" uiTransform={{ height: 20 }} />
+        {/* The note itself: who and when, then what it says. */}
+        <UiEntity uiTransform={{ flexGrow: 1, flexShrink: 1, flexDirection: 'column' }}>
+            <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Label value={note.from} fontSize={17} color={BANK_GOLD_LIGHT} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 22 }} />
+                <Label value={noteAge(note.at)} fontSize={13} color={BANK_CAPTION} textAlign="middle-right" textWrap="nowrap" uiTransform={{ height: 20 }} />
+            </UiEntity>
+            {/* Room for the longest note there can be. */}
+            <Label value={note.text} fontSize={16} color={BANK_CREAM} textAlign="top-left" textWrap="wrap" uiTransform={{ width: '100%', height: 66 }} />
         </UiEntity>
-        {/* Room for the longest note there can be. */}
-        <Label value={note.text} fontSize={16} color={BANK_CREAM} textAlign="top-left" textWrap="wrap" uiTransform={{ width: '100%', height: 66 }} />
+        {/* Throws away this note only, from beside it at the top; inside the row, so it takes taps on mobile too. */}
+        <UiEntity uiTransform={{ flexShrink: 0, margin: { left: 10 } }}>
+            <Button
+                value="X"
+                fontSize={isMobile() ? 36 : 18}
+                color={BANK_CREAM}
+                uiTransform={{ width: isMobile() ? 64 : 32, height: isMobile() ? 64 : 32, borderRadius: 6, borderWidth: 2, borderColor: BANK_TRIM }}
+                uiBackground={{ color: BANK_STEP_COLOR }}
+                onMouseDown={() => deleteMyNote(note)}
+            />
+        </UiEntity>
     </UiEntity>
 )
 
@@ -4297,13 +4313,13 @@ const myNotesSection = () => {
                     <UiEntity />
                 )}
                 <UiEntity
-                    uiTransform={{ width: 160, height: 44, justifyContent: 'center', alignItems: 'center', borderRadius: 8, borderWidth: 2, borderColor: BANK_TRIM }}
+                    uiTransform={{ width: 280, height: 44, justifyContent: 'center', alignItems: 'center', borderRadius: 8, borderWidth: 2, borderColor: BANK_TRIM }}
                     uiBackground={{ color: notes.length > 0 ? BANK_GOLD : DISABLED_COLOR }}
                     onMouseDown={() => {
                         if (notes.length > 0) clearMyNotes()
                     }}
                 >
-                    <BitmapText value={t('common.clear')} fontSize={24} color={notes.length > 0 ? BANK_INK : MUTED_COLOR} />
+                    <BitmapText value={t('owner.emptyMailbox')} fontSize={22} color={notes.length > 0 ? BANK_INK : MUTED_COLOR} />
                 </UiEntity>
             </UiEntity>
         </UiEntity>

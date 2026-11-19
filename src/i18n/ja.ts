@@ -396,6 +396,7 @@ export const ja: Strings = {
     'owner.notesAtDoor': 'ドアのメモ',
     'owner.mailboxFull': 'ポストがいっぱい：空にすると新しいメモが届きます',
     'owner.noNotes': 'まだ誰もメモを残していません',
+    'owner.emptyMailbox': 'ポストを空にする',
     'owner.propertyOf': '持ち主',
     'owner.noteLeft': 'ドアにメモを残しました',
     'owner.notSent': '送れませんでした：{detail}',

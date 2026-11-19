@@ -127,6 +127,10 @@ export function clearMyNotes(): void {
   room.send('clearNotes', { ready: true })
 }
 
+export function deleteMyNote(note: Note): void {
+  room.send('deleteNote', { at: note.at, from: note.from })
+}
+
 /** Goes up each time notes arrive that this client had not seen, with who left the newest. */
 export function getNoteNews(): { count: number; from: string; waiting: number } {
   return noteNews

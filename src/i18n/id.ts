@@ -394,6 +394,7 @@ export const id: Strings = {
     'owner.notesAtDoor': 'CATATAN DI PINTUMU',
     'owner.mailboxFull': 'Kotak surat penuh: kosongkan untuk catatan baru',
     'owner.noNotes': 'Belum ada yang meninggalkan catatan',
+    'owner.emptyMailbox': 'KOSONGKAN KOTAK',
     'owner.propertyOf': 'MILIK',
     'owner.noteLeft': 'Catatan ditinggalkan di pintu',
     'owner.notSent': 'Tidak terkirim: {detail}',

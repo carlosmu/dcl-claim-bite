@@ -395,6 +395,7 @@ export const en = {
     'owner.notesAtDoor': 'NOTES AT YOUR DOOR',
     'owner.mailboxFull': 'Mailbox full: clear it for new notes',
     'owner.noNotes': 'Nobody has left a note yet',
+    'owner.emptyMailbox': 'EMPTY MAILBOX',
     'owner.propertyOf': 'PROPERTY OF',
     'owner.noteLeft': 'Note left at the door',
     'owner.notSent': 'Not sent: {detail}',
