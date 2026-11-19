@@ -79,8 +79,8 @@ const FIRST_ROW_FORWARD_METERS: Record<PropertyKind, number> = {
 /** Where the sign stands from the lot's origin (a front corner), and which way it faces. */
 const OWNER_SIGN_OFFSET: Record<PropertyKind, Vector3> = {
   cabin: Vector3.create(-1.5, 0, 0.5),
-  house: Vector3.create(0, 0, 0),
-  ranch: Vector3.create(0, 0, 0)
+  house: Vector3.create(-2, 0, 0.5),
+  ranch: Vector3.create(-3, 0, 0)
 }
 const OWNER_SIGN_YAW_DEGREES = 0
 
@@ -129,7 +129,7 @@ const LOTS_FROM_PLUS_X: Record<PropertyKind, boolean> = {
 /** Kinds whose property stands on a lot nobody owns; the others only stand once someone has them. */
 const SHOW_VACANT_PROPERTY: Record<PropertyKind, boolean> = {
   cabin: false,
-  house: true,
+  house: false,
   ranch: false
 }
 

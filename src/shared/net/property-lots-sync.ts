@@ -36,8 +36,8 @@ type PropertyArea = {
 export const PROPERTY_AREAS: Record<PropertyKind, PropertyArea> = {
   // One placeholder per lot under Cabin_Places (Cabin_1 … Cabin_64); spacing unused.
   cabin: { areaName: 'Cabin_Places', placeholderPrefix: 'Cabin_', spacingX: 6, spacingZ: 8, maxLots: 64 },
-  // 40 x 80 m at 8 x 10 m: 5 x 8.
-  house: { areaName: 'Houses_Area', spacingX: 8, spacingZ: 10, maxLots: 40 },
+  // One placeholder per lot under Houses_Places (House_1 … House_48); spacing unused.
+  house: { areaName: 'Houses_Places', placeholderPrefix: 'House_', spacingX: 8, spacingZ: 10, maxLots: 48 },
   // One placeholder per lot under Ranches_Places (Ranch_1 … Ranch_48); spacing unused.
   ranch: { areaName: 'Ranches_Places', placeholderPrefix: 'Ranch_', spacingX: 16, spacingZ: 16, maxLots: 48 }
 }
