@@ -7,7 +7,6 @@
 export enum EntityNames {
   Admin_Tools = "Admin Tools",
   Bank = "Bank",
-  Barrel_4 = "Barrel 4",
   Cabin_1 = "Cabin_1",
   Cabin_10 = "Cabin_10",
   Cabin_11 = "Cabin_11",
@@ -143,7 +142,6 @@ export enum EntityNames {
   House_7 = "House_7",
   House_8 = "House_8",
   House_9 = "House_9",
-  Houses_Area = "Houses_Area",
   Houses_Places = "Houses_Places",
   Land_Office = "Land-Office",
   Land_Places = "Land_Places",
