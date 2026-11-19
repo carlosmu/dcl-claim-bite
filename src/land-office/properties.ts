@@ -1,4 +1,7 @@
 import {
+  Billboard,
+  BillboardMode,
+  EasingFunction,
   engine,
   Entity,
   executeTask,
@@ -8,9 +11,13 @@ import {
   MeshRenderer,
   Name,
   pointerEventsSystem,
-  Transform
+  Transform,
+  Tween,
+  TweenLoop,
+  TweenSequence
 } from '@dcl/sdk/ecs'
-import { Color4, Quaternion, Vector3 } from '@dcl/sdk/math'
+import { Color3, Color4, Quaternion, Vector3 } from '@dcl/sdk/math'
+import { getPlayer } from '@dcl/sdk/players'
 
 import { DEBUG_FILL_PROPERTY_LOTS } from '../shared/debug-flags'
 import { setBitmapText3d } from '../world/bitmap-text-3d'
@@ -24,9 +31,23 @@ import { PROPERTY_AREAS, PROPERTY_KINDS, PropertyKind, PropertyLots } from '../s
 
 const PROPERTY_MODELS: Record<PropertyKind, string> = {
   cabin: 'assets/models/cabin.glb',
-  house: 'assets/models/house.glb',
+  house: 'assets/models/house.gltf',
   ranch: 'assets/models/ranch.glb'
 }
+
+// A property further off wears a low-detail model (LOD1), so a town full of them stays cheap. It
+// goes back to the low-detail one a little further out than it leaves it, so one on the edge does
+// not flicker. Distance is measured from the model's origin (the middle of its front wall).
+/** Kinds with a low-detail model; the others always wear the full one. */
+const PROPERTY_LOD_MODELS: Partial<Record<PropertyKind, string>> = {
+  house: 'assets/models/house_LOD1.gltf'
+}
+/** A property wears the full model once the player comes this close to it. */
+const LOD_FULL_RADIUS_METERS = 50
+/** And the low-detail one once they are this far from it. */
+const LOD_LOW_RADIUS_METERS = 52
+/** How often, in seconds, distances are checked. */
+const LOD_CHECK_SECONDS = 0.25
 
 /** The same sign stands by every kind of property. */
 const OWNER_SIGN_MODEL = 'assets/models/owner.glb'
@@ -85,7 +106,7 @@ const OWNER_SIGN_OFFSET: Record<PropertyKind, Vector3> = {
 const OWNER_SIGN_YAW_DEGREES = 0
 
 /** How high above the sign's foot the lettering starts, and which way it faces. */
-const OWNER_NAME_HEIGHT_METERS = 1.0
+const OWNER_NAME_HEIGHT_METERS = 0.6
 const OWNER_TEXT_YAW_DEGREES = 180
 /** Where the board stands within owner.glb, from its origin, as the scene sees it (X mirrored from the glTF). */
 const OWNER_BOARD_X_METERS = 0
@@ -107,14 +128,35 @@ const FOR_SALE_SIZE = 0.16
 const FOR_SALE_COLOR = Color4.Black()
 /** How much lower than the owner's lettering FOR SALE starts. */
 const FOR_SALE_DROP_METERS = 0.1
-/** The owner's profile picture under their name: how far below where the lettering starts its top edge sits, and how big it is. */
-const OWNER_PICTURE_TOP_METERS = 0.28
-const OWNER_PICTURE_SIZE_METERS = 0.3
+/** The owner's profile picture, above the lettering ("Property of" and the name under it): how big it is, and the gap between its bottom edge and where the lettering starts. */
+const OWNER_PICTURE_SIZE_METERS = 0.45
+const OWNER_PICTURE_GAP_METERS = 0.04
 /** The whole picture, the right way round on both faces (corners bottom-left, top-left, top-right, bottom-right). */
 const OWNER_PICTURE_UVS = [0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0]
 /** Shown while the owner's profile is looked up, and for good when it has no face. */
 const OWNER_PICTURE_FALLBACK = 'assets/images/fallback_profile_pic.png'
 const PROFILES_URL = 'https://peer.decentraland.org/lambdas/profiles/'
+
+/**
+ * A pin floating over the owner's own property, seen only by them: their profile picture in a
+ * yellow frame, a stem pointing down at the roof, always turned to face the camera.
+ * Where the stem's tip stands from the lot's origin: the middle of the front wall, the model
+ * reaching back into -Z from it. Over the middle of the roof, a little above its ridge
+ * (cabin 4.6 m tall and 4.1 deep, house 5.1 and 6.3, ranch 8.1 and 9.8).
+ */
+const PIN_OFFSET: Record<PropertyKind, Vector3> = {
+  cabin: Vector3.create(0, 5.2, -2.05),
+  house: Vector3.create(0, 5.7, -3.15),
+  ranch: Vector3.create(0, 8.7, -4.9)
+}
+const PIN_PICTURE_SIZE_METERS = 2.4
+const PIN_FRAME_METERS = 0.24
+const PIN_STEM_LENGTH_METERS = 1.2
+/** The pin bobs up from where it stands and back down, over and over: how far, and how long each way takes. */
+const PIN_BOB_METERS = 0.5
+const PIN_BOB_SECONDS = 1.2
+const PIN_COLOR = Color4.fromHexString('#FFC81EFF')
+const PIN_EMISSIVE_INTENSITY = 0.5
 
 /** How far off an owned property can be clicked to see its owner's card. */
 const OWNER_CARD_REACH_METERS = 12
@@ -141,9 +183,16 @@ type StandingProperty = {
   root: Entity
   /** The property and its sign, which open the owner's card while the lot is owned. */
   model: Entity
+  /** Whether the model is the low-detail one, and where its origin stands in the world (worked out on first need). */
+  lowDetail: boolean
+  worldPosition?: Vector3
   sign: Entity
   text: Entity
   picture: Entity
+  /** The pin over the property, shown only while the local player owns it: the frame and stem, and the picture inside. */
+  pin: Entity
+  pinParts: Entity[]
+  pinPicture: Entity
   shownName: string | null
   ownerAddress?: string
 }
@@ -259,11 +308,71 @@ function build(kind: PropertyKind, area: Area, lot: Lot): StandingProperty {
   const picture = engine.addEntity()
   Transform.create(picture, {
     parent: text,
-    position: Vector3.create(0, -OWNER_PICTURE_TOP_METERS - OWNER_PICTURE_SIZE_METERS / 2, 0),
+    position: Vector3.create(0, OWNER_PICTURE_GAP_METERS + OWNER_PICTURE_SIZE_METERS / 2, 0),
     scale: Vector3.create(OWNER_PICTURE_SIZE_METERS, OWNER_PICTURE_SIZE_METERS, 1)
   })
 
-  return { kind, root, model, sign: ownerSign, text, picture, shownName: null }
+  const pin = buildPin(root, kind)
+
+  return { kind, root, model, lowDetail: false, sign: ownerSign, text, picture, pin: pin.root, pinParts: pin.parts, pinPicture: pin.picture, shownName: null }
+}
+
+// Every piece lies side by side in the pin's plane, none in front of another, so it reads the
+// same from either face. Meshes are added only while the pin is shown (setPin).
+function buildPin(root: Entity, kind: PropertyKind): { root: Entity; parts: Entity[]; picture: Entity } {
+  // Bobbing and facing the camera on separate entities, so neither overrides the other.
+  const bob = engine.addEntity()
+  Transform.create(bob, { parent: root, position: Vector3.clone(PIN_OFFSET[kind]) })
+  const pin = engine.addEntity()
+  Transform.create(pin, { parent: bob })
+  Billboard.create(pin, { billboardMode: BillboardMode.BM_Y })
+
+  const size = PIN_PICTURE_SIZE_METERS
+  const frame = PIN_FRAME_METERS
+  const centre = PIN_STEM_LENGTH_METERS + frame + size / 2
+  const part = (x: number, y: number, width: number, height: number): Entity => {
+    const entity = engine.addEntity()
+    Transform.create(entity, { parent: pin, position: Vector3.create(x, y, 0), scale: Vector3.create(width, height, 1) })
+    return entity
+  }
+  const outer = size + frame * 2
+  const parts = [
+    part(0, centre + size / 2 + frame / 2, outer, frame), // top
+    part(0, centre - size / 2 - frame / 2, outer, frame), // bottom
+    part(-size / 2 - frame / 2, centre, frame, size), // left
+    part(size / 2 + frame / 2, centre, frame, size), // right
+    part(0, PIN_STEM_LENGTH_METERS / 2, frame, PIN_STEM_LENGTH_METERS) // stem
+  ]
+  return { root: bob, parts, picture: part(0, centre, size, size) }
+}
+
+function setPin(property: StandingProperty, address: string | undefined): void {
+  // Only a pin that is shown bobs; a hidden one rests where it stands.
+  const low = PIN_OFFSET[property.kind]
+  if (address === undefined) {
+    Tween.deleteFrom(property.pin)
+    TweenSequence.deleteFrom(property.pin)
+    Transform.getMutable(property.pin).position = Vector3.clone(low)
+  } else if (!Tween.has(property.pin)) {
+    const high = Vector3.add(low, Vector3.create(0, PIN_BOB_METERS, 0))
+    Tween.setMove(property.pin, low, high, PIN_BOB_SECONDS * 1000, EasingFunction.EF_EASESINE)
+    TweenSequence.createOrReplace(property.pin, { sequence: [], loop: TweenLoop.TL_YOYO })
+  }
+  for (const entity of property.pinParts) {
+    if (address === undefined) {
+      MeshRenderer.deleteFrom(entity)
+      Material.deleteFrom(entity)
+      continue
+    }
+    MeshRenderer.setPlane(entity)
+    Material.setPbrMaterial(entity, {
+      albedoColor: PIN_COLOR,
+      emissiveColor: Color3.create(PIN_COLOR.r, PIN_COLOR.g, PIN_COLOR.b),
+      emissiveIntensity: PIN_EMISSIVE_INTENSITY,
+      castShadows: false
+    })
+  }
+  setOwnerPicture(property.pinPicture, address)
 }
 
 // An upgrade moves the owner to the new kind's area, so their old lot goes back on sale.
@@ -275,17 +384,22 @@ function syncLots(): void {
   const owners = new Map<string, { address: string; name: string }>()
   for (const entry of entries) owners.set(`${entry.kind}:${entry.lot}`, entry)
 
+  // The wallet shows up a few frames after the scene starts; until then nothing reads as ours.
+  const me = (getPlayer()?.userId ?? '').toLowerCase()
+
   for (const [key, property] of standing) {
     const owner = owners.get(key)
+    const mine = owner !== undefined && me !== '' && owner.address.toLowerCase() === me
     // Prefixed so an owner named "FOR SALE" still reads as owned; with the language, so a change rewrites it.
-    const shown = `${getLanguage()}|` + (owner === undefined ? forSaleText(property.kind) : `owner:${owner.address}:${owner.name}`)
+    const shown =
+      `${getLanguage()}|${mine ? 'mine|' : ''}` + (owner === undefined ? forSaleText(property.kind) : `owner:${owner.address}:${owner.name}`)
     if (property.shownName === shown) continue
     property.shownName = shown
     Transform.getMutable(property.text).position.y = OWNER_NAME_HEIGHT_METERS - (owner === undefined ? FOR_SALE_DROP_METERS : 0)
     // The model is taken away, not just hidden, so a bare lot has no sign to bump into either.
     const hasModel = owner !== undefined || SHOW_VACANT_PROPERTY[property.kind]
     if (!hasModel) GltfContainer.deleteFrom(property.model)
-    else if (!GltfContainer.has(property.model)) GltfContainer.create(property.model, { src: PROPERTY_MODELS[property.kind] })
+    else if (!GltfContainer.has(property.model)) GltfContainer.create(property.model, { src: modelSrc(property) })
     const hasSign = owner !== undefined || SHOW_VACANT_SIGN
     if (!hasSign) GltfContainer.deleteFrom(property.sign)
     else if (!GltfContainer.has(property.sign)) GltfContainer.create(property.sign, { src: OWNER_SIGN_MODEL })
@@ -306,8 +420,49 @@ function syncLots(): void {
     )
     property.ownerAddress = owner?.address
     setOwnerPicture(property.picture, owner?.address)
+    setPin(property, mine ? owner.address : undefined)
     setOwnerClick(property, owner)
   }
+}
+
+function modelSrc(property: StandingProperty): string {
+  const low = PROPERTY_LOD_MODELS[property.kind]
+  return property.lowDetail && low !== undefined ? low : PROPERTY_MODELS[property.kind]
+}
+
+let lodTimer = 0
+
+function syncLod(dt: number): void {
+  lodTimer -= dt
+  if (lodTimer > 0) return
+  lodTimer = LOD_CHECK_SECONDS
+  const player = Transform.getOrNull(engine.PlayerEntity)
+  // Until the player's position arrives, everything keeps the model it has.
+  if (player === null) return
+  for (const [, property] of standing) {
+    if (PROPERTY_LOD_MODELS[property.kind] === undefined) continue
+    property.worldPosition ??= worldPosition(property.root)
+    const radius = property.lowDetail ? LOD_FULL_RADIUS_METERS : LOD_LOW_RADIUS_METERS
+    const lowDetail = Vector3.distanceSquared(property.worldPosition, player.position) > radius * radius
+    if (lowDetail === property.lowDetail) continue
+    property.lowDetail = lowDetail
+    // A lot standing bare has no model to swap; it gets the right one when it is put up (syncLots).
+    if (GltfContainer.has(property.model)) GltfContainer.createOrReplace(property.model, { src: modelSrc(property) })
+  }
+}
+
+/** Where an entity stands in the world, through however many parents it has. */
+function worldPosition(entity: Entity): Vector3 {
+  const transform = Transform.get(entity)
+  let position = Vector3.clone(transform.position)
+  let parent = transform.parent
+  while (parent !== undefined && parent !== engine.RootEntity) {
+    const p = Transform.getOrNull(parent)
+    if (p === null) break
+    position = Vector3.add(p.position, Vector3.rotate(Vector3.multiply(position, p.scale), p.rotation))
+    parent = p.parent
+  }
+  return position
 }
 
 // A lot on sale answers no click: the Land Office is where it is bought.
@@ -364,7 +519,9 @@ function lookUpFace(address: string): void {
     }
     hasFace.set(address, true)
     for (const [, property] of standing) {
-      if (property.ownerAddress === address) setOwnerPicture(property.picture, address)
+      if (property.ownerAddress !== address) continue
+      setOwnerPicture(property.picture, address)
+      if (MeshRenderer.has(property.pinPicture)) setOwnerPicture(property.pinPicture, address)
     }
   })
 }
@@ -389,4 +546,5 @@ function withStandIns(
 export function setupProperties(): void {
   for (const kind of PROPERTY_KINDS) buildArea(kind)
   engine.addSystem(syncLots, undefined, 'client:property-lots')
+  engine.addSystem(syncLod, undefined, 'client:property-lod')
 }
