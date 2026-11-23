@@ -2,7 +2,8 @@ import { ColliderLayer, engine, GltfContainer } from '@dcl/sdk/ecs'
 import { focusPanel, registerPanel } from '../world/panel-focus'
 import { createProximityZone, ProximityZone } from '../world/proximity-zone'
 import { getOwned } from '../shared/state/inventory'
-import { CATALOGUE, priceOf, ShopItem, ShopItemId, unavailableReason } from '../shared/economy/catalogue'
+import { buybackOffer, CATALOGUE, demandPrice, priceOf, ShopItem, ShopItemId, unavailableReason } from '../shared/economy/catalogue'
+import { PropertyLots } from '../shared/net/property-lots-sync'
 import { getCoins } from '../shared/state/wallet'
 import { sendBuy } from '../net/economy-link'
 
@@ -42,9 +43,26 @@ export function selectProduct(key: string): void {
   selected = key
 }
 
+/** How many homes of this tier stand in town, as the server last synced them. */
+function standingCount(id: ShopItemId): number {
+  let count = 0
+  for (const [, lots] of engine.getEntitiesWith(PropertyLots)) for (const lot of lots.lots) if (lot.kind === id) count++
+  return count
+}
+
 /** What buying this costs right now, or null when it cannot be bought. */
 export function currentPrice(item: ShopItem): number | null {
-  return priceOf(item, (id) => getOwned(id))
+  return priceOf(item, (id) => getOwned(id), standingCount)
+}
+
+/** What the bank pays today for the player's home, or null when they only have the Wagon. */
+export function homeBuyback(): { item: ShopItem; coins: number } | null {
+  return buybackOffer((id) => getOwned(id), standingCount)
+}
+
+/** What this costs at today's demand, even when owned or locked: for price tags. */
+export function listPrice(item: ShopItem): number {
+  return demandPrice(item, standingCount)
 }
 
 /** Why this cannot be bought right now (coins aside), or null when it can. */

@@ -201,6 +201,13 @@ export const en = {
     'action.upgrade': 'UPGRADE',
     'land.currentHome': 'Your current home',
     'land.movedUp': 'You moved up from here',
+    'land.sellToBank': 'SELL TO THE BANK',
+    'land.sellHint': 'The bank would pay {coins} for it',
+    'land.warningTitle': 'WARNING!',
+    'land.warningHeading': 'SELLING YOUR {home}',
+    'land.warningText': 'You are about to sell your {home} to the bank. It pays only half the current price and you go back to the {below}. Buying it again costs the full price.',
+    'land.warningCancel': 'CANCEL',
+    'land.warningSell': 'SELL',
 
     // Claim Office and Tailor Shop
     'status.claimed': 'Claimed',

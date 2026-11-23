@@ -24,6 +24,9 @@ export const Messages = {
   sell: Schemas.Map({ amount: Schemas.Number }),
   buy: Schemas.Map({ itemId: Schemas.String }),
 
+  /** "Sell my home to the bank." The server pays half of today's price and drops it one tier. */
+  sellHome: Schemas.Map({ itemId: Schemas.String }),
+
   /** "Use this pick." Only a pick the player already owns can be equipped. */
   equip: Schemas.Map({ itemId: Schemas.String }),
 

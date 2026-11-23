@@ -204,6 +204,13 @@ export const ru: Strings = {
     'action.upgrade': 'УЛУЧШИТЬ',
     'land.currentHome': 'Твой нынешний дом',
     'land.movedUp': 'Отсюда ты переехал в лучшее',
+    'land.sellToBank': 'ПРОДАТЬ БАНКУ',
+    'land.sellHint': 'Банк заплатит за это {coins}',
+    'land.warningTitle': 'ВНИМАНИЕ!',
+    'land.warningHeading': 'ПРОДАЖА: {home}',
+    'land.warningText': 'Ты собираешься продать банку своё жильё ({home}). Банк платит только половину текущей цены, и ты вернёшься в: {below}. Купить снова стоит полную цену.',
+    'land.warningCancel': 'ОТМЕНА',
+    'land.warningSell': 'ПРОДАТЬ',
 
     // Claim Office and Tailor Shop
     'status.claimed': 'Получено',

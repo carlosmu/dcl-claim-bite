@@ -202,6 +202,13 @@ export const ja: Strings = {
     'action.upgrade': 'アップグレード',
     'land.currentHome': '今の我が家',
     'land.movedUp': 'ここから引っ越しました',
+    'land.sellToBank': '銀行に売る',
+    'land.sellHint': '銀行の買取額：{coins}',
+    'land.warningTitle': '警告！',
+    'land.warningHeading': '{home}を売却',
+    'land.warningText': '{home}を銀行に売ろうとしています。銀行は現在価格の半額しか払わず、{below}に戻ります。買い直すには全額が必要です。',
+    'land.warningCancel': 'キャンセル',
+    'land.warningSell': '売却',
 
     // Claim Office and Tailor Shop
     'status.claimed': '受け取り済み',

@@ -199,6 +199,13 @@ export const nl: Strings = {
     'action.upgrade': 'UPGRADEN',
     'land.currentHome': 'Je huidige thuis',
     'land.movedUp': 'Hiervandaan ben je verhuisd',
+    'land.sellToBank': 'VERKOPEN AAN DE BANK',
+    'land.sellHint': 'De bank zou {coins} betalen',
+    'land.warningTitle': 'LET OP!',
+    'land.warningHeading': 'VERKOOP: {home}',
+    'land.warningText': 'Je staat op het punt je woning ({home}) aan de bank te verkopen. De bank betaalt maar de helft van de huidige prijs en je gaat terug naar: {below}. Opnieuw kopen kost de volle prijs.',
+    'land.warningCancel': 'ANNULEREN',
+    'land.warningSell': 'VERKOPEN',
 
     // Claim Office and Tailor Shop
     'status.claimed': 'Opgehaald',

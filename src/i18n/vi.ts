@@ -201,6 +201,13 @@ export const vi: Strings = {
     'action.upgrade': 'NÂNG CẤP',
     'land.currentHome': 'Nhà hiện tại của bạn',
     'land.movedUp': 'Bạn đã chuyển lên chỗ tốt hơn',
+    'land.sellToBank': 'BÁN CHO NGÂN HÀNG',
+    'land.sellHint': 'Ngân hàng sẽ trả {coins}',
+    'land.warningTitle': 'CẢNH BÁO!',
+    'land.warningHeading': 'BÁN {home}',
+    'land.warningText': 'Bạn sắp bán {home} của mình cho ngân hàng. Ngân hàng chỉ trả một nửa giá hiện tại và bạn quay về: {below}. Mua lại phải trả đủ giá.',
+    'land.warningCancel': 'HỦY',
+    'land.warningSell': 'BÁN',
 
     // Claim Office and Tailor Shop
     'status.claimed': 'Đã nhận',

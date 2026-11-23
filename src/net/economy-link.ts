@@ -187,6 +187,12 @@ export function sendBuy(itemId: string): void {
   room.send('buy', { itemId })
 }
 
+/** Asks the bank to buy back this home, the one the player lives in. */
+export function sendSellHome(itemId: string): void {
+  if (!isStateSyncronized()) return
+  room.send('sellHome', { itemId })
+}
+
 /** Asks to spin the slot machine for this bet. */
 export function sendSlotSpin(bet: number): void {
   if (!isStateSyncronized()) return
@@ -392,7 +398,7 @@ export function setupEconomyLink(): void {
       return
     }
 
-    if (data.action === 'sell') playSfx(BANK_SOUND_CLIP, SOUND_VOLUME)
+    if (data.action === 'sell' || data.action === 'sellHome') playSfx(BANK_SOUND_CLIP, SOUND_VOLUME)
     if (data.action === 'buy' || data.action === 'claimPick' || data.action === 'equip') playSfx(BUY_SOUND_CLIP, SOUND_VOLUME)
     if (data.action === 'claimPick') {
       celebratePick()

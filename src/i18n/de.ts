@@ -200,6 +200,13 @@ export const de: Strings = {
     'action.upgrade': 'AUSBAUEN',
     'land.currentHome': 'Dein jetziges Zuhause',
     'land.movedUp': 'Von hier bist du aufgestiegen',
+    'land.sellToBank': 'AN DIE BANK VERKAUFEN',
+    'land.sellHint': 'Die Bank würde {coins} zahlen',
+    'land.warningTitle': 'ACHTUNG!',
+    'land.warningHeading': 'VERKAUF: {home}',
+    'land.warningText': 'Du bist dabei, dein Zuhause ({home}) an die Bank zu verkaufen. Sie zahlt nur die Hälfte des aktuellen Preises und du ziehst zurück: {below}. Erneut kaufen kostet den vollen Preis.',
+    'land.warningCancel': 'ABBRECHEN',
+    'land.warningSell': 'VERKAUFEN',
 
     // Claim Office and Tailor Shop
     'status.claimed': 'Abgeholt',

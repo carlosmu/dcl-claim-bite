@@ -201,6 +201,13 @@ export const tr: Strings = {
     'action.upgrade': 'YÜKSELT',
     'land.currentHome': 'Şu anki yuvan',
     'land.movedUp': 'Buradan daha iyisine taşındın',
+    'land.sellToBank': 'BANKAYA SAT',
+    'land.sellHint': 'Banka bunun için {coins} öder',
+    'land.warningTitle': 'DİKKAT!',
+    'land.warningHeading': 'SATILIYOR: {home}',
+    'land.warningText': 'Evini ({home}) bankaya satmak üzeresin. Banka güncel fiyatın sadece yarısını öder ve şuraya geri dönersin: {below}. Tekrar almak tam fiyata mal olur.',
+    'land.warningCancel': 'İPTAL',
+    'land.warningSell': 'SAT',
 
     // Claim Office and Tailor Shop
     'status.claimed': 'Alındı',

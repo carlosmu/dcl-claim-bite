@@ -202,6 +202,13 @@ export const ko: Strings = {
     'action.upgrade': '업그레이드',
     'land.currentHome': '지금 사는 집',
     'land.movedUp': '여기서 더 좋은 곳으로 이사했어요',
+    'land.sellToBank': '은행에 판매',
+    'land.sellHint': '은행은 {coins}을 지불해요',
+    'land.warningTitle': '경고!',
+    'land.warningHeading': '{home} 판매',
+    'land.warningText': '{home}을(를) 은행에 팔려고 해요. 은행은 현재 가격의 절반만 지불하고, {below}(으)로 돌아가요. 다시 사려면 전액이 들어요.',
+    'land.warningCancel': '취소',
+    'land.warningSell': '판매',
 
     // Claim Office and Tailor Shop
     'status.claimed': '받음',

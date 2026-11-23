@@ -16,12 +16,13 @@ import {
     sendDebugOre,
     sendDebugReset,
     sendAdminMaintenance,
-    sendEquip
+    sendEquip,
+    sendSellHome
 } from './net/economy-link'
 import { canSpinSlot, closeCasinoPanel, getSlotBet, getSlotMessage, getSlotReels, getSlotTagline, isCasinoPanelOpen, isSlotInfoOpen, isSlotSpinning, setSlotBet, spinSlot, toggleSlotInfo } from './casino/casino'
 import { SLOT_BETS, SLOT_MAX_BET, SLOT_SYMBOLS, threeBellsPay, TWO_HORSESHOES_PAY } from './shared/economy/slots'
 import { getJackpot } from './shared/net/casino-sync'
-import { buyItem, closeStorePanel, currentPrice, getSelectedProduct, isStorePanelOpen, selectProduct, whyUnavailable } from './shop/shop'
+import { buyItem, closeStorePanel, currentPrice, homeBuyback, listPrice, getSelectedProduct, isStorePanelOpen, selectProduct, whyUnavailable } from './shop/shop'
 import { closeMulePanel, isMulePanelOpen } from './mule/mule'
 import { closeLandOfficePanel, getSelectedProperty, isLandOfficePanelOpen, selectProperty } from './land-office/land-office'
 import {
@@ -1458,12 +1459,13 @@ const storeCard = (product: Product, selected: boolean, onSelect: (key: string) 
 
 // --- Detail panel ---
 
-type Action = { label: string; kind: 'buy' | 'equip' | 'equipped' | 'off'; onClick?: () => void }
+/** 'danger' is live like 'buy', but red: for what gives something up, like selling a home. */
+type Action = { label: string; kind: 'buy' | 'equip' | 'equipped' | 'off' | 'danger'; onClick?: () => void }
 
 const storeActionButton = (action: Action) => {
-    const live = action.kind === 'buy' || action.kind === 'equip'
-    const background = action.kind === 'equipped' ? EQUIPPED_COLOR : live ? BANK_GOLD : DISABLED_COLOR
-    const text = action.kind === 'equipped' ? EQUIPPED_TEXT : live ? BANK_INK : MUTED_COLOR
+    const live = action.kind === 'buy' || action.kind === 'equip' || action.kind === 'danger'
+    const background = action.kind === 'equipped' ? EQUIPPED_COLOR : action.kind === 'danger' ? MAP_CLOSE_COLOR : live ? BANK_GOLD : DISABLED_COLOR
+    const text = action.kind === 'equipped' ? EQUIPPED_TEXT : action.kind === 'danger' ? Color4.White() : live ? BANK_INK : MUTED_COLOR
     return (
         <UiEntity
             uiTransform={{
@@ -1921,7 +1923,7 @@ function landOfficeProducts(): Product[] {
         key: item.id,
         title: itemName(item),
         icon: PROPERTY_ICONS[item.id] ?? ICON_WAGON,
-        hint: item.price > 0 ? t('store.coinsPrice', { price: withCommas(item.price) }) : t('store.free'),
+        hint: listPrice(item) > 0 ? t('store.coinsPrice', { price: withCommas(listPrice(item)) }) : t('store.free'),
         status: propertyStatus(item),
         muted: false
     }))
@@ -1935,24 +1937,103 @@ function selectedPropertyKey(): ShopItemId {
     return (housing.find((item) => getOwned(item.id) <= 0) ?? housing[housing.length - 1]).id
 }
 
+/** The home the WARNING screen is about to sell, or null while it is shut. */
+let sellWarningFor: ShopItemId | null = null
+
+/** Sell to the bank, in red so it never reads as a purchase: it only opens the WARNING screen. */
+function sellHomeAction(offer: { item: ShopItem; coins: number }): Action {
+    return { label: t('land.sellToBank'), kind: 'danger', onClick: () => (sellWarningFor = offer.item.id) }
+}
+
+/**
+ * Over the Land Office: what selling the home means, spelled out, before anything is sold.
+ * CANCEL is the gold one, the easy way out; selling takes the red button.
+ */
+const sellWarningPanel = () => {
+    const offer = homeBuyback()
+    // Sold, moved up, or the office closed: the screen has nothing left to ask.
+    if (offer === null || offer.item.id !== sellWarningFor || !isLandOfficePanelOpen()) {
+        sellWarningFor = null
+        return null
+    }
+    const below = itemName(findItem(offer.item.requires!))
+    return (
+        <UiEntity
+            uiTransform={{
+                positionType: 'absolute',
+                width: '100%',
+                minWidth: PANEL_MIN_WIDTH,
+                flexDirection: 'column',
+                alignItems: 'center',
+                padding: BANK_PANEL_PADDING,
+                borderRadius: PANEL_RADIUS,
+                borderWidth: 3,
+                borderColor: MAP_CLOSE_COLOR
+            }}
+            uiBackground={{ color: BANK_WOOD_DARK }}
+        >
+            <UiEntity uiTransform={{ width: '100%', height: 96, flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                <BitmapText value={t('land.warningTitle')} fontSize={64} color={STORAGE_FULL_COLOR} />
+                <Label value={t('land.title')} fontSize={18} color={BANK_CAPTION} textAlign="middle-center" uiTransform={{ height: 24 }} />
+            </UiEntity>
+
+            {bankSection(t('land.warningHeading', { home: itemName(offer.item) }), [
+                <Label
+                    key="text"
+                    value={t('land.warningText', { home: itemName(offer.item), below })}
+                    fontSize={20}
+                    color={BANK_CREAM}
+                    textAlign="middle-left"
+                    textWrap="wrap"
+                    uiTransform={{ width: '100%', minHeight: 90, margin: { top: 4, bottom: 8 } }}
+                />,
+                <UiEntity key="amount" uiTransform={{ width: '100%', height: 80, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
+                    {bankIcon(ICON_COINS, 56)}
+                    <BitmapText value={t('unit.coinsAmountCaps', { coins: withCommas(offer.coins) })} fontSize={52} color={COIN_COLOR} />
+                </UiEntity>
+            ])}
+
+            <UiEntity uiTransform={{ width: '100%', height: BANK_BUTTON_GAP }} />
+            <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', justifyContent: 'space-between' }}>
+                {bankButton(t('land.warningCancel'), () => (sellWarningFor = null), { width: '48%', height: 72 }, 40, BANK_GOLD, BANK_INK)}
+                {bankButton(
+                    t('land.warningSell'),
+                    () => {
+                        sellWarningFor = null
+                        sendSellHome(offer.item.id)
+                    },
+                    { width: '48%', height: 72 },
+                    40,
+                    MAP_CLOSE_COLOR,
+                    Color4.White()
+                )}
+            </UiEntity>
+        </UiEntity>
+    )
+}
+
 function propertyDetail(item: ShopItem): Detail {
     const owned = getOwned(item.id) > 0
     const active = item.id === activeHome()?.id
+    const offer = active ? homeBuyback() : null
     let action: Action
-    if (active) action = { label: t('action.active'), kind: 'equipped' }
+    if (offer !== null) action = sellHomeAction(offer)
+    else if (active) action = { label: t('action.active'), kind: 'equipped' }
     else if (owned) action = { label: t('action.previous'), kind: 'off' }
     // A new home replaces the old one: the player moves up, they do not end up with two.
     else action = buyAction(item, t('action.upgrade'))
 
     const notes: ReactEcs.JSX.Element[] = []
-    if (active) notes.push(detailNote(t('land.currentHome'), PRICE_GOOD_COLOR))
-    else if (owned) notes.push(detailNote(t('land.movedUp'), BANK_CAPTION))
+    if (active) {
+        notes.push(detailNote(t('land.currentHome'), PRICE_GOOD_COLOR))
+        if (offer !== null) notes.push(detailNote(t('land.sellHint', { coins: withCommas(offer.coins) }), BANK_CAPTION))
+    } else if (owned) notes.push(detailNote(t('land.movedUp'), BANK_CAPTION))
     else if (item.requires !== undefined && getOwned(item.requires) <= 0) notes.push(detailNote(t('store.requires', { item: itemName(findItem(item.requires)) }), SHORT_COLOR))
     return {
         title: itemName(item),
         description: itemBenefit(item),
         icon: PROPERTY_ICONS[item.id] ?? ICON_WAGON,
-        stats: [priceStat(item.price)],
+        stats: [priceStat(listPrice(item))],
         notes,
         actions: [storeActionButton(action)]
     }
@@ -5516,6 +5597,7 @@ export const uiMenu = () => (
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isBankPanelOpen() ? bankPanel() : null}
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isStorePanelOpen() ? storePanel() : null}
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isLandOfficePanelOpen() ? landOfficePanel() : null}
+            {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && sellWarningFor !== null ? sellWarningPanel() : null}
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isClaimOfficePanelOpen() ? claimOfficePanel() : null}
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isTailorShopPanelOpen() ? tailorShopPanel() : null}
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isMulePanelOpen() && getMuleCount() > 0 ? mulePanel() : null}

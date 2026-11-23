@@ -199,6 +199,13 @@ export const it: Strings = {
     'action.upgrade': 'MIGLIORA',
     'land.currentHome': 'La tua casa attuale',
     'land.movedUp': 'Da qui sei passato a meglio',
+    'land.sellToBank': 'VENDI ALLA BANCA',
+    'land.sellHint': 'La banca pagherebbe {coins}',
+    'land.warningTitle': 'ATTENZIONE!',
+    'land.warningHeading': 'VENDITA: {home}',
+    'land.warningText': 'Stai per vendere la tua casa ({home}) alla banca. Paga solo metà del prezzo attuale e tornerai a: {below}. Ricomprarla costa il prezzo pieno.',
+    'land.warningCancel': 'ANNULLA',
+    'land.warningSell': 'VENDI',
 
     // Claim Office and Tailor Shop
     'status.claimed': 'Ritirato',

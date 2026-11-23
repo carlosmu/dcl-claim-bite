@@ -59,6 +59,7 @@ import { isLocalPreview } from '../shared/local-preview'
 import {
   activePick,
   bestHitsPerRock,
+  buybackOffer,
   carryCapacity,
   findItem,
   fuelOrder,
@@ -730,7 +731,12 @@ function handleBuy(address: string, itemId: string): void {
     buyFuel(address, purse, item)
     return
   }
-  const price = priceOf(item, owned)
+  // Housing is priced by the homes standing in town: before they load, every price would read as the floor.
+  if (item.line === 'housing' && !lotsLoaded) {
+    sendResult(address, 'buy', false, 'still loading')
+    return
+  }
+  const price = priceOf(item, owned, standingCount)
   if (price === null) {
     sendResult(address, 'buy', false, unavailableReason(item, owned) ?? 'not for sale')
     return
@@ -1299,6 +1305,41 @@ function saveLots(): void {
     .catch(() => (lotsDirty = true))
 }
 
+/**
+ * Sells the player's home back to the bank at half of today's price; they keep the tier below.
+ * `itemId` is the home the client offered to sell, so a sale never lands on a tier it did not show.
+ */
+function handleSellHome(address: string, itemId: string): void {
+  const purse = purseOf(address)
+  if (purse === null || !lotsLoaded) {
+    sendResult(address, 'sellHome', false, 'still loading')
+    return
+  }
+  const offer = buybackOffer((id) => purse.owned[id] ?? 0, standingCount)
+  if (offer === null || offer.item.id !== itemId) {
+    sendResult(address, 'sellHome', false, 'nothing to sell')
+    return
+  }
+
+  delete purse.owned[offer.item.id]
+  purse.coins += offer.coins
+  dirty.add(address)
+  // Off this lot and onto a free one of the tier below; with none free, the presence check retries.
+  if (standingLots.delete(address)) lotsDirty = true
+  settleLot(address)
+
+  sendWallet(address)
+  sendResult(address, 'sellHome', true, `${offer.item.id}:${offer.coins}`)
+  console.log(`[Server] ${address} sold ${offer.item.label} to the bank for ${offer.coins} · balance ${purse.coins}`)
+}
+
+/** How many homes of this tier stand in town: what its price follows. */
+function standingCount(id: ShopItemId): number {
+  let count = 0
+  for (const standing of standingLots.values()) if (standing.kind === id) count++
+  return count
+}
+
 function freeLot(kind: PropertyKind): number {
   const taken = new Set<number>()
   for (const standing of standingLots.values()) if (standing.kind === kind) taken.add(standing.lot)
@@ -1795,6 +1836,11 @@ export function setupEconomy(): void {
   room.onMessage('buy', (data, context) => {
     if (!context || inMaintenance()) return
     handleBuy(context.from, data.itemId)
+  })
+
+  room.onMessage('sellHome', (data, context) => {
+    if (!context || inMaintenance()) return
+    handleSellHome(context.from, data.itemId)
   })
 
   room.onMessage('slotSpin', (data, context) => {

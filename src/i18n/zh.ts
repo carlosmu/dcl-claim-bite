@@ -201,6 +201,13 @@ export const zh: Strings = {
     'action.upgrade': '升级',
     'land.currentHome': '你现在的家',
     'land.movedUp': '你已从这里搬到更好的地方',
+    'land.sellToBank': '卖给银行',
+    'land.sellHint': '银行会为此支付 {coins}',
+    'land.warningTitle': '警告！',
+    'land.warningHeading': '出售你的{home}',
+    'land.warningText': '你即将把你的{home}卖给银行。银行只付当前价格的一半，你将搬回{below}。再次购买需要支付全价。',
+    'land.warningCancel': '取消',
+    'land.warningSell': '出售',
 
     // Claim Office and Tailor Shop
     'status.claimed': '已领取',

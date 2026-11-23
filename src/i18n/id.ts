@@ -200,6 +200,13 @@ export const id: Strings = {
     'action.upgrade': 'TINGKATKAN',
     'land.currentHome': 'Rumahmu sekarang',
     'land.movedUp': 'Kamu sudah pindah ke yang lebih baik',
+    'land.sellToBank': 'JUAL KE BANK',
+    'land.sellHint': 'Bank akan membayar {coins}',
+    'land.warningTitle': 'PERHATIAN!',
+    'land.warningHeading': 'MENJUAL {home}',
+    'land.warningText': 'Kamu akan menjual {home} milikmu ke bank. Bank hanya membayar setengah harga saat ini dan kamu kembali ke: {below}. Membeli lagi harus bayar harga penuh.',
+    'land.warningCancel': 'BATAL',
+    'land.warningSell': 'JUAL',
 
     // Claim Office and Tailor Shop
     'status.claimed': 'Sudah diambil',

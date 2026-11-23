@@ -91,6 +91,35 @@ export const CATALOGUE: ShopItem[] = [
   { id: 'ranch', label: 'Ranch', line: 'housing', price: 2000, requires: 'house', benefit: 'The finest claim in town' }
 ]
 
+/**
+ * Housing follows supply and demand. Past `freeLots` homes of a tier standing in town, each one
+ * more adds `perLot` coins to that upgrade, and each one sold back takes them off again; the
+ * catalogue price above is the floor. Counted in homes, not as a share of the area, so adding
+ * lots to the scene leaves the price where it is.
+ */
+export const HOUSING_DEMAND: Partial<Record<ShopItemId, { freeLots: number; perLot: number }>> = {
+  cabin: { freeLots: 24, perLot: 10 },
+  house: { freeLots: 16, perLot: 25 },
+  ranch: { freeLots: 12, perLot: 50 }
+}
+
+/** The share of today's price the bank pays for a home sold back to it. The player drops one tier. */
+export const BUYBACK_RATE = 0.5
+
+/** What the bank pays today for the player's home, or null when there is nothing to sell (the Wagon). */
+export function buybackOffer(ownedCount: (id: ShopItemId) => number, standing: (id: ShopItemId) => number): { item: ShopItem; coins: number } | null {
+  const home = ownedTier('housing', ownedCount)
+  if (home === null || HOUSING_DEMAND[home.id] === undefined) return null
+  return { item: home, coins: Math.floor(demandPrice(home, standing) * BUYBACK_RATE) }
+}
+
+/** What an item costs at today's demand, owned or not: `standing` counts the homes of a tier in town. */
+export function demandPrice(item: ShopItem, standing: (id: ShopItemId) => number): number {
+  const demand = HOUSING_DEMAND[item.id]
+  if (demand === undefined) return item.price
+  return item.price + Math.max(0, standing(item.id) - demand.freeLots) * demand.perLot
+}
+
 /** What every player owns from the start, whatever their save says. */
 export const STARTING_ITEMS: ShopItem[] = CATALOGUE.filter((item) => item.startsOwned === true)
 
@@ -178,10 +207,10 @@ export function unavailableReason(item: ShopItem, ownedCount: (id: ShopItemId) =
  *
  * Not for fuel: what a fuel order costs depends on what is in the tank — see fuelOrder.
  */
-export function priceOf(item: ShopItem, ownedCount: (id: ShopItemId) => number): number | null {
+export function priceOf(item: ShopItem, ownedCount: (id: ShopItemId) => number, standing: (id: ShopItemId) => number): number | null {
   if (unavailableReason(item, ownedCount) !== null) return null
   if (item.line === 'fuel') return null
-  return item.price
+  return demandPrice(item, standing)
 }
 
 // --- Fuel -------------------------------------------------------------------------------
