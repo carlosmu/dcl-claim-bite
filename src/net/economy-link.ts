@@ -56,6 +56,8 @@ let walletReceived = false
 let walletAddress = ''
 /** Whether the last wallet was a first visit's, and which server sent it (generation id). */
 let walletFresh = false
+/** The news already told to this player, as the server keeps it plus what this client just marked. */
+const seenNews = new Set<string>()
 let walletServer = ''
 /** Wallets received this visit, for the title card's status line. */
 let walletCount = 0
@@ -155,6 +157,18 @@ export function isWalletEmpty(): boolean {
 /** Whether the server said this purse is a first visit's (nothing in storage). */
 export function isWalletFresh(): boolean {
   return walletFresh
+}
+
+/** Whether this news was already told to the player. False until their purse arrives. */
+export function hasSeenNews(id: string): boolean {
+  return seenNews.has(id)
+}
+
+/** Marks news as told, here at once and on the server so it is not told again next visit. */
+export function sendSeenNews(id: string): void {
+  if (seenNews.has(id) || !isStateSyncronized()) return
+  seenNews.add(id)
+  room.send('seenNews', { id })
 }
 
 /** Whether the server has sent this player's purse yet. Until then every figure above is a placeholder. */
@@ -301,6 +315,7 @@ export function setupEconomyLink(): void {
     walletReceived = true
     walletAddress = me
     walletFresh = data.fresh
+    for (const id of data.news.split(',')) if (id !== '') seenNews.add(id)
     walletServer = data.server
     walletCount += 1
     capacity = data.capacity

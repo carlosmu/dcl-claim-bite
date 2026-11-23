@@ -27,6 +27,7 @@ export type { StringKey } from './en'
 
 export type { Language } from '../shared/languages'
 import { Language } from '../shared/languages'
+import { BANK_NOTE_FROM, SELL_HOME_NOTE_TEXT } from '../shared/notes'
 
 /** The languages in the selector, in order, each named in itself. */
 export const LANGUAGES: { id: Language; name: string }[] = [
@@ -99,6 +100,16 @@ export function upper(text: string): string {
 }
 
 /** A catalogue item's name ('item.<id>'), or its catalogue label when there is no key for it. */
+/** Who left a note, as shown: the bank's marker in the player's language, a player's name as is. */
+export function noteSender(from: string): string {
+    return from === BANK_NOTE_FROM ? t('note.bankFrom') : from
+}
+
+/** What a note says, as shown: the bank's markers in the player's language, a player's words as is. */
+export function noteBody(text: string): string {
+    return text === SELL_HOME_NOTE_TEXT ? t('note.bankSellHome') : text
+}
+
 export function itemName(item: { id: string; label: string } | null | undefined, fallback: string = ''): string {
     if (item === null || item === undefined) return fallback
     const key = `item.${item.id}`

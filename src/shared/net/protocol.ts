@@ -57,6 +57,9 @@ export const Messages = {
   /** ADMIN: "send me the Marketplace Credits campaign's winners." Answered with `campaignWinners`. Refused unless in shared/admins.ts. */
   adminCampaignWinners: Schemas.Map({ ready: Schemas.Boolean }),
 
+  /** "I have seen this news" (CLIENT_NEWS): the announcement is not shown again. */
+  seenNews: Schemas.Map({ id: Schemas.String }),
+
   /** "Throw away the notes left at my door." */
   clearNotes: Schemas.Map({ ready: Schemas.Boolean }),
 
@@ -109,6 +112,8 @@ export const Messages = {
     address: Schemas.String,
     // Storage had no purse for this player: a real first visit, so an empty purse is believed at once.
     fresh: Schemas.Boolean,
+    // The news already told to this player, comma-separated ids (SELL_HOME_NEWS and the like).
+    news: Schemas.String,
     // The generation id of the server that sent it (server/generation.ts), for the title card's status line.
     server: Schemas.String
   }),

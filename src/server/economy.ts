@@ -60,6 +60,8 @@ import {
   activePick,
   bestHitsPerRock,
   buybackOffer,
+  CLIENT_NEWS,
+  SELL_HOME_NOTE_NEWS,
   carryCapacity,
   findItem,
   fuelOrder,
@@ -73,7 +75,8 @@ import {
   STARTING_ITEMS
 } from '../shared/economy/catalogue'
 import { addFuelGallons, fuelGallons, fuelHoursLeft, settleMule } from './mule'
-import { clearNotes, deleteNote, leaveNote, sendNotes, setupNotes } from './notes'
+import { clearNotes, deleteNote, leaveBankNote, leaveNote, sendNotes, setupNotes } from './notes'
+import { SELL_HOME_NOTE_TEXT } from '../shared/notes'
 import { sendPrefs, setLanguagePref, setSoundPrefs } from './prefs'
 import { noteMined, noteNewOwner, noteSale, noteSlotWin, saveTitlesNow, setupTitles } from './titles'
 import { isCasinoReady, saveJackpotNow, setupCasino, spin } from './casino'
@@ -109,6 +112,8 @@ type Purse = {
   rewards: Record<string, StoredReward>
   /** The ids of the compensations already credited: see sendCompensation. */
   compensations: string[]
+  /** The news already told to this player (catalogue.ts): each is told once. */
+  news: string[]
   /** Ore the rigs put in storage since it was last reported to the titles. Not saved. */
   rigOreTally: number
   /** Storage had no purse for this player when it was read: a first visit. Not saved. */
@@ -255,6 +260,7 @@ function beginLoad(address: string): void {
         purchases: stored?.feedbackPurchases ?? 0,
         rewards: restoreRewards(stored),
         compensations: stored?.compensations ?? [],
+        news: stored?.news ?? [],
         rigOreTally: 0,
         fresh: stored === null
       }
@@ -278,6 +284,7 @@ function beginLoad(address: string): void {
       sendRewardStatus(address)
       sendCompensation(address)
       sendMaintenanceState(address)
+      leaveSellHomeNote(address, purse)
       // What was read, so a wrong purse on a client can be told apart from a wrong read here.
       console.log(
         `[Server] purse ${stored === null ? 'created for' : 'restored for'} ${address}: ${purse.coins} coins, ${purse.ore} ore, pick ${activePick((id) => purse.owned[id] ?? 0, purse.equipped)?.id ?? 'none'}`
@@ -588,6 +595,7 @@ function sendWallet(address: string): void {
       muleFuelHours: fuelHoursLeft(purse, muleCount(owned)),
       address: address.toLowerCase(),
       fresh: purse.fresh,
+      news: purse.news.join(','),
       server: getGenerationId()
     },
     { to: [address] }
@@ -1054,7 +1062,8 @@ function flushPurse(address: string): void {
     pickDurability: purse.pickDurability,
     feedbackPurchases: purse.purchases,
     rewards: purse.rewards,
-    compensations: purse.compensations
+    compensations: purse.compensations,
+    news: purse.news
   })
   // A failed write puts the purse back in the queue for the next flush rather than losing it.
   saved
@@ -1303,6 +1312,33 @@ function saveLots(): void {
       if (!ok) lotsDirty = true
     })
     .catch(() => (lotsDirty = true))
+}
+
+/**
+ * Once per player who owns a home: the bank's note at their door saying it now buys homes. A
+ * full mailbox or a failed read is tried again on their next visit.
+ */
+function leaveSellHomeNote(address: string, purse: Purse): void {
+  if (purse.news.includes(SELL_HOME_NOTE_NEWS)) return
+  if (buybackOffer((id) => purse.owned[id] ?? 0, standingCount) === null) return
+  leaveBankNote(address, SELL_HOME_NOTE_TEXT)
+    .then((left) => {
+      if (!left || purse.news.includes(SELL_HOME_NOTE_NEWS)) return
+      purse.news.push(SELL_HOME_NOTE_NEWS)
+      dirty.add(address)
+      if (present.has(address)) sendNotes(address)
+      console.log(`[Server] bank note about selling homes left for ${address}`)
+    })
+    .catch((error) => console.log(`[Server] bank note for ${address} failed: ${error}`))
+}
+
+/** Marks news as told to this player: only what a client may mark (CLIENT_NEWS). */
+function handleSeenNews(address: string, id: string): void {
+  const purse = purseOf(address)
+  if (purse === null || !CLIENT_NEWS.includes(id) || purse.news.includes(id)) return
+  purse.news.push(id)
+  dirty.add(address)
+  sendWallet(address)
 }
 
 /**
@@ -1836,6 +1872,11 @@ export function setupEconomy(): void {
   room.onMessage('buy', (data, context) => {
     if (!context || inMaintenance()) return
     handleBuy(context.from, data.itemId)
+  })
+
+  room.onMessage('seenNews', (data, context) => {
+    if (!context) return
+    handleSeenNews(context.from, data.id)
   })
 
   room.onMessage('sellHome', (data, context) => {

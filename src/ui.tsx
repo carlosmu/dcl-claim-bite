@@ -17,7 +17,10 @@ import {
     sendDebugReset,
     sendAdminMaintenance,
     sendEquip,
-    sendSellHome
+    sendSeenNews,
+    sendSellHome,
+    hasSeenNews,
+    hasWallet
 } from './net/economy-link'
 import { canSpinSlot, closeCasinoPanel, getSlotBet, getSlotMessage, getSlotReels, getSlotTagline, isCasinoPanelOpen, isSlotInfoOpen, isSlotSpinning, setSlotBet, spinSlot, toggleSlotInfo } from './casino/casino'
 import { SLOT_BETS, SLOT_MAX_BET, SLOT_SYMBOLS, threeBellsPay, TWO_HORSESHOES_PAY } from './shared/economy/slots'
@@ -68,8 +71,10 @@ import {
     findItem,
     fuelOrder,
     fuelTankGallons,
+    BUYBACK_RATE,
     HOUSING_DEMAND,
     itemsOf,
+    SELL_HOME_NEWS,
     nextTier,
     ownedTier,
     PICKS,
@@ -102,7 +107,7 @@ import { getCampaignAdmin, getCampaignStatus, getWinnersCopied, onCampaignMilest
 import { getPlayer } from '@dcl/sdk/players'
 import { isLocalPreview } from './shared/local-preview'
 import { quotedRate, secondsToRecover } from './shared/state/market'
-import { getLanguage, itemBenefit, itemName, rewardText, t, upper } from './i18n'
+import { getLanguage, itemBenefit, itemName, noteBody, noteSender, rewardText, t, upper } from './i18n'
 import { flagIcon, LANGUAGE_LIST_WIDTH, languageColumns } from './ui/language-selector'
 import { BitmapText } from './ui/bitmap-text'
 import { introScreen } from './ui/intro-screen'
@@ -1950,17 +1955,54 @@ let sellConfirmFor: ShopItemId | null = null
 const bankPaysStat = (coins: number) => (
     <UiEntity key="pays" uiTransform={{ flexDirection: 'column', margin: { bottom: 10 } }}>
         <Label value={t('land.sellBankPays')} fontSize={DETAIL_CAPTION_SIZE} color={BANK_CAPTION} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 26 }} />
-        {coinAmount(coins, COIN_COLOR, 28)}
+        {/* The cut beside it, in red: the bank pays half, and that should not be missed. */}
+        <UiEntity uiTransform={{ flexDirection: 'row', alignItems: 'center' }}>
+            {coinAmount(coins, COIN_COLOR, 28)}
+            <UiEntity uiTransform={{ margin: { left: 12 } }}>
+                <BitmapText value={`(-${Math.round((1 - BUYBACK_RATE) * 100)}%)`} fontSize={28} color={STORAGE_FULL_COLOR} />
+            </UiEntity>
+        </UiEntity>
+    </UiEntity>
+)
+
+/**
+ * Stats two to a row on mobile. The SELL tab's four stacked stats, its note and its button are
+ * taller than the phone's panel, which then spills past its box (and taps outside a box are lost
+ * on mobile). Desktop keeps them stacked.
+ */
+const statGrid = (stats: ReactEcs.JSX.Element[]): ReactEcs.JSX.Element[] => {
+    if (!isMobile()) return stats
+    const rows: ReactEcs.JSX.Element[] = []
+    for (let i = 0; i < stats.length; i += 2) {
+        rows.push(
+            <UiEntity key={`stat-row-${i}`} uiTransform={{ width: '100%', flexDirection: 'row' }}>
+                {stats.slice(i, i + 2).map((stat, j) => (
+                    <UiEntity key={`stat-${i + j}`} uiTransform={{ width: '50%' }}>
+                        {stat}
+                    </UiEntity>
+                ))}
+            </UiEntity>
+        )
+    }
+    return rows
+}
+
+/** Today's price of the home, for the bank's offer to be read against. */
+const currentPriceStat = (price: number) => (
+    <UiEntity key="current" uiTransform={{ flexDirection: 'column', margin: { bottom: 10 } }}>
+        <Label value={t('land.sellCurrentPrice')} fontSize={DETAIL_CAPTION_SIZE} color={BANK_CAPTION} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 26 }} />
+        {coinAmount(price, BANK_CREAM, 28)}
     </UiEntity>
 )
 
 /** Step 2's warning, one point per line and bigger than a description, so it is actually read. */
-const warningBullets = (lines: string[]) => (
+const warningBullets = (lines: { text: string; alert?: boolean }[]) => (
     <UiEntity uiTransform={{ width: '100%', flexDirection: 'column', margin: { top: 14 } }}>
         {lines.map((line, index) => (
-            <UiEntity key={`warn-${index}`} uiTransform={{ width: '100%', flexDirection: 'row', margin: { bottom: 10 } }}>
-                <Label value="•" fontSize={24} color={STORAGE_FULL_COLOR} textAlign="top-left" uiTransform={{ width: 22, height: 30, flexShrink: 0 }} />
-                <Label value={line} fontSize={22} color={BANK_CREAM} textAlign="top-left" textWrap="wrap" uiTransform={{ flexGrow: 1, width: 0, minHeight: 30 }} />
+            // Smaller and closer on mobile, so five points and both buttons stay inside the box.
+            <UiEntity key={`warn-${index}`} uiTransform={{ width: '100%', flexDirection: 'row', margin: { bottom: isMobile() ? 4 : 10 } }}>
+                <Label value="•" fontSize={isMobile() ? 20 : 24} color={STORAGE_FULL_COLOR} textAlign="top-left" uiTransform={{ width: 22, height: isMobile() ? 26 : 30, flexShrink: 0 }} />
+                <Label value={line.text} fontSize={isMobile() ? 19 : 22} color={line.alert === true ? STORAGE_FULL_COLOR : BANK_CREAM} textAlign="top-left" textWrap="wrap" uiTransform={{ flexGrow: 1, width: 0, minHeight: isMobile() ? 26 : 30 }} />
             </UiEntity>
         ))}
     </UiEntity>
@@ -1994,12 +2036,13 @@ function sellHomeDetail(): Detail {
             title: t('land.sellTitle'),
             description: t('land.sellExplain'),
             icon: PROPERTY_ICONS[offer.item.id] ?? ICON_WAGON,
-            stats: [
+            stats: statGrid([
                 detailStat(t('land.sellYourHome'), home.toUpperCase(), BANK_CREAM),
+                currentPriceStat(listPrice(offer.item)),
                 bankPaysStat(offer.coins),
                 detailStat(t('land.sellBackTo'), below.toUpperCase(), BANK_CREAM)
-            ],
-            notes: [],
+            ]),
+            notes: [detailNote(t('land.halfNote'), STORAGE_FULL_COLOR)],
             actions: [storeActionButton({ label: t('land.sellMy', { home: home.toUpperCase() }), kind: 'danger', onClick: () => (sellConfirmFor = offer.item.id) })],
             footnote: t('land.step', { step: 1 })
         }
@@ -2011,10 +2054,11 @@ function sellHomeDetail(): Detail {
         icon: PROPERTY_ICONS[offer.item.id] ?? ICON_WAGON,
         stats: [],
         body: warningBullets([
-            t('land.warnSell', { home }),
-            t('land.warnPays', { coins: withCommas(offer.coins) }),
-            t('land.warnBack', { below }),
-            t('land.warnRebuy')
+            { text: t('land.warnSell', { home }) },
+            { text: t('land.warnPays', { coins: withCommas(offer.coins) }) },
+            { text: t('land.halfNote'), alert: true },
+            { text: t('land.warnBack', { below }) },
+            { text: t('land.warnRebuy') }
         ]),
         notes: [],
         // CANCEL is the gold one, the easy way out; selling takes the red button.
@@ -2060,7 +2104,7 @@ function propertyDetail(item: ShopItem): Detail {
         // the Wagon's does not.
         actions: [
             HOUSING_DEMAND[item.id] !== undefined ? (
-                <Label key="demand" value={t('land.demandNote')} fontSize={DETAIL_CAPTION_SIZE} color={BANK_CAPTION} textAlign="middle-center" textWrap="wrap" uiTransform={{ width: '100%', minHeight: 26, margin: { top: 26 } }} />
+                <Label key="demand" value={t('land.demandNote')} fontSize={DETAIL_CAPTION_SIZE} color={BANK_CAPTION} textAlign="middle-left" textWrap="wrap" uiTransform={{ width: '100%', minHeight: 26, margin: { top: 26 } }} />
             ) : null,
             storeActionButton(action)
         ].filter((element): element is ReactEcs.JSX.Element => element !== null)
@@ -2074,7 +2118,12 @@ const LAND_OFFICE_TABS: { id: LandOfficeTab; label: () => string }[] = [
 
 const landOfficePanel = () => {
     const open = getLandOfficeTab()
-    const tabs = LAND_OFFICE_TABS.map((tab) => tabButton(tab.id, tab.label(), tab.id === open, () => setLandOfficeTab(tab.id)))
+    // Opening SELL is how the news is told; until then the tab says NEW to anyone with a home to sell.
+    if (open === 'sell') sendSeenNews(SELL_HOME_NEWS)
+    const sellIsNew = hasWallet() && !hasSeenNews(SELL_HOME_NEWS) && homeBuyback() !== null
+    const tabs = LAND_OFFICE_TABS.map((tab) =>
+        tabButton(tab.id, tab.label(), tab.id === open, () => setLandOfficeTab(tab.id), tab.id === 'sell' && sellIsNew ? t('land.new') : undefined)
+    )
     // Leaving the SELL tab drops step 2: coming back starts at step 1.
     if (open !== 'sell') sellConfirmFor = null
     if (open === 'sell') return counterPanel(t('land.title'), closeLandOfficePanel, [], '', () => {}, sellHomeDetail(), tabs)
@@ -3265,12 +3314,14 @@ const TAB_BODY_PADDING_TOP = 30
 const TAB_BODY_COLOR = BANK_STEP_COLOR
 const TAB_IDLE_COLOR = BANK_WOOD
 
-const tabButton = (key: string, label: string, active: boolean, onPress: () => void) => (
+/** `badge` goes in front of the label, in white: a NEW! that stands out from the tab's own gold. */
+const tabButton = (key: string, label: string, active: boolean, onPress: () => void, badge?: string) => (
     <UiEntity
         key={key}
         uiTransform={{
             height: INVENTORY_TAB_HEIGHT,
             flexGrow: 1,
+            flexDirection: 'row',
             justifyContent: 'center',
             alignItems: 'center',
             borderRadius: { topLeft: TAB_RADIUS, topRight: TAB_RADIUS, bottomLeft: 0, bottomRight: 0 },
@@ -3280,6 +3331,11 @@ const tabButton = (key: string, label: string, active: boolean, onPress: () => v
         uiBackground={{ color: active ? TAB_BODY_COLOR : TAB_IDLE_COLOR }}
         onMouseDown={onPress}
     >
+        {badge !== undefined ? (
+            <UiEntity uiTransform={{ margin: { right: 8 } }}>
+                <BitmapText value={badge} fontSize={20} color={Color4.White()} />
+            </UiEntity>
+        ) : null}
         <BitmapText value={label} fontSize={20} color={active ? BANK_GOLD_LIGHT : BANK_CAPTION} />
     </UiEntity>
 )
@@ -4368,11 +4424,11 @@ const ownerNoteRow = (note: Note) => (
         {/* The note itself: who and when, then what it says. */}
         <UiEntity uiTransform={{ flexGrow: 1, flexShrink: 1, flexDirection: 'column' }}>
             <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Label value={note.from} fontSize={17} color={BANK_GOLD_LIGHT} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 22 }} />
+                <Label value={noteSender(note.from)} fontSize={17} color={BANK_GOLD_LIGHT} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 22 }} />
                 <Label value={noteAge(note.at)} fontSize={13} color={BANK_CAPTION} textAlign="middle-right" textWrap="nowrap" uiTransform={{ height: 20 }} />
             </UiEntity>
             {/* Room for the longest note there can be. */}
-            <Label value={note.text} fontSize={16} color={BANK_CREAM} textAlign="top-left" textWrap="wrap" uiTransform={{ width: '100%', height: 66 }} />
+            <Label value={noteBody(note.text)} fontSize={16} color={BANK_CREAM} textAlign="top-left" textWrap="wrap" uiTransform={{ width: '100%', height: 66 }} />
         </UiEntity>
         {/* Throws away this note only, from beside it at the top; inside the row, so it takes taps on mobile too. */}
         <UiEntity uiTransform={{ flexShrink: 0, margin: { left: 10 } }}>

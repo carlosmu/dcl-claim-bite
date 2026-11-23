@@ -166,6 +166,8 @@ export type StoredPurse = {
   rewards?: Record<string, StoredReward>
   /** The ids of the compensations already credited (server/compensations.ts). Missing means none. */
   compensations?: string[]
+  /** The news already told to this player (catalogue.ts, SELL_HOME_NEWS…). Missing means none. */
+  news?: string[]
   /** Read only: the one reward from before there were several. Folded into `rewards` on load, never written. */
   gift?: StoredGift
 }

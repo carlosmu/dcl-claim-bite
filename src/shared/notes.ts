@@ -3,6 +3,13 @@
 /** One note: who left it (their display name), what it says, and when (wall-clock ms). */
 export type Note = { from: string; text: string; at: number }
 
+/**
+ * A note the bank leaves, not a player: `from` and `text` are these markers, and each client
+ * writes them out in its own language (the server sends data, never wording).
+ */
+export const BANK_NOTE_FROM = '@bank'
+export const SELL_HOME_NOTE_TEXT = '@sell-home'
+
 /** The longest note the server keeps; the field stops taking letters here too. */
 export const NOTE_MAX_CHARS = 140
 

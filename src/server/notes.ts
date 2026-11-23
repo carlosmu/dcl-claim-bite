@@ -11,7 +11,7 @@
 import { engine } from '@dcl/sdk/ecs'
 
 import { room } from '../shared/net/protocol'
-import { cleanNoteText, Note, NOTE_MAX_KEPT } from '../shared/notes'
+import { BANK_NOTE_FROM, cleanNoteText, Note, NOTE_MAX_KEPT } from '../shared/notes'
 import { loadNotes, saveNotes } from './persistence'
 
 /** One note per sender per door this often, so a door cannot be flooded. */
@@ -106,6 +106,24 @@ export async function leaveNote(from: string, fromName: string, owner: string, t
   notes.push({ from: fromName, text: clean, at: now })
   dirty.add(owner)
   return null
+}
+
+/**
+ * Leaves the bank's note at `owner`'s door: no cooldown, it is not a player. Resolves to whether
+ * it was left; a full mailbox or a failed read leaves nothing, to be tried on a later visit.
+ */
+export async function leaveBankNote(owner: string, text: string): Promise<boolean> {
+  let notes: Note[]
+  try {
+    notes = await inboxOf(owner)
+  } catch (error) {
+    console.log(`[Server] could not read notes for ${owner}: ${error}`)
+    return false
+  }
+  if (notes.length >= NOTE_MAX_KEPT) return false
+  notes.push({ from: BANK_NOTE_FROM, text, at: Date.now() })
+  dirty.add(owner)
+  return true
 }
 
 /** Throws away every note at a player's door. */

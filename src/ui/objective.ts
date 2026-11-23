@@ -14,7 +14,7 @@ import { engine } from '@dcl/sdk/ecs'
 import { isMobile } from '@dcl/sdk/platform'
 
 import { isCasinoPanelOpen } from '../casino/casino'
-import { canBuy, currentPrice } from '../shop/shop'
+import { canBuy, currentPrice, homeBuyback } from '../shop/shop'
 import {
   getCarryCapacity,
   getHitsPerRock,
@@ -23,9 +23,11 @@ import {
   getSyncedRate,
   getBrokenPick,
   getMuleAway,
-  hasWallet
+  hasSeenNews,
+  hasWallet,
+  sendSeenNews
 } from '../net/economy-link'
-import { findItem, fuelTankGallons, nextTier, ShopItemId } from '../shared/economy/catalogue'
+import { findItem, fuelTankGallons, nextTier, SELL_HOME_NEWS, ShopItemId } from '../shared/economy/catalogue'
 import { getOwned } from '../shared/state/inventory'
 import { quotedRate } from '../shared/state/market'
 import { getCoins, getOre } from '../shared/state/wallet'
@@ -33,7 +35,7 @@ import { getActiveMiners } from '../shared/net/social-sync'
 import { socialBonus } from '../shared/economy/constants'
 import { getNoteNews } from '../land-office/owner-card'
 import { getMiningStatus } from '../mining/rocks'
-import { itemName, t } from '../i18n'
+import { itemName, noteSender, t } from '../i18n'
 import { isPlaying } from '../world/game-phase'
 import { getCampaignStatus } from '../net/campaign-link'
 import { DEBUG_SHOW_ALL_NOTIFICATIONS } from '../shared/debug-flags'
@@ -43,6 +45,9 @@ export const SOCIAL_BONUS_ID = 'social'
 
 /** The news of what the rigs dug while the player was away: the tracker paints it light blue. */
 export const MULE_AWAY_ID = 'mule-away'
+
+/** The announcement that the bank buys homes now, for players who own one. */
+export const SELL_HOME_ID = 'sell-home'
 
 /** The Marketplace Credits campaign's entry. */
 export const CREDITS_ID = 'credits'
@@ -160,6 +165,8 @@ export function dismissObjective(id: string): void {
   if (entry === undefined) return
   dismissed.set(id, entry.message)
   shown = shown.filter((objective) => objective.id !== id)
+  // Closing the announcement counts as told: it does not come back next visit.
+  if (id === SELL_HOME_ID) sendSeenNews(SELL_HOME_NEWS)
 }
 
 /** The tracker's last few messages, newest first. */
@@ -227,8 +234,14 @@ function candidates(): Objective[] {
   // Somebody left a note at the door, while the player was here or away.
   if (clock < noteAlertUntil) {
     const news = getNoteNews()
-    const message = news.waiting === 1 ? t('obj.leftNote', { from: news.from }) : t('obj.notesAtDoor', { count: news.waiting })
+    const message = news.waiting === 1 ? t('obj.leftNote', { from: noteSender(news.from) }) : t('obj.notesAtDoor', { count: news.waiting })
     list.push(alert('note', t('obj.newNote'), message, t('obj.clickProperty')))
+  }
+
+  // News for home owners: the bank buys homes now. Until they open the SELL tab or close this.
+  const offer = hasWallet() && !hasSeenNews(SELL_HOME_NEWS) ? homeBuyback() : null
+  if (offer !== null) {
+    list.push(alert(SELL_HOME_ID, t('obj.newFeature'), t('obj.sellHome', { home: itemName(offer.item) }), t('obj.sellHomeDetail', { coins: offer.coins })))
   }
 
   // Nothing to mine with: the mayor is the whole first step.

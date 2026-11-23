@@ -103,6 +103,16 @@ export const HOUSING_DEMAND: Partial<Record<ShopItemId, { freeLots: number; perL
   ranch: { freeLots: 12, perLot: 50 }
 }
 
+/**
+ * News a player has been told, kept in their purse so it is told once. SELL_HOME_NEWS: they
+ * opened the SELL tab or closed the tracker's announcement. SELL_HOME_NOTE_NEWS: the bank left
+ * its note at their door.
+ */
+export const SELL_HOME_NEWS = 'sell-home'
+export const SELL_HOME_NOTE_NEWS = 'sell-home-note'
+/** The news a client may mark as seen; the note is the server's to mark. */
+export const CLIENT_NEWS = [SELL_HOME_NEWS]
+
 /** The share of today's price the bank pays for a home sold back to it. The player drops one tier. */
 export const BUYBACK_RATE = 0.5
 
