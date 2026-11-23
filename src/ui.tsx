@@ -24,7 +24,7 @@ import { SLOT_BETS, SLOT_MAX_BET, SLOT_SYMBOLS, threeBellsPay, TWO_HORSESHOES_PA
 import { getJackpot } from './shared/net/casino-sync'
 import { buyItem, closeStorePanel, currentPrice, homeBuyback, listPrice, getSelectedProduct, isStorePanelOpen, selectProduct, whyUnavailable } from './shop/shop'
 import { closeMulePanel, isMulePanelOpen } from './mule/mule'
-import { closeLandOfficePanel, getSelectedProperty, isLandOfficePanelOpen, selectProperty } from './land-office/land-office'
+import { closeLandOfficePanel, getLandOfficeTab, getSelectedProperty, isLandOfficePanelOpen, LandOfficeTab, selectProperty, setLandOfficeTab } from './land-office/land-office'
 import {
     canClaimReward,
     claimReward,
@@ -1940,9 +1940,39 @@ function selectedPropertyKey(): ShopItemId {
 /** The home the WARNING screen is about to sell, or null while it is shut. */
 let sellWarningFor: ShopItemId | null = null
 
-/** Sell to the bank, in red so it never reads as a purchase: it only opens the WARNING screen. */
-function sellHomeAction(offer: { item: ShopItem; coins: number }): Action {
-    return { label: t('land.sellToBank'), kind: 'danger', onClick: () => (sellWarningFor = offer.item.id) }
+/**
+ * The SELL tab: no cards, only the home the player lives in and what the bank pays for it. The
+ * red button opens the WARNING screen; nothing is sold from here.
+ */
+function sellHomeDetail(): Detail {
+    const offer = homeBuyback()
+    if (offer === null) {
+        return {
+            title: t('land.sellTitle'),
+            description: t('land.sellExplain'),
+            icon: ICON_WAGON,
+            stats: [],
+            notes: [detailNote(t('land.sellNothing'), SHORT_COLOR)],
+            actions: [storeActionButton({ label: t('land.sellToBank'), kind: 'off' })]
+        }
+    }
+    const home = itemName(offer.item)
+    return {
+        title: t('land.sellTitle'),
+        description: t('land.sellExplain'),
+        icon: PROPERTY_ICONS[offer.item.id] ?? ICON_WAGON,
+        stats: [
+            detailStat(t('land.sellYourHome'), home.toUpperCase(), BANK_CREAM),
+            // In gold, not in the red of "cannot afford": this is money coming in.
+            <UiEntity key="pays" uiTransform={{ flexDirection: 'column', margin: { bottom: 10 } }}>
+                <Label value={t('land.sellBankPays')} fontSize={14} color={BANK_CAPTION} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 20 }} />
+                {coinAmount(offer.coins, COIN_COLOR, 28)}
+            </UiEntity>,
+            detailStat(t('land.sellBackTo'), itemName(findItem(offer.item.requires!)).toUpperCase(), BANK_CREAM)
+        ],
+        notes: [],
+        actions: [storeActionButton({ label: t('land.sellMy', { home: home.toUpperCase() }), kind: 'danger', onClick: () => (sellWarningFor = offer.item.id) })]
+    }
 }
 
 /**
@@ -2015,19 +2045,15 @@ const sellWarningPanel = () => {
 function propertyDetail(item: ShopItem): Detail {
     const owned = getOwned(item.id) > 0
     const active = item.id === activeHome()?.id
-    const offer = active ? homeBuyback() : null
     let action: Action
-    if (offer !== null) action = sellHomeAction(offer)
-    else if (active) action = { label: t('action.active'), kind: 'equipped' }
+    if (active) action = { label: t('action.active'), kind: 'equipped' }
     else if (owned) action = { label: t('action.previous'), kind: 'off' }
     // A new home replaces the old one: the player moves up, they do not end up with two.
     else action = buyAction(item, t('action.upgrade'))
 
     const notes: ReactEcs.JSX.Element[] = []
-    if (active) {
-        notes.push(detailNote(t('land.currentHome'), PRICE_GOOD_COLOR))
-        if (offer !== null) notes.push(detailNote(t('land.sellHint', { coins: withCommas(offer.coins) }), BANK_CAPTION))
-    } else if (owned) notes.push(detailNote(t('land.movedUp'), BANK_CAPTION))
+    if (active) notes.push(detailNote(t('land.currentHome'), PRICE_GOOD_COLOR))
+    else if (owned) notes.push(detailNote(t('land.movedUp'), BANK_CAPTION))
     else if (item.requires !== undefined && getOwned(item.requires) <= 0) notes.push(detailNote(t('store.requires', { item: itemName(findItem(item.requires)) }), SHORT_COLOR))
     return {
         title: itemName(item),
@@ -2039,9 +2065,17 @@ function propertyDetail(item: ShopItem): Detail {
     }
 }
 
+const LAND_OFFICE_TABS: { id: LandOfficeTab; label: () => string }[] = [
+    { id: 'buy', label: () => t('land.tabBuy') },
+    { id: 'sell', label: () => t('land.tabSell') }
+]
+
 const landOfficePanel = () => {
+    const open = getLandOfficeTab()
+    const tabs = LAND_OFFICE_TABS.map((tab) => tabButton(tab.id, tab.label(), tab.id === open, () => setLandOfficeTab(tab.id)))
+    if (open === 'sell') return counterPanel(t('land.title'), closeLandOfficePanel, [], '', () => {}, sellHomeDetail(), tabs)
     const key = selectedPropertyKey()
-    return counterPanel(t('land.title'), closeLandOfficePanel, landOfficeProducts(), key, selectProperty, propertyDetail(findItem(key)!))
+    return counterPanel(t('land.title'), closeLandOfficePanel, landOfficeProducts(), key, selectProperty, propertyDetail(findItem(key)!), tabs)
 }
 
 // --- Claim Office -----------------------------------------------------------------------

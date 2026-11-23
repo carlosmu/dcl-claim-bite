@@ -18,6 +18,18 @@ let zone: ProximityZone | null = null
 let closed = false
 let selected: string | null = null
 
+/** BUY sells homes; SELL is the bank buying the player's home back. Every visit opens on BUY. */
+export type LandOfficeTab = 'buy' | 'sell'
+let tab: LandOfficeTab = 'buy'
+
+export function getLandOfficeTab(): LandOfficeTab {
+  return tab
+}
+
+export function setLandOfficeTab(next: LandOfficeTab): void {
+  tab = next
+}
+
 export function isPlayerAtLandOffice(): boolean {
   return zone !== null && zone.isPlayerInside()
 }
@@ -53,12 +65,14 @@ export function setupLandOffice(): void {
     onEnter: () => {
       closed = false
       selected = null
+      tab = 'buy'
       focusPanel('land-office')
     },
     onClick: () => {
       if (!closed) return
       closed = false
       selected = null
+      tab = 'buy'
       focusPanel('land-office')
     }
   })
