@@ -68,6 +68,7 @@ import {
     findItem,
     fuelOrder,
     fuelTankGallons,
+    HOUSING_DEMAND,
     itemsOf,
     nextTier,
     ownedTier,
@@ -1494,15 +1495,20 @@ const storeActionButton = (action: Action) => {
     )
 }
 
+// The counters' detail text, a size up from what it was: at 14-16 it could barely be read.
+const DETAIL_CAPTION_SIZE = 18
+const DETAIL_TEXT_SIZE = 20
+
 const detailStat = (caption: string, value: string, color: Color4) => (
     <UiEntity key={caption} uiTransform={{ flexDirection: 'column', margin: { bottom: 10 } }}>
-        <Label value={caption} fontSize={14} color={BANK_CAPTION} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 20 }} />
+        <Label value={caption} fontSize={DETAIL_CAPTION_SIZE} color={BANK_CAPTION} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 26 }} />
         <BitmapText value={value} fontSize={26} color={color} />
     </UiEntity>
 )
 
 const detailNote = (text: string, color: Color4 = BANK_CREAM) => (
-    <Label key={text} value={text} fontSize={16} color={color} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 24 }} />
+    // Wraps rather than run off the edge: at this size a long note in German does not fit one line.
+    <Label key={text} value={text} fontSize={DETAIL_TEXT_SIZE} color={color} textAlign="middle-left" textWrap="wrap" uiTransform={{ width: '100%', minHeight: 30 }} />
 )
 
 /** A price with the coin icon in front of it — never "c", which reads as cents. */
@@ -1522,7 +1528,7 @@ function priceStat(price: number | null, label: string = t('store.price')): Reac
     if (price === 0) return detailStat(label, t('store.freeCaps'), COIN_COLOR)
     return (
         <UiEntity key={label} uiTransform={{ flexDirection: 'column', margin: { bottom: 10 } }}>
-            <Label value={label} fontSize={14} color={BANK_CAPTION} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 20 }} />
+            <Label value={label} fontSize={DETAIL_CAPTION_SIZE} color={BANK_CAPTION} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 26 }} />
             {coinAmount(price, getCoins() >= price ? COIN_COLOR : SHORT_COLOR, 28)}
         </UiEntity>
     )
@@ -1723,7 +1729,7 @@ const storeDetail = (detail: Detail, besideList: boolean = true) => (
         uiBackground={{ color: BANK_WOOD }}
     >
         <BitmapText value={upper(detail.title)} fontSize={40} color={BANK_GOLD_LIGHT} />
-        <Label value={detail.description} fontSize={16} color={BANK_CAPTION} textAlign="middle-left" uiTransform={{ height: 26 }} />
+        <Label value={detail.description} fontSize={DETAIL_TEXT_SIZE} color={BANK_CAPTION} textAlign="middle-left" uiTransform={{ height: 32 }} />
         {detail.body !== undefined ? (
             detail.body
         ) : detail.bigIcon === true ? (
@@ -1756,7 +1762,7 @@ const storeDetail = (detail: Detail, besideList: boolean = true) => (
         <UiEntity uiTransform={{ flexGrow: 1 }} />
         {detail.actions}
         {detail.footnote !== undefined ? (
-            <Label value={detail.footnote} fontSize={14} color={BANK_CAPTION} textAlign="middle-center" textWrap="nowrap" uiTransform={{ width: '100%', height: 22, margin: { top: 6 } }} />
+            <Label value={detail.footnote} fontSize={DETAIL_CAPTION_SIZE} color={BANK_CAPTION} textAlign="middle-center" textWrap="nowrap" uiTransform={{ width: '100%', height: 26, margin: { top: 6 } }} />
         ) : null}
     </UiEntity>
 )
@@ -1937,16 +1943,38 @@ function selectedPropertyKey(): ShopItemId {
     return (housing.find((item) => getOwned(item.id) <= 0) ?? housing[housing.length - 1]).id
 }
 
-/** The home the WARNING screen is about to sell, or null while it is shut. */
-let sellWarningFor: ShopItemId | null = null
+/** The home step 2 of the SELL tab is asking about, or null on step 1. */
+let sellConfirmFor: ShopItemId | null = null
+
+/** What the bank pays, in gold, not in the red of "cannot afford": this is money coming in. */
+const bankPaysStat = (coins: number) => (
+    <UiEntity key="pays" uiTransform={{ flexDirection: 'column', margin: { bottom: 10 } }}>
+        <Label value={t('land.sellBankPays')} fontSize={DETAIL_CAPTION_SIZE} color={BANK_CAPTION} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 26 }} />
+        {coinAmount(coins, COIN_COLOR, 28)}
+    </UiEntity>
+)
+
+/** Step 2's warning, one point per line and bigger than a description, so it is actually read. */
+const warningBullets = (lines: string[]) => (
+    <UiEntity uiTransform={{ width: '100%', flexDirection: 'column', margin: { top: 14 } }}>
+        {lines.map((line, index) => (
+            <UiEntity key={`warn-${index}`} uiTransform={{ width: '100%', flexDirection: 'row', margin: { bottom: 10 } }}>
+                <Label value="•" fontSize={24} color={STORAGE_FULL_COLOR} textAlign="top-left" uiTransform={{ width: 22, height: 30, flexShrink: 0 }} />
+                <Label value={line} fontSize={22} color={BANK_CREAM} textAlign="top-left" textWrap="wrap" uiTransform={{ flexGrow: 1, width: 0, minHeight: 30 }} />
+            </UiEntity>
+        ))}
+    </UiEntity>
+)
 
 /**
- * The SELL tab: no cards, only the home the player lives in and what the bank pays for it. The
- * red button opens the WARNING screen; nothing is sold from here.
+ * The SELL tab, in two steps on the same page. Step 1: the home, what the bank pays and where the
+ * player goes back to, with a red SELL MY …. Step 2: the warning and CANCEL or SELL; only that
+ * last button sells.
  */
 function sellHomeDetail(): Detail {
     const offer = homeBuyback()
     if (offer === null) {
+        sellConfirmFor = null
         return {
             title: t('land.sellTitle'),
             description: t('land.sellExplain'),
@@ -1957,89 +1985,56 @@ function sellHomeDetail(): Detail {
         }
     }
     const home = itemName(offer.item)
-    return {
-        title: t('land.sellTitle'),
-        description: t('land.sellExplain'),
-        icon: PROPERTY_ICONS[offer.item.id] ?? ICON_WAGON,
-        stats: [
-            detailStat(t('land.sellYourHome'), home.toUpperCase(), BANK_CREAM),
-            // In gold, not in the red of "cannot afford": this is money coming in.
-            <UiEntity key="pays" uiTransform={{ flexDirection: 'column', margin: { bottom: 10 } }}>
-                <Label value={t('land.sellBankPays')} fontSize={14} color={BANK_CAPTION} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 20 }} />
-                {coinAmount(offer.coins, COIN_COLOR, 28)}
-            </UiEntity>,
-            detailStat(t('land.sellBackTo'), itemName(findItem(offer.item.requires!)).toUpperCase(), BANK_CREAM)
-        ],
-        notes: [],
-        actions: [storeActionButton({ label: t('land.sellMy', { home: home.toUpperCase() }), kind: 'danger', onClick: () => (sellWarningFor = offer.item.id) })]
-    }
-}
-
-/**
- * Over the Land Office: what selling the home means, spelled out, before anything is sold.
- * CANCEL is the gold one, the easy way out; selling takes the red button.
- */
-const sellWarningPanel = () => {
-    const offer = homeBuyback()
-    // Sold, moved up, or the office closed: the screen has nothing left to ask.
-    if (offer === null || offer.item.id !== sellWarningFor || !isLandOfficePanelOpen()) {
-        sellWarningFor = null
-        return null
-    }
     const below = itemName(findItem(offer.item.requires!))
-    return (
-        <UiEntity
-            uiTransform={{
-                positionType: 'absolute',
-                width: '100%',
-                minWidth: PANEL_MIN_WIDTH,
-                flexDirection: 'column',
-                alignItems: 'center',
-                padding: BANK_PANEL_PADDING,
-                borderRadius: PANEL_RADIUS,
-                borderWidth: 3,
-                borderColor: MAP_CLOSE_COLOR
-            }}
-            uiBackground={{ color: BANK_WOOD_DARK }}
-        >
-            <UiEntity uiTransform={{ width: '100%', height: 96, flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-                <BitmapText value={t('land.warningTitle')} fontSize={64} color={STORAGE_FULL_COLOR} />
-                <Label value={t('land.title')} fontSize={18} color={BANK_CAPTION} textAlign="middle-center" uiTransform={{ height: 24 }} />
-            </UiEntity>
+    // Moved up or down since step 1: start over, so step 2 never confirms a home it did not show.
+    if (sellConfirmFor !== null && sellConfirmFor !== offer.item.id) sellConfirmFor = null
 
-            {bankSection(t('land.warningHeading', { home: itemName(offer.item) }), [
-                <Label
-                    key="text"
-                    value={t('land.warningText', { home: itemName(offer.item), below })}
-                    fontSize={20}
-                    color={BANK_CREAM}
-                    textAlign="middle-left"
-                    textWrap="wrap"
-                    uiTransform={{ width: '100%', minHeight: 90, margin: { top: 4, bottom: 8 } }}
-                />,
-                <UiEntity key="amount" uiTransform={{ width: '100%', height: 80, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
-                    {bankIcon(ICON_COINS, 56)}
-                    <BitmapText value={t('unit.coinsAmountCaps', { coins: withCommas(offer.coins) })} fontSize={52} color={COIN_COLOR} />
+    if (sellConfirmFor === null) {
+        return {
+            title: t('land.sellTitle'),
+            description: t('land.sellExplain'),
+            icon: PROPERTY_ICONS[offer.item.id] ?? ICON_WAGON,
+            stats: [
+                detailStat(t('land.sellYourHome'), home.toUpperCase(), BANK_CREAM),
+                bankPaysStat(offer.coins),
+                detailStat(t('land.sellBackTo'), below.toUpperCase(), BANK_CREAM)
+            ],
+            notes: [],
+            actions: [storeActionButton({ label: t('land.sellMy', { home: home.toUpperCase() }), kind: 'danger', onClick: () => (sellConfirmFor = offer.item.id) })],
+            footnote: t('land.step', { step: 1 })
+        }
+    }
+
+    return {
+        title: t('land.warningTitle'),
+        description: t('land.warningSub'),
+        icon: PROPERTY_ICONS[offer.item.id] ?? ICON_WAGON,
+        stats: [],
+        body: warningBullets([
+            t('land.warnSell', { home }),
+            t('land.warnPays', { coins: withCommas(offer.coins) }),
+            t('land.warnBack', { below }),
+            t('land.warnRebuy')
+        ]),
+        notes: [],
+        // CANCEL is the gold one, the easy way out; selling takes the red button.
+        actions: [
+            <UiEntity key="confirm" uiTransform={{ width: '100%', flexDirection: 'row', justifyContent: 'space-between' }}>
+                <UiEntity uiTransform={{ width: '48%' }}>{storeActionButton({ label: t('land.warningCancel'), kind: 'buy', onClick: () => (sellConfirmFor = null) })}</UiEntity>
+                <UiEntity uiTransform={{ width: '48%' }}>
+                    {storeActionButton({
+                        label: t('land.warningSell'),
+                        kind: 'danger',
+                        onClick: () => {
+                            sellConfirmFor = null
+                            sendSellHome(offer.item.id)
+                        }
+                    })}
                 </UiEntity>
-            ])}
-
-            <UiEntity uiTransform={{ width: '100%', height: BANK_BUTTON_GAP }} />
-            <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', justifyContent: 'space-between' }}>
-                {bankButton(t('land.warningCancel'), () => (sellWarningFor = null), { width: '48%', height: 72 }, 40, BANK_GOLD, BANK_INK)}
-                {bankButton(
-                    t('land.warningSell'),
-                    () => {
-                        sellWarningFor = null
-                        sendSellHome(offer.item.id)
-                    },
-                    { width: '48%', height: 72 },
-                    40,
-                    MAP_CLOSE_COLOR,
-                    Color4.White()
-                )}
             </UiEntity>
-        </UiEntity>
-    )
+        ],
+        footnote: t('land.step', { step: 2 })
+    }
 }
 
 function propertyDetail(item: ShopItem): Detail {
@@ -2061,7 +2056,14 @@ function propertyDetail(item: ShopItem): Detail {
         icon: PROPERTY_ICONS[item.id] ?? ICON_WAGON,
         stats: [priceStat(listPrice(item))],
         notes,
-        actions: [storeActionButton(action)]
+        // Right above the button: its price moves with the homes standing in town (HOUSING_DEMAND);
+        // the Wagon's does not.
+        actions: [
+            HOUSING_DEMAND[item.id] !== undefined ? (
+                <Label key="demand" value={t('land.demandNote')} fontSize={DETAIL_CAPTION_SIZE} color={BANK_CAPTION} textAlign="middle-center" textWrap="wrap" uiTransform={{ width: '100%', minHeight: 26, margin: { top: 26 } }} />
+            ) : null,
+            storeActionButton(action)
+        ].filter((element): element is ReactEcs.JSX.Element => element !== null)
     }
 }
 
@@ -2073,6 +2075,8 @@ const LAND_OFFICE_TABS: { id: LandOfficeTab; label: () => string }[] = [
 const landOfficePanel = () => {
     const open = getLandOfficeTab()
     const tabs = LAND_OFFICE_TABS.map((tab) => tabButton(tab.id, tab.label(), tab.id === open, () => setLandOfficeTab(tab.id)))
+    // Leaving the SELL tab drops step 2: coming back starts at step 1.
+    if (open !== 'sell') sellConfirmFor = null
     if (open === 'sell') return counterPanel(t('land.title'), closeLandOfficePanel, [], '', () => {}, sellHomeDetail(), tabs)
     const key = selectedPropertyKey()
     return counterPanel(t('land.title'), closeLandOfficePanel, landOfficeProducts(), key, selectProperty, propertyDetail(findItem(key)!), tabs)
@@ -5631,7 +5635,6 @@ export const uiMenu = () => (
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isBankPanelOpen() ? bankPanel() : null}
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isStorePanelOpen() ? storePanel() : null}
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isLandOfficePanelOpen() ? landOfficePanel() : null}
-            {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && sellWarningFor !== null ? sellWarningPanel() : null}
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isClaimOfficePanelOpen() ? claimOfficePanel() : null}
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isTailorShopPanelOpen() ? tailorShopPanel() : null}
             {!mapOpen && !inventoryOpen && !notificationsOpen && !soundOpen && !townBoardOpen && isMulePanelOpen() && getMuleCount() > 0 ? mulePanel() : null}
