@@ -216,6 +216,7 @@ export const tr: Strings = {
     'land.movedUp': 'Buradan daha iyisine taşındın',
     'land.new': 'YENİ!',
     'land.demandNote': 'Fiyatlar arz ve talebe göre değişir',
+    'land.highDemandNote': 'Yüksek talep nedeniyle yeni fiyat',
     'land.sellToBank': 'BANKAYA SAT',
     'land.tabBuy': 'SATIN AL',
     'land.tabSell': 'BANKAYA SAT',

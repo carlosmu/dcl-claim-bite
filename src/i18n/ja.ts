@@ -19,7 +19,7 @@ export const ja: Strings = {
     'hud.ore': '鉱石',
     'hud.storageFull': '倉庫がいっぱい',
     'hud.orePrice': '鉱石の価格',
-    'hud.coins': 'かじりコイン',
+    'hud.coins': 'Bite Coins',
 
     // Ore price verdict
     'price.best': '最高',
@@ -217,6 +217,7 @@ export const ja: Strings = {
     'land.movedUp': 'ここから引っ越しました',
     'land.new': '新着！',
     'land.demandNote': '価格は需要と供給で変わります',
+    'land.highDemandNote': '需要が高いため新価格になりました',
     'land.sellToBank': '銀行に売る',
     'land.tabBuy': '購入',
     'land.tabSell': '銀行に売る',

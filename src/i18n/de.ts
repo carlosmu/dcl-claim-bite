@@ -215,6 +215,7 @@ export const de: Strings = {
     'land.movedUp': 'Von hier bist du aufgestiegen',
     'land.new': 'NEU!',
     'land.demandNote': 'Preise richten sich nach Angebot und Nachfrage',
+    'land.highDemandNote': 'Neuer Preis wegen hoher Nachfrage',
     'land.sellToBank': 'AN DIE BANK VERKAUFEN',
     'land.tabBuy': 'KAUFEN',
     'land.tabSell': 'AN DIE BANK',

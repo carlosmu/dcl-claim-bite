@@ -88,7 +88,7 @@ export const CATALOGUE: ShopItem[] = [
   { id: 'wagon', label: 'Wagon', line: 'housing', price: 0, startsOwned: true, benefit: 'A roof on wheels' },
   { id: 'cabin', label: 'Cabin', line: 'housing', price: 300, requires: 'wagon', benefit: 'Your first real home' },
   { id: 'house', label: 'House', line: 'housing', price: 700, requires: 'cabin', benefit: 'A house in town' },
-  { id: 'ranch', label: 'Ranch', line: 'housing', price: 2000, requires: 'house', benefit: 'The finest claim in town' }
+  { id: 'ranch', label: 'Ranch', line: 'housing', price: 3000, requires: 'house', benefit: 'The finest claim in town' }
 ]
 
 /**
@@ -96,11 +96,12 @@ export const CATALOGUE: ShopItem[] = [
  * more adds `perLot` coins to that upgrade, and each one sold back takes them off again; the
  * catalogue price above is the floor. Counted in homes, not as a share of the area, so adding
  * lots to the scene leaves the price where it is.
+ *
+ * The Ranch is left out: it has a fixed price, raised for high demand (see the Land & Claim Office).
  */
 export const HOUSING_DEMAND: Partial<Record<ShopItemId, { freeLots: number; perLot: number }>> = {
   cabin: { freeLots: 24, perLot: 10 },
-  house: { freeLots: 16, perLot: 25 },
-  ranch: { freeLots: 12, perLot: 50 }
+  house: { freeLots: 16, perLot: 25 }
 }
 
 /**
@@ -119,7 +120,7 @@ export const BUYBACK_RATE = 0.5
 /** What the bank pays today for the player's home, or null when there is nothing to sell (the Wagon). */
 export function buybackOffer(ownedCount: (id: ShopItemId) => number, standing: (id: ShopItemId) => number): { item: ShopItem; coins: number } | null {
   const home = ownedTier('housing', ownedCount)
-  if (home === null || HOUSING_DEMAND[home.id] === undefined) return null
+  if (home === null || home.price <= 0) return null
   return { item: home, coins: Math.floor(demandPrice(home, standing) * BUYBACK_RATE) }
 }
 

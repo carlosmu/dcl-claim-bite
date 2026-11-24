@@ -215,6 +215,7 @@ export const id: Strings = {
     'land.movedUp': 'Kamu sudah pindah ke yang lebih baik',
     'land.new': 'BARU!',
     'land.demandNote': 'Harga berubah sesuai penawaran dan permintaan',
+    'land.highDemandNote': 'Harga baru karena permintaan tinggi',
     'land.sellToBank': 'JUAL KE BANK',
     'land.tabBuy': 'BELI',
     'land.tabSell': 'JUAL KE BANK',

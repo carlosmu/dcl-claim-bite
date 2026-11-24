@@ -21,7 +21,7 @@ export const ru: Strings = {
     'hud.ore': 'Руда',
     'hud.storageFull': 'СКЛАД ПОЛОН',
     'hud.orePrice': 'Цена',
-    'hud.coins': 'Укус-монеты',
+    'hud.coins': 'Bite Coins',
 
     // Ore price verdict
     'price.best': 'ЛУЧШАЯ',
@@ -219,6 +219,7 @@ export const ru: Strings = {
     'land.movedUp': 'Отсюда ты переехал в лучшее',
     'land.new': 'НОВОЕ!',
     'land.demandNote': 'Цены зависят от спроса и предложения',
+    'land.highDemandNote': 'Новая цена из-за высокого спроса',
     'land.sellToBank': 'ПРОДАТЬ БАНКУ',
     'land.tabBuy': 'КУПИТЬ',
     'land.tabSell': 'ПРОДАТЬ БАНКУ',
@@ -282,9 +283,9 @@ export const ru: Strings = {
     'mining.moveCloser': 'Подойди к камню, чтобы копать',
     'mining.keepMiningOne': 'Копай дальше: остался 1 удар',
     'mining.keepMining': 'Копай дальше: осталось ударов: {left}',
-    'mining.socialBonus': 'Общий бонус +{bonus}',
+    'mining.socialBonus': 'Социальный бонус +{bonus}',
     'popup.ore': '+{amount} руды',
-    'popup.socialBonus': '+{bonus} общий бонус',
+    'popup.socialBonus': '+{bonus} социальный бонус',
 
     // Durations
     'time.minutes': '{n} мин',
@@ -391,7 +392,7 @@ export const ru: Strings = {
     'obj.fuelLow': 'МАЛО ТОПЛИВА',
     'obj.refuel': 'Заправься в Лавке',
     'obj.hoursLeft': 'Осталось {n} ч',
-    'obj.socialBonus': 'ОБЩИЙ БОНУС',
+    'obj.socialBonus': 'СОЦИАЛЬНЫЙ БОНУС',
     'obj.minersBonus': 'Шахтёров: {miners}. +{bonus} руды за камень',
     'obj.moreMiners': 'Больше шахтёров, больше руды · до +10 при 4',
     'obj.mineTogether': 'Копай одновременно с другими',

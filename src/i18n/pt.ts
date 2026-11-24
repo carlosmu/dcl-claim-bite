@@ -214,6 +214,7 @@ export const pt: Strings = {
     'land.movedUp': 'Você se mudou para algo melhor',
     'land.new': 'NOVO!',
     'land.demandNote': 'Os preços variam com a oferta e a demanda',
+    'land.highDemandNote': 'Novo preço devido à alta demanda',
     'land.sellToBank': 'VENDER AO BANCO',
     'land.tabBuy': 'COMPRAR',
     'land.tabSell': 'VENDER AO BANCO',

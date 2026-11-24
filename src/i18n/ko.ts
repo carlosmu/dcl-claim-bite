@@ -19,7 +19,7 @@ export const ko: Strings = {
     'hud.ore': '광석',
     'hud.storageFull': '창고 가득 참',
     'hud.orePrice': '광석 가격',
-    'hud.coins': '한입 코인',
+    'hud.coins': 'Bite Coins',
 
     // Ore price verdict
     'price.best': '최고',
@@ -217,6 +217,7 @@ export const ko: Strings = {
     'land.movedUp': '여기서 더 좋은 곳으로 이사했어요',
     'land.new': '신규!',
     'land.demandNote': '가격은 수요와 공급에 따라 바뀌어요',
+    'land.highDemandNote': '수요가 많아 가격이 올랐어요',
     'land.sellToBank': '은행에 판매',
     'land.tabBuy': '구매',
     'land.tabSell': '은행에 판매',

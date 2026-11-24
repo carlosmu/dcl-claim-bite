@@ -214,6 +214,7 @@ export const nl: Strings = {
     'land.movedUp': 'Hiervandaan ben je verhuisd',
     'land.new': 'NIEUW!',
     'land.demandNote': 'Prijzen volgen vraag en aanbod',
+    'land.highDemandNote': 'Nieuwe prijs door grote vraag',
     'land.sellToBank': 'VERKOPEN AAN DE BANK',
     'land.tabBuy': 'KOPEN',
     'land.tabSell': 'AAN DE BANK',

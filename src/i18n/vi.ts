@@ -216,6 +216,7 @@ export const vi: Strings = {
     'land.movedUp': 'Bạn đã chuyển lên chỗ tốt hơn',
     'land.new': 'MỚI!',
     'land.demandNote': 'Giá thay đổi theo cung và cầu',
+    'land.highDemandNote': 'Giá mới do nhu cầu cao',
     'land.sellToBank': 'BÁN CHO NGÂN HÀNG',
     'land.tabBuy': 'MUA',
     'land.tabSell': 'BÁN CHO NGÂN HÀNG',

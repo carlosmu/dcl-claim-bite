@@ -216,6 +216,7 @@ export const en = {
     'land.movedUp': 'You moved up from here',
     'land.new': 'NEW!',
     'land.demandNote': 'Prices change with supply and demand',
+    'land.highDemandNote': 'New price due to high demand',
     'land.sellToBank': 'SELL TO THE BANK',
     'land.tabBuy': 'BUY',
     'land.tabSell': 'SELL TO THE BANK',

@@ -18,7 +18,7 @@ export const zh: Strings = {
     'hud.ore': '矿石',
     'hud.storageFull': '仓库已满',
     'hud.orePrice': '矿价',
-    'hud.coins': '咬币',
+    'hud.coins': 'Bite Coins',
 
     // Ore price verdict
     'price.best': '最佳',
@@ -216,6 +216,7 @@ export const zh: Strings = {
     'land.movedUp': '你已从这里搬到更好的地方',
     'land.new': '新！',
     'land.demandNote': '价格随供需变化',
+    'land.highDemandNote': '因需求旺盛，价格已上调',
     'land.sellToBank': '卖给银行',
     'land.tabBuy': '购买',
     'land.tabSell': '卖给银行',
