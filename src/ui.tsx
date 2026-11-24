@@ -37,15 +37,27 @@ import {
     isClaimOfficePanelOpen,
     toggleClaimOfficeFromButton
 } from './claim-office/claim-office'
-import { RewardCampaign, rewardCampaignsAt } from './shared/rewards'
+import { RewardCampaign, rewardCampaignsAt, TAILOR_BODY_PARTS, TAILOR_COLLECTIONS, TAILOR_KINDS, TailorBodyPart, TailorKind } from './shared/rewards'
 import {
     buyTailorItem,
     canBuyTailorItem,
     closeTailorShopPanel,
+    closeTailorDetail,
     getSelectedTailorItem,
+    getTailorBodyPart,
+    getTailorCollection,
+    getTailorKind,
+    getTailorOpenMenu,
+    isTailorDetailOpen,
     isTailorItemOwned,
+    isTailorItemSoldOut,
     isTailorShopPanelOpen,
-    selectTailorItem
+    openTailorDetail,
+    setTailorBodyPart,
+    setTailorCollection,
+    setTailorKind,
+    TailorFilterMenu,
+    toggleTailorMenu
 } from './tailor-shop/tailor-shop'
 import {
     canSendNote,
@@ -109,7 +121,7 @@ import { isLocalPreview } from './shared/local-preview'
 import { quotedRate, secondsToRecover } from './shared/state/market'
 import { getLanguage, itemBenefit, itemName, noteBody, noteSender, rewardText, t, upper } from './i18n'
 import { flagIcon, LANGUAGE_LIST_WIDTH, languageColumns } from './ui/language-selector'
-import { BitmapText } from './ui/bitmap-text'
+import { BitmapText, gameFontSrc } from './ui/bitmap-text'
 import { introScreen } from './ui/intro-screen'
 import { giveFeedback, reportBug } from './playtest'
 import { welcomeOverlay } from './ui/welcome-overlay'
@@ -302,6 +314,11 @@ const ICON_FEEDBACK = atlasCell(8, 4) // H4 — speech bubble with stars
 const SMALL_ICONS_ATLAS = 'assets/images/Small_icons.png'
 const SMALL_ICONS_GRID = 8
 const smallIcon = (column: number, row: number): Icon => atlasCell(column, row, SMALL_ICONS_ATLAS, SMALL_ICONS_GRID, SMALL_ICONS_GRID)
+
+// Collectibles: the Tailor Shop's items, an 8x8 grid named like the other atlases.
+const COLLECTIBLES_ATLAS = 'assets/images/Collectibles.png'
+const COLLECTIBLES_GRID = 8
+const collectibleIcon = (column: number, row: number): Icon => atlasCell(column, row, COLLECTIBLES_ATLAS, COLLECTIBLES_GRID, COLLECTIBLES_GRID)
 
 const ICON_COPY = smallIcon(1, 1) // A1
 const ICON_COPIED = smallIcon(2, 1) // B1
@@ -1834,6 +1851,11 @@ const counterPanel = (
     listWidth: number = STORE_LIST_WIDTH
 ) => {
     const content = counterContent(products, key, onSelect, detail, listWidth)
+    return panelFrame(title, onClose, showCoins, tabs !== undefined ? tabbedBox(tabs, content, true) : content)
+}
+
+/** A counter's frame: the title with the purse under it, the close button in the corner, and the body. */
+const panelFrame = (title: string, onClose: () => void, showCoins: boolean, body: ReactEcs.JSX.Element) => {
     return (
         <UiEntity
             uiTransform={{
@@ -1864,7 +1886,7 @@ const counterPanel = (
                 />
             </UiEntity>
 
-            {tabs !== undefined ? tabbedBox(tabs, content, true) : content}
+            {body}
         </UiEntity>
     )
 }
@@ -2153,7 +2175,11 @@ function selectedReward(): RewardCampaign {
 
 /** Atlas icons for the items without a thumbnail of their own, by campaign id. */
 const REWARD_ICONS: Record<string, Icon> = {
-    'claim-bite-mining': ICON_ORE
+    'claim-bite-mining': ICON_ORE,
+    'drifter-boots': collectibleIcon(1, 1), // A1
+    'drifter-hat': collectibleIcon(2, 1), // B1
+    'drifter-pants': collectibleIcon(3, 1), // C1
+    'drifter-gear': collectibleIcon(4, 1) // D1
 }
 
 /** The item's thumbnail when one is set, else its atlas icon, else the gift box. */
@@ -2388,43 +2414,259 @@ const claimOfficePanel = () => {
 
 // --- Tailor Shop ------------------------------------------------------------------------
 //
-// The store's layout selling wearables and emotes for coins: one card per Rewards campaign at the
-// Tailor Shop (shared/rewards.ts). Bought once each, through the same claim as the Claim Office:
-// the server takes the coins and asks the Rewards service. Coming Soon until the item is ready.
+// A catalogue that grows to dozens of wearables and emotes: shelves along the top (All and one per
+// category), a collection filter, and a scrolling grid of cards built from the Tailor Shop's
+// campaigns (shared/rewards.ts). A new item, category or collection needs no change here. A card
+// opens the item's detail in place of the catalogue, with a way back. Buying goes through the
+// same claim as the Claim Office: the server takes the coins and asks the Rewards service.
 
 const TAILOR_CAMPAIGNS = rewardCampaignsAt('tailor')
 
-function tailorItemOf(key: string): RewardCampaign | undefined {
-    return TAILOR_CAMPAIGNS.find((campaign) => rewardKey(campaign) === key)
+const TAILOR_CARD_HEIGHT = 196
+const TAILOR_CARD_ICON = 100
+const TAILOR_CARD_GAP = 10
+const TAILOR_FILTER_HEIGHT = 44
+const TAILOR_FILTER_GAP = 8
+const TAILOR_MENU_ROW = 42
+/** Two rows and a sliver of the third, which says there is more below. */
+const TAILOR_GRID_HEIGHT = 2 * (TAILOR_CARD_HEIGHT + TAILOR_CARD_GAP) + 56
+/** The catalogue's height on desktop, which the detail keeps so the panel does not jump. A function: the tab constants are declared further down. */
+function tailorBodyHeight(): number {
+    return INVENTORY_TAB_HEIGHT + TAB_BODY_PADDING_TOP + TAB_BODY_PADDING + TAILOR_FILTER_HEIGHT + TAILOR_FILTER_GAP + TAILOR_GRID_HEIGHT
+}
+const TAILOR_DETAIL_ICON = 230
+
+/** Three columns on desktop; two on mobile, where cards are tapped with a thumb. */
+function tailorColumns(): number {
+    return isMobile() ? 2 : 3
 }
 
-function tailorCardStatus(campaign: RewardCampaign): Status | null {
-    if (campaign.comingSoon) return STATUS_SOON
-    if (isTailorItemOwned(campaign.id)) return { text: t('status.owned'), color: PRICE_GOOD_COLOR }
-    return null
+type TailorState = 'available' | 'owned' | 'soon' | 'soldOut'
+
+function tailorState(campaign: RewardCampaign): TailorState {
+    if (isTailorItemOwned(campaign.id)) return 'owned'
+    if (campaign.comingSoon) return 'soon'
+    if (isTailorItemSoldOut(campaign.id)) return 'soldOut'
+    return 'available'
 }
 
-function tailorProducts(): Product[] {
-    return TAILOR_CAMPAIGNS.map((campaign) => ({
-        key: rewardKey(campaign),
-        title: rewardText(campaign, 'cardTitle'),
-        icon: giftIcon(campaign),
-        hint: campaign.comingSoon || isTailorItemOwned(campaign.id) ? '' : t('store.coinsPrice', { price: withCommas(campaign.price) }),
-        status: tailorCardStatus(campaign),
-        muted: campaign.comingSoon
-    }))
+function tailorStatus(state: TailorState): Status {
+    if (state === 'owned') return { text: t('status.owned'), color: PRICE_GOOD_COLOR }
+    if (state === 'soon') return STATUS_SOON
+    if (state === 'soldOut') return { text: t('status.soldOut'), color: SHORT_COLOR }
+    return { text: t('status.available'), color: BANK_GOLD_LIGHT }
 }
 
-function tailorDetail(campaign: RewardCampaign): Detail {
-    const status = getRewardStatus(campaign.id)
+const TAILOR_KIND_LABELS: Record<TailorKind, () => string> = {
+    wearables: () => t('tailor.kind.wearables'),
+    emotes: () => t('tailor.kind.emotes')
+}
+
+function tailorBodyPartName(id: TailorBodyPart | 'all'): string {
+    if (id === 'all') return t('tailor.allBodyParts')
+    return t(`tailor.bodyPart.${id}`)
+}
+
+function tailorCollectionName(id: string): string {
+    if (id === 'all') return t('tailor.allCollections')
+    return TAILOR_COLLECTIONS.find((collection) => collection.id === id)?.name ?? id
+}
+
+/** The open tab's items that pass the filters, in catalogue order. Body part only sorts wearables. */
+function tailorCatalogue(): RewardCampaign[] {
+    const kind = getTailorKind()
+    const bodyPart = getTailorBodyPart()
+    const collection = getTailorCollection()
+    return TAILOR_CAMPAIGNS.filter(
+        (campaign) =>
+            campaign.kind === kind &&
+            (kind !== 'wearables' || bodyPart === 'all' || campaign.bodyPart === bodyPart) &&
+            (collection === 'all' || campaign.collection === collection)
+    )
+}
+
+/** A name in the western font that wraps onto `lines` lines rather than running off the card. */
+const wrappedTitle = (text: string, size: number, color: Color4, lines: number, align: 'left' | 'center') => (
+    <Label
+        value={text}
+        fontSize={size}
+        color={color}
+        fontSrc={gameFontSrc()}
+        font="serif"
+        textAlign={align === 'center' ? 'middle-center' : 'middle-left'}
+        textWrap="wrap"
+        uiTransform={{ width: '100%', height: Math.round(size * 1.2 * lines), flexShrink: 0 }}
+    />
+)
+
+const tailorCard = (campaign: RewardCampaign, columns: number) => {
+    const state = tailorState(campaign)
+    const status = tailorStatus(state)
+    const muted = state === 'soon' || state === 'soldOut'
+    const priceColor = muted ? MUTED_COLOR : state === 'owned' || getCoins() >= campaign.price ? COIN_COLOR : SHORT_COLOR
+    return (
+        // The cell carries the gap as padding, so the cards share the row evenly whatever the column count.
+        <UiEntity
+            key={campaign.id}
+            uiTransform={{ width: `${Number((100 / columns).toFixed(3))}%` as `${number}%`, height: TAILOR_CARD_HEIGHT + TAILOR_CARD_GAP, padding: TAILOR_CARD_GAP / 2, flexShrink: 0 }}
+        >
+            <UiEntity
+                uiTransform={{
+                    width: '100%',
+                    height: '100%',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    padding: { top: 10, bottom: 10, left: 10, right: 10 },
+                    borderRadius: 10,
+                    borderWidth: 2,
+                    borderColor: BANK_TRIM
+                }}
+                uiBackground={{ color: BANK_WOOD }}
+                onMouseDown={() => openTailorDetail(campaign.id)}
+            >
+                <UiEntity
+                    uiTransform={{ width: TAILOR_CARD_ICON, height: TAILOR_CARD_ICON, flexShrink: 0 }}
+                    uiBackground={iconBackground(giftIcon(campaign), muted ? COMING_SOON_TINT : undefined)}
+                />
+                {wrappedTitle(upper(rewardText(campaign, 'name')), 17, muted ? MUTED_COLOR : BANK_CREAM, 2, 'center')}
+                <UiEntity uiTransform={{ flexGrow: 1 }} />
+                <UiEntity uiTransform={{ width: '100%', height: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+                    {campaign.price > 0 ? coinAmount(campaign.price, priceColor, 20) : <BitmapText value={t('store.freeCaps')} fontSize={20} color={priceColor} />}
+                    <Label value={status.text} fontSize={14} color={status.color} textAlign="middle-right" textWrap="nowrap" uiTransform={{ height: 22 }} />
+                </UiEntity>
+            </UiEntity>
+        </UiEntity>
+    )
+}
+
+type TailorFilterOption = { id: string; label: string }
+
+/** One filter's button: what it shows now, and an arrow that opens its list. Half the row. */
+const tailorFilterButton = (menu: TailorFilterMenu, label: string) => {
+    const open = getTailorOpenMenu() === menu
+    return (
+        <UiEntity
+            key={menu}
+            uiTransform={{
+                width: '49%',
+                height: TAILOR_FILTER_HEIGHT,
+                flexDirection: 'row',
+                alignItems: 'center',
+                padding: { left: 14, right: 10 },
+                borderRadius: 10,
+                borderWidth: 2,
+                borderColor: open ? BANK_GOLD : BANK_TRIM
+            }}
+            uiBackground={{ color: BANK_WOOD }}
+            onMouseDown={() => toggleTailorMenu(menu)}
+        >
+            <UiEntity uiTransform={{ flexGrow: 1 }}>
+                <BitmapText value={upper(label)} fontSize={20} color={BANK_GOLD_LIGHT} />
+            </UiEntity>
+            <Label value={open ? '▲' : '▼'} fontSize={16} color={BANK_GOLD_LIGHT} textAlign="middle-center" uiTransform={{ width: 24, height: TAILOR_FILTER_HEIGHT }} />
+        </UiEntity>
+    )
+}
+
+/** The filters: Body Part on the left (wearables only), Collection on the right. */
+const tailorFilterRow = () => (
+    <UiEntity
+        uiTransform={{ width: '100%', height: TAILOR_FILTER_HEIGHT, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, margin: { bottom: TAILOR_FILTER_GAP } }}
+    >
+        {getTailorKind() === 'wearables' ? tailorFilterButton('bodyPart', tailorBodyPartName(getTailorBodyPart())) : <UiEntity uiTransform={{ width: '49%' }} />}
+        {tailorFilterButton('collection', tailorCollectionName(getTailorCollection()))}
+    </UiEntity>
+)
+
+/** The open filter's list, laid over the grid under its button. Drawn inside the catalogue box,
+ *  never outside it: on mobile a tap outside its parent's rect is lost. */
+const tailorFilterMenu = (menu: TailorFilterMenu) => {
+    const options: TailorFilterOption[] =
+        menu === 'bodyPart'
+            ? (['all', ...TAILOR_BODY_PARTS] as (TailorBodyPart | 'all')[]).map((id) => ({ id, label: tailorBodyPartName(id) }))
+            : ['all', ...TAILOR_COLLECTIONS.map((collection) => collection.id)].map((id) => ({ id, label: tailorCollectionName(id) }))
+    const current = menu === 'bodyPart' ? getTailorBodyPart() : getTailorCollection()
+    const pick = (id: string) => (menu === 'bodyPart' ? setTailorBodyPart(id as TailorBodyPart | 'all') : setTailorCollection(id))
+    return (
+        <UiEntity
+            uiTransform={{
+                positionType: 'absolute',
+                position: menu === 'bodyPart' ? { top: TAILOR_FILTER_HEIGHT + 4, left: 0 } : { top: TAILOR_FILTER_HEIGHT + 4, right: 0 },
+                width: '49%',
+                flexDirection: 'column',
+                padding: 4,
+                borderRadius: 10,
+                borderWidth: 2,
+                borderColor: BANK_GOLD,
+                zIndex: 10
+            }}
+            uiBackground={{ color: BANK_WOOD_DARK }}
+        >
+            {options.map((option) => (
+                <UiEntity
+                    key={option.id}
+                    uiTransform={{ width: '100%', height: TAILOR_MENU_ROW, flexDirection: 'row', alignItems: 'center', padding: { left: 10, right: 10 }, borderRadius: 8 }}
+                    uiBackground={{ color: option.id === current ? BANK_TRIM : BANK_WOOD_DARK }}
+                    onMouseDown={() => pick(option.id)}
+                >
+                    <BitmapText value={upper(option.label)} fontSize={20} color={option.id === current ? BANK_GOLD_LIGHT : BANK_CREAM} />
+                </UiEntity>
+            ))}
+        </UiEntity>
+    )
+}
+
+/** The cards, wrapped into rows and scrolled. On desktop a fixed height; on mobile what the screen leaves. */
+const tailorGrid = (items: RewardCampaign[]) => {
+    const columns = tailorColumns()
+    return (
+        <UiEntity
+            uiTransform={{
+                width: '100%',
+                ...(isMobile() ? { flexGrow: 1, flexBasis: 0 } : { height: TAILOR_GRID_HEIGHT, flexShrink: 0 }),
+                flexDirection: 'column',
+                overflow: 'scroll'
+            }}
+        >
+            {items.length === 0 ? (
+                <Label value={t('tailor.empty')} fontSize={DETAIL_TEXT_SIZE} color={BANK_CAPTION} textAlign="middle-center" uiTransform={{ width: '100%', height: TAILOR_CARD_HEIGHT }} />
+            ) : (
+                <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', flexWrap: 'wrap', flexShrink: 0 }}>
+                    {items.map((campaign) => tailorCard(campaign, columns))}
+                </UiEntity>
+            )}
+        </UiEntity>
+    )
+}
+
+const tailorCatalogueView = () => {
+    const kind = getTailorKind()
+    const tabs = TAILOR_KINDS.map((id) => tabButton(id, TAILOR_KIND_LABELS[id](), id === kind, () => setTailorKind(id)))
+    const openMenu = getTailorOpenMenu()
+    const body = (
+        <UiEntity uiTransform={{ width: '100%', flexGrow: 1, flexDirection: 'column' }}>
+            {tailorFilterRow()}
+            {tailorGrid(tailorCatalogue())}
+            {openMenu !== null && (openMenu === 'collection' || kind === 'wearables') ? tailorFilterMenu(openMenu) : null}
+        </UiEntity>
+    )
+    return tabbedBox(tabs, body, true)
+}
+
+const tailorDetailView = (campaign: RewardCampaign) => {
+    const state = tailorState(campaign)
+    const status = tailorStatus(state)
+    const claim = getRewardStatus(campaign.id)
+    const muted = state === 'soon' || state === 'soldOut'
     let action: Action
-    if (campaign.comingSoon) action = { label: t('action.comingSoon'), kind: 'off' }
-    else if (status.claimed) action = { label: t('action.owned'), kind: 'equipped' }
-    else if (status.claiming) action = { label: t('action.buying'), kind: 'off' }
+    if (state === 'owned') action = { label: t('action.owned'), kind: 'equipped' }
+    else if (state === 'soon') action = { label: t('action.comingSoon'), kind: 'off' }
+    else if (state === 'soldOut') action = { label: t('action.soldOut'), kind: 'off' }
+    else if (claim.claiming) action = { label: t('action.buying'), kind: 'off' }
     else action = { label: t('action.buy'), kind: canBuyTailorItem(campaign.id) ? 'buy' : 'off', onClick: () => buyTailorItem(campaign.id) }
 
     const notes: ReactEcs.JSX.Element[] = []
-    if (status.claimed) {
+    if (claim.claimed) {
         // Minted on chain by the Rewards service when gas allows: it can take a while to show up.
         notes.push(detailNote(t('reward.onItsWay'), PRICE_GOOD_COLOR))
         notes.push(detailNote(t('reward.fewMinutes'), BANK_CAPTION))
@@ -2432,33 +2674,73 @@ function tailorDetail(campaign: RewardCampaign): Detail {
     }
     const error = getRewardClaimError(campaign.id)
     if (error !== '') notes.push(detailNote(error, SHORT_COLOR))
-    return {
-        title: rewardText(campaign, 'name'),
-        description: rewardText(campaign, 'description'),
-        icon: giftIcon(campaign),
-        stats: campaign.comingSoon ? [] : [priceStat(campaign.price)],
-        notes,
-        actions: [storeActionButton(action)],
-        bigIcon: true
-    }
+    const priceColor = muted || state === 'owned' ? MUTED_COLOR : getCoins() >= campaign.price ? COIN_COLOR : SHORT_COLOR
+
+    return (
+        <UiEntity
+            uiTransform={{
+                width: '100%',
+                flexGrow: 1,
+                ...(isMobile() ? {} : { minHeight: tailorBodyHeight() }),
+                flexDirection: 'column',
+                padding: 18,
+                borderRadius: PANEL_RADIUS,
+                borderWidth: 2,
+                borderColor: BANK_TRIM
+            }}
+            uiBackground={{ color: BANK_WOOD }}
+        >
+            <UiEntity
+                uiTransform={{ height: 40, flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', flexShrink: 0, padding: { left: 14, right: 16 }, borderRadius: 10, borderWidth: 2, borderColor: BANK_TRIM }}
+                uiBackground={{ color: BANK_STEP_COLOR }}
+                onMouseDown={closeTailorDetail}
+            >
+                <BitmapText value={`< ${t('tailor.back')}`} fontSize={20} color={BANK_GOLD_LIGHT} />
+            </UiEntity>
+            <UiEntity uiTransform={{ width: '100%', flexGrow: 1, flexDirection: 'row', margin: { top: 14 } }}>
+                <UiEntity
+                    uiTransform={{
+                        width: TAILOR_DETAIL_ICON + 24,
+                        height: TAILOR_DETAIL_ICON + 24,
+                        flexShrink: 0,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        borderRadius: PANEL_RADIUS,
+                        borderWidth: 2,
+                        borderColor: BANK_TRIM
+                    }}
+                    uiBackground={{ color: BANK_STEP_COLOR }}
+                >
+                    <UiEntity
+                        uiTransform={{ width: TAILOR_DETAIL_ICON, height: TAILOR_DETAIL_ICON }}
+                        uiBackground={iconBackground(giftIcon(campaign), muted ? COMING_SOON_TINT : undefined)}
+                    />
+                </UiEntity>
+                <UiEntity uiTransform={{ flexGrow: 1, width: 0, flexDirection: 'column', padding: { left: 20 } }}>
+                    {campaign.collection !== undefined ? (
+                        <Label value={upper(tailorCollectionName(campaign.collection))} fontSize={DETAIL_CAPTION_SIZE} color={BANK_CAPTION} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 24 }} />
+                    ) : null}
+                    {wrappedTitle(upper(rewardText(campaign, 'name')), 32, BANK_GOLD_LIGHT, 2, 'left')}
+                    <Label value={status.text} fontSize={DETAIL_TEXT_SIZE} color={status.color} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 28 }} />
+                    <Label value={rewardText(campaign, 'description')} fontSize={DETAIL_TEXT_SIZE} color={BANK_CREAM} textAlign="top-left" textWrap="wrap" uiTransform={{ width: '100%', minHeight: 56, margin: { top: 6 } }} />
+                    <UiEntity uiTransform={{ flexDirection: 'column', margin: { top: 10 } }}>
+                        <Label value={t('store.price')} fontSize={DETAIL_CAPTION_SIZE} color={BANK_CAPTION} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 26 }} />
+                        {campaign.price > 0 ? coinAmount(campaign.price, priceColor, 28) : <BitmapText value={t('store.freeCaps')} fontSize={28} color={priceColor} />}
+                    </UiEntity>
+                    {notes}
+                    {/* The action sits at the bottom, however much the item above has to say. */}
+                    <UiEntity uiTransform={{ flexGrow: 1 }} />
+                    {storeActionButton(action)}
+                </UiEntity>
+            </UiEntity>
+        </UiEntity>
+    )
 }
 
 const tailorShopPanel = () => {
-    const item = tailorItemOf(`reward:${getSelectedTailorItem()}`) ?? TAILOR_CAMPAIGNS[0]
-    return counterPanel(
-        t('tailor.title'),
-        closeTailorShopPanel,
-        tailorProducts(),
-        rewardKey(item),
-        (key) => {
-            const picked = tailorItemOf(key)
-            if (picked !== undefined) selectTailorItem(picked.id)
-        },
-        tailorDetail(item),
-        undefined,
-        true,
-        CLAIM_LIST_WIDTH
-    )
+    const selected = TAILOR_CAMPAIGNS.find((campaign) => campaign.id === getSelectedTailorItem())
+    const body = isTailorDetailOpen() && selected !== undefined ? tailorDetailView(selected) : tailorCatalogueView()
+    return panelFrame(t('tailor.title'), closeTailorShopPanel, true, body)
 }
 
 // --- Debug: reset progress --------------------------------------------------------------

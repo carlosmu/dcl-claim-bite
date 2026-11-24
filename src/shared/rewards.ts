@@ -30,6 +30,20 @@ export const REWARD_STEP_LABELS: Record<RewardStepId, string> = {
 /** Where an item is handed out: the Claim Office for quests, the Tailor Shop for sales. */
 export type RewardVenue = 'claim' | 'tailor'
 
+/** The Tailor Shop's tabs, in the order they are drawn. */
+export type TailorKind = 'wearables' | 'emotes'
+export const TAILOR_KINDS: readonly TailorKind[] = ['wearables', 'emotes']
+
+/** Where a wearable goes on the avatar, in the order the Body Part filter lists them (after All). */
+export type TailorBodyPart = 'head' | 'upperBody' | 'lowerBody' | 'feet'
+export const TAILOR_BODY_PARTS: readonly TailorBodyPart[] = ['head', 'upperBody', 'lowerBody', 'feet']
+
+/**
+ * The Tailor Shop's collections, in the order the filter lists them (after All Collections). A new
+ * collection is one line here and its id on its items; the shop's UI picks it up by itself.
+ */
+export const TAILOR_COLLECTIONS: readonly { id: string; name: string }[] = [{ id: 'drifter', name: 'Drifter' }]
+
 export type RewardCampaign = {
   /**
    * The key the player's progress is stored under. Never change it once the campaign is live:
@@ -52,6 +66,14 @@ export type RewardCampaign = {
   price: number
   /** Shown but not claimable yet: the card says Coming Soon and the server turns claims down. */
   comingSoon: boolean
+  /** No more to sell: the card says Sold Out and the server turns claims down. Unset: on sale. */
+  soldOut?: boolean
+  /** The Tailor Shop tab it is on. Unset: the Claim Office's items, never in the shop. */
+  kind?: TailorKind
+  /** A wearable's place on the avatar. Unset: shown under All body parts only. */
+  bodyPart?: TailorBodyPart
+  /** The id of its collection in TAILOR_COLLECTIONS. Unset: in none, shown under All Collections only. */
+  collection?: string
   /** The server environment variable that holds the campaign's dispenser key. The key itself is a secret and never here. */
   dispenserKeyVar: string
 }
@@ -81,7 +103,69 @@ export const REWARD_CAMPAIGNS: readonly RewardCampaign[] = [
     steps: [],
     price: 500,
     comingSoon: true,
+    kind: 'emotes',
     dispenserKeyVar: 'REWARDS_DISPENSER_KEY_MINING_EMOTE'
+  },
+  // The Drifter set. Until their campaigns exist: Coming Soon. Icons from Collectibles.png (ui.tsx, REWARD_ICONS).
+  {
+    id: 'drifter-boots',
+    cardTitle: 'Boots',
+    name: 'The Drifter Boots',
+    description: 'Sturdy leather boots made for dusty trails.',
+    thumbnail: '',
+    venue: 'tailor',
+    steps: [],
+    price: 800,
+    comingSoon: true,
+    kind: 'wearables',
+    bodyPart: 'feet',
+    collection: 'drifter',
+    dispenserKeyVar: 'REWARDS_DISPENSER_KEY_DRIFTER_BOOTS'
+  },
+  {
+    id: 'drifter-hat',
+    cardTitle: 'Hat',
+    name: 'The Drifter Hat',
+    description: 'A weathered cowboy hat for a true wanderer.',
+    thumbnail: '',
+    venue: 'tailor',
+    steps: [],
+    price: 1000,
+    comingSoon: true,
+    kind: 'wearables',
+    bodyPart: 'head',
+    collection: 'drifter',
+    dispenserKeyVar: 'REWARDS_DISPENSER_KEY_DRIFTER_HAT'
+  },
+  {
+    id: 'drifter-pants',
+    cardTitle: 'Pants',
+    name: 'The Drifter Pants',
+    description: 'Rugged pants patched for the toughest adventures.',
+    thumbnail: '',
+    venue: 'tailor',
+    steps: [],
+    price: 1200,
+    comingSoon: true,
+    kind: 'wearables',
+    bodyPart: 'lowerBody',
+    collection: 'drifter',
+    dispenserKeyVar: 'REWARDS_DISPENSER_KEY_DRIFTER_PANTS'
+  },
+  {
+    id: 'drifter-gear',
+    cardTitle: 'Gear',
+    name: 'The Drifter Gear',
+    description: 'Worn shirt and backpack for life on the frontier.',
+    thumbnail: '',
+    venue: 'tailor',
+    steps: [],
+    price: 1400,
+    comingSoon: true,
+    kind: 'wearables',
+    bodyPart: 'upperBody',
+    collection: 'drifter',
+    dispenserKeyVar: 'REWARDS_DISPENSER_KEY_DRIFTER_GEAR'
   }
 ]
 

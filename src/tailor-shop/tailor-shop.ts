@@ -2,7 +2,7 @@ import { ColliderLayer, engine, Entity, GltfContainer, Transform } from '@dcl/sd
 
 import { focusPanel, registerPanel } from '../world/panel-focus'
 import { createProximityZone, ProximityZone } from '../world/proximity-zone'
-import { rewardCampaignsAt } from '../shared/rewards'
+import { rewardCampaignsAt, TailorBodyPart, TailorKind } from '../shared/rewards'
 import { canClaimReward, claimReward, getRewardStatus } from '../claim-office/claim-office'
 import { getCoins } from '../shared/state/wallet'
 
@@ -23,6 +23,73 @@ export const TAILOR_SHOP_RADIUS_METERS = 4
 let zone: ProximityZone | null = null
 let closed = false
 let selectedId = rewardCampaignsAt('tailor')[0]?.id ?? ''
+/** What the catalogue shows: a tab, and the filters ('all' or a body part / collection id). */
+let kind: TailorKind = 'wearables'
+let bodyPart: TailorBodyPart | 'all' = 'all'
+let collection = 'all'
+/** The selected item's detail is open in place of the catalogue. */
+let detailOpen = false
+/** The filter whose list is open, if any. */
+let openMenu: TailorFilterMenu | null = null
+
+export type TailorFilterMenu = 'bodyPart' | 'collection'
+
+export function getTailorKind(): TailorKind {
+  return kind
+}
+
+export function setTailorKind(next: TailorKind): void {
+  kind = next
+  openMenu = null
+}
+
+export function getTailorBodyPart(): TailorBodyPart | 'all' {
+  return bodyPart
+}
+
+export function setTailorBodyPart(next: TailorBodyPart | 'all'): void {
+  bodyPart = next
+  openMenu = null
+}
+
+export function getTailorCollection(): string {
+  return collection
+}
+
+export function setTailorCollection(next: string): void {
+  collection = next
+  openMenu = null
+}
+
+export function getTailorOpenMenu(): TailorFilterMenu | null {
+  return openMenu
+}
+
+/** Opens a filter's list, or closes it when it is the one open. */
+export function toggleTailorMenu(menu: TailorFilterMenu): void {
+  openMenu = openMenu === menu ? null : menu
+}
+
+export function isTailorDetailOpen(): boolean {
+  return detailOpen
+}
+
+/** Selects an item and opens its detail. */
+export function openTailorDetail(id: string): void {
+  selectedId = id
+  detailOpen = true
+  openMenu = null
+}
+
+/** Back to the catalogue, filters as they were. */
+export function closeTailorDetail(): void {
+  detailOpen = false
+}
+
+/** Not owned, but no more to be had. */
+export function isTailorItemSoldOut(id: string): boolean {
+  return rewardCampaignsAt('tailor').find((campaign) => campaign.id === id)?.soldOut === true
+}
 
 export function isTailorShopPanelOpen(): boolean {
   return zone !== null && zone.isPlayerInside() && !closed
@@ -44,7 +111,7 @@ export function selectTailorItem(id: string): void {
 /** On sale, not owned, not being bought, quest met (none, for now) and the coins in the purse. */
 export function canBuyTailorItem(id: string): boolean {
   const item = rewardCampaignsAt('tailor').find((campaign) => campaign.id === id)
-  if (item === undefined || item.comingSoon) return false
+  if (item === undefined || item.comingSoon || item.soldOut === true) return false
   return canClaimReward(id) && getCoins() >= item.price
 }
 
@@ -77,6 +144,9 @@ export function setupTailorShop(): void {
 
   const open = () => {
     closed = false
+    // Each visit starts on the catalogue; the filters stay as they were left.
+    detailOpen = false
+    openMenu = null
     focusPanel('tailor-shop')
   }
   zone = createProximityZone({

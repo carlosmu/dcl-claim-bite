@@ -414,6 +414,10 @@ function handleClaimReward(address: string, campaignId: string): void {
     sendResult(address, 'claimReward', false, 'coming soon')
     return
   }
+  if (campaign.soldOut === true) {
+    sendResult(address, 'claimReward', false, 'sold out')
+    return
+  }
   const reward = rewardOf(purse, campaign.id)
   if (reward.claimed) {
     sendResult(address, 'claimReward', false, 'already claimed')
