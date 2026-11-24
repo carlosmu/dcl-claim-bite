@@ -49,7 +49,7 @@ import {
     getTailorKind,
     getTailorOpenMenu,
     isTailorDetailOpen,
-    isTailorItemOwned,
+    tailorItemCount,
     isTailorItemSoldOut,
     isTailorShopPanelOpen,
     openTailorDetail,
@@ -2443,15 +2443,19 @@ function tailorColumns(): number {
 
 type TailorState = 'available' | 'owned' | 'soon' | 'soldOut'
 
+/** 'owned': at least one copy bought, and still on sale: another can be bought. */
 function tailorState(campaign: RewardCampaign): TailorState {
-    if (isTailorItemOwned(campaign.id)) return 'owned'
     if (campaign.comingSoon) return 'soon'
     if (isTailorItemSoldOut(campaign.id)) return 'soldOut'
+    if (tailorItemCount(campaign.id) > 0) return 'owned'
     return 'available'
 }
 
-function tailorStatus(state: TailorState): Status {
-    if (state === 'owned') return { text: t('status.owned'), color: PRICE_GOOD_COLOR }
+function tailorStatus(campaign: RewardCampaign, state: TailorState): Status {
+    if (state === 'owned') {
+        const count = tailorItemCount(campaign.id)
+        return { text: count > 1 ? t('status.ownedCount', { count }) : t('status.owned'), color: PRICE_GOOD_COLOR }
+    }
     if (state === 'soon') return STATUS_SOON
     if (state === 'soldOut') return { text: t('status.soldOut'), color: SHORT_COLOR }
     return { text: t('status.available'), color: BANK_GOLD_LIGHT }
@@ -2501,9 +2505,9 @@ const wrappedTitle = (text: string, size: number, color: Color4, lines: number, 
 
 const tailorCard = (campaign: RewardCampaign, columns: number) => {
     const state = tailorState(campaign)
-    const status = tailorStatus(state)
+    const status = tailorStatus(campaign, state)
     const muted = state === 'soon' || state === 'soldOut'
-    const priceColor = muted ? MUTED_COLOR : state === 'owned' || getCoins() >= campaign.price ? COIN_COLOR : SHORT_COLOR
+    const priceColor = muted ? MUTED_COLOR : getCoins() >= campaign.price ? COIN_COLOR : SHORT_COLOR
     return (
         // The cell carries the gap as padding, so the cards share the row evenly whatever the column count.
         <UiEntity
@@ -2655,12 +2659,12 @@ const tailorCatalogueView = () => {
 
 const tailorDetailView = (campaign: RewardCampaign) => {
     const state = tailorState(campaign)
-    const status = tailorStatus(state)
+    const status = tailorStatus(campaign, state)
     const claim = getRewardStatus(campaign.id)
     const muted = state === 'soon' || state === 'soldOut'
     let action: Action
-    if (state === 'owned') action = { label: t('action.owned'), kind: 'equipped' }
-    else if (state === 'soon') action = { label: t('action.comingSoon'), kind: 'off' }
+    // Owned copies do not stop another purchase: the button stays BUY.
+    if (state === 'soon') action = { label: t('action.comingSoon'), kind: 'off' }
     else if (state === 'soldOut') action = { label: t('action.soldOut'), kind: 'off' }
     else if (claim.claiming) action = { label: t('action.buying'), kind: 'off' }
     else action = { label: t('action.buy'), kind: canBuyTailorItem(campaign.id) ? 'buy' : 'off', onClick: () => buyTailorItem(campaign.id) }
@@ -2674,7 +2678,7 @@ const tailorDetailView = (campaign: RewardCampaign) => {
     }
     const error = getRewardClaimError(campaign.id)
     if (error !== '') notes.push(detailNote(error, SHORT_COLOR))
-    const priceColor = muted || state === 'owned' ? MUTED_COLOR : getCoins() >= campaign.price ? COIN_COLOR : SHORT_COLOR
+    const priceColor = muted ? MUTED_COLOR : getCoins() >= campaign.price ? COIN_COLOR : SHORT_COLOR
 
     return (
         <UiEntity

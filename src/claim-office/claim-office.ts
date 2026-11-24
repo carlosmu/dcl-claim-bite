@@ -2,7 +2,7 @@ import { ColliderLayer, engine, GltfContainer } from '@dcl/sdk/ecs'
 
 import { focusPanel, registerPanel } from '../world/panel-focus'
 import { createProximityZone, ProximityZone } from '../world/proximity-zone'
-import { findRewardCampaign, RewardStatus } from '../shared/rewards'
+import { findRewardCampaign, isRewardRepeatable, RewardStatus } from '../shared/rewards'
 import { sendClaimReward } from '../net/economy-link'
 
 // The Claim Office: where rewards are handed out, apart from anything that is sold. One card per
@@ -50,19 +50,19 @@ export function toggleClaimOfficeFromButton(): void {
 
 /** Where the player stands with a campaign: nothing done until the server says otherwise. */
 export function getRewardStatus(campaignId: string): RewardStatus {
-  return statuses.get(campaignId) ?? { id: campaignId, done: [], claimed: false, claiming: false }
+  return statuses.get(campaignId) ?? { id: campaignId, done: [], claimed: false, count: 0, claiming: false }
 }
 
 export function getRewardClaimError(campaignId: string): string {
   return claimErrorFor === campaignId ? claimError : ''
 }
 
-/** Every step of the campaign's quest is done and it has not been claimed yet. */
+/** Every step of the campaign's quest is done and it has not been claimed yet (or it can be had again). */
 export function canClaimReward(campaignId: string): boolean {
   const campaign = findRewardCampaign(campaignId)
   if (campaign === null) return false
   const status = getRewardStatus(campaignId)
-  return !status.claimed && !status.claiming && campaign.steps.every((step) => status.done.includes(step))
+  return (!status.claimed || isRewardRepeatable(campaign)) && !status.claiming && campaign.steps.every((step) => status.done.includes(step))
 }
 
 export function claimReward(campaignId: string): void {

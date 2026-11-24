@@ -86,7 +86,7 @@ import { TUTORIAL_ROCK_SEQS } from '../shared/net/rock-sync'
 import { advanceRock, getRockSeqs, hasFinishedRock, isRock, isRockStarted, isUnknownRock, markFinished } from './rock'
 import { requestReward } from './rewards'
 import { onResponseSaved } from '../scene-feedback/lib/server/hooks'
-import { findRewardCampaign, LEGACY_GIFT_CAMPAIGN_ID, REWARD_CAMPAIGNS, REWARD_SURVEY_QUESTIONS, RewardStepId } from '../shared/rewards'
+import { findRewardCampaign, isRewardRepeatable, LEGACY_GIFT_CAMPAIGN_ID, REWARD_CAMPAIGNS, REWARD_SURVEY_QUESTIONS, RewardStepId } from '../shared/rewards'
 import { Compensation, compensationsFor } from './compensations'
 import { isAdmin } from '../shared/admins'
 import { getGenerationId, getNewestEntity } from './generation'
@@ -370,6 +370,11 @@ function rewardOf(purse: Purse, campaignId: string): StoredReward {
   return reward
 }
 
+/** Copies handed over; a save from before counts were kept has its one claim. */
+function copiesOf(reward: StoredReward | undefined): number {
+  return reward?.count ?? (reward?.claimed === true ? 1 : 0)
+}
+
 function sendRewardStatus(address: string): void {
   const purse = purses.get(address)
   if (purse === undefined) return
@@ -379,6 +384,7 @@ function sendRewardStatus(address: string): void {
       id: campaign.id,
       done: campaign.steps.filter((step) => reward?.steps[step] === true),
       claimed: reward?.claimed === true,
+      count: copiesOf(reward),
       claiming: claimingReward.has(claimKey(address, campaign.id))
     }
   })
@@ -419,7 +425,8 @@ function handleClaimReward(address: string, campaignId: string): void {
     return
   }
   const reward = rewardOf(purse, campaign.id)
-  if (reward.claimed) {
+  const repeatable = isRewardRepeatable(campaign)
+  if (reward.claimed && !repeatable) {
     sendResult(address, 'claimReward', false, 'already claimed')
     return
   }
@@ -450,8 +457,9 @@ function handleClaimReward(address: string, campaignId: string): void {
     // not recorded here, and the campaign's one-per-player limit is what stops a second one.
     const now = purses.get(address)
     // A refusal for "already got it" counts as claimed too: the wallet has its wearable, only
-    // this purse had lost the record of it.
-    const claimedNow = result.ok || result.alreadyClaimed
+    // this purse had lost the record of it. Not for an item bought again and again: there it means
+    // the dispenser has a limit set, and the purchase is simply turned down.
+    const claimedNow = result.ok || (result.alreadyClaimed && !repeatable)
     // Paid for only what this claim handed over: a refusal, or an item the wallet already had,
     // gets its coins back.
     const refund = result.ok ? 0 : price
@@ -472,7 +480,10 @@ function handleClaimReward(address: string, campaignId: string): void {
       }
     }
     if (claimedNow && now !== undefined) {
-      rewardOf(now, campaign.id).claimed = true
+      const stored = rewardOf(now, campaign.id)
+      const before = copiesOf(stored)
+      stored.claimed = true
+      stored.count = result.ok ? before + 1 : Math.max(before, 1)
       dirty.add(address)
     }
     if (now !== undefined && (claimedNow || refund > 0)) flushPurse(address)
@@ -972,7 +983,7 @@ function handleDebugReset(address: string): void {
   purse.pickDurability = {}
   purse.purchases = 0
   // DEBUG only: a claimed reward stays claimed, the Rewards campaign would not give it twice anyway.
-  for (const id of Object.keys(purse.rewards)) purse.rewards[id] = { steps: {}, claimed: purse.rewards[id].claimed }
+  for (const id of Object.keys(purse.rewards)) purse.rewards[id] = { steps: {}, claimed: purse.rewards[id].claimed, count: purse.rewards[id].count }
   purse.rigOreTally = 0
   lastRockAt.delete(address)
   lastSwing.delete(address)

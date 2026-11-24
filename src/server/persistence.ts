@@ -172,7 +172,8 @@ export type StoredPurse = {
   gift?: StoredGift
 }
 
-export type StoredReward = { steps: Record<string, boolean>; claimed: boolean }
+/** `count`: copies handed over, for a sold item that can be bought again. Missing: 1 if claimed, else 0. */
+export type StoredReward = { steps: Record<string, boolean>; claimed: boolean; count?: number }
 
 export type StoredGift = { sold: boolean; bought: boolean; surveyed: boolean; claimed: boolean }
 

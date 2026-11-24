@@ -174,6 +174,14 @@ export function rewardCampaignsAt(venue: RewardVenue): RewardCampaign[] {
   return REWARD_CAMPAIGNS.filter((campaign) => campaign.venue === venue)
 }
 
+/**
+ * Sold items can be bought again and again: each copy costs its coins, and the hours they take
+ * to earn are the limit. The Claim Office's free gifts stay one per player: they take minutes.
+ */
+export function isRewardRepeatable(campaign: RewardCampaign): boolean {
+  return campaign.venue === 'tailor'
+}
+
 /** The campaign that saves from before there were several (the purse's old `gift`) belong to. */
 export const LEGACY_GIFT_CAMPAIGN_ID = 'bug-catcher'
 
@@ -194,6 +202,8 @@ export type RewardStatus = {
   /** The steps of its quest already met. */
   done: string[]
   claimed: boolean
+  /** Copies handed over: 0 or 1 for a gift, any number for a sold item (isRewardRepeatable). */
+  count: number
   /** A claim sent to the Rewards service and not answered yet. */
   claiming: boolean
 }

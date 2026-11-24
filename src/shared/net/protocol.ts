@@ -135,6 +135,7 @@ export const Messages = {
         id: Schemas.String,
         done: Schemas.Array(Schemas.String),
         claimed: Schemas.Boolean,
+        count: Schemas.Number,
         claiming: Schemas.Boolean
       })
     )
