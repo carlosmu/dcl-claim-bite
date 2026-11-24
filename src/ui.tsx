@@ -2123,11 +2123,11 @@ function propertyDetail(item: ShopItem): Detail {
         stats: [priceStat(listPrice(item))],
         notes,
         // Right above the button: its price moves with the homes standing in town (HOUSING_DEMAND);
-        // the Wagon's does not. The Ranch's is fixed, and says it was raised for high demand.
+        // the Wagon's does not. The House and the Ranch say their fixed price was raised for high demand.
         actions: [
             HOUSING_DEMAND[item.id] !== undefined ? (
                 <Label key="demand" value={t('land.demandNote')} fontSize={DETAIL_CAPTION_SIZE} color={BANK_CAPTION} textAlign="middle-left" textWrap="wrap" uiTransform={{ width: '100%', minHeight: 26, margin: { top: 26 } }} />
-            ) : item.id === 'ranch' ? (
+            ) : item.id === 'house' || item.id === 'ranch' ? (
                 <Label key="demand" value={t('land.highDemandNote')} fontSize={DETAIL_CAPTION_SIZE} color={BANK_CAPTION} textAlign="middle-left" textWrap="wrap" uiTransform={{ width: '100%', minHeight: 26, margin: { top: 26 } }} />
             ) : null,
             storeActionButton(action)

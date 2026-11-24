@@ -87,7 +87,7 @@ export const CATALOGUE: ShopItem[] = [
   // from the start; the office only shows it, as the first step of the line.
   { id: 'wagon', label: 'Wagon', line: 'housing', price: 0, startsOwned: true, benefit: 'A roof on wheels' },
   { id: 'cabin', label: 'Cabin', line: 'housing', price: 300, requires: 'wagon', benefit: 'Your first real home' },
-  { id: 'house', label: 'House', line: 'housing', price: 700, requires: 'cabin', benefit: 'A house in town' },
+  { id: 'house', label: 'House', line: 'housing', price: 1000, requires: 'cabin', benefit: 'A house in town' },
   { id: 'ranch', label: 'Ranch', line: 'housing', price: 3000, requires: 'house', benefit: 'The finest claim in town' }
 ]
 
@@ -97,12 +97,10 @@ export const CATALOGUE: ShopItem[] = [
  * catalogue price above is the floor. Counted in homes, not as a share of the area, so adding
  * lots to the scene leaves the price where it is.
  *
- * The Ranch is left out: it has a fixed price, raised for high demand (see the Land & Claim Office).
+ * Empty for now: every home has a fixed price, raised for high demand (the Land & Claim Office
+ * says so). An entry here brings the moving price back for that tier.
  */
-export const HOUSING_DEMAND: Partial<Record<ShopItemId, { freeLots: number; perLot: number }>> = {
-  cabin: { freeLots: 24, perLot: 10 },
-  house: { freeLots: 16, perLot: 25 }
-}
+export const HOUSING_DEMAND: Partial<Record<ShopItemId, { freeLots: number; perLot: number }>> = {}
 
 /**
  * News a player has been told, kept in their purse so it is told once. SELL_HOME_NEWS: they
