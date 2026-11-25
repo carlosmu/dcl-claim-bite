@@ -38,7 +38,7 @@ export const DEBUG_FILL_PROPERTY_LOTS = DEBUG_ENABLED && false
 
 /** Gives the local player the first cabin lot, on this client only, so the pin floating over
  * their own property can be seen without buying one. Skipped while they really own a property. */
-export const DEBUG_OWN_CABIN = DEBUG_ENABLED && true
+export const DEBUG_OWN_CABIN = DEBUG_ENABLED && false
 
 /** Pads the Tailor Shop with stand-in wearables, on this client only, up to DEBUG_TAILOR_WEARABLES,
  * so a full catalogue (scrolling, filters, every card state) can be seen. They copy the Drifter
