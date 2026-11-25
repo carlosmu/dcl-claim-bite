@@ -471,6 +471,7 @@ export const de: Strings = {
     // Town board
     'town.title': 'STADTTAFEL',
     'town.last7Days': 'Letzte 7 Tage',
+    'town.previousWeek': 'Vorherige Woche',
     'town.empty': 'Noch steht nichts an der Tafel',
     'town.whale': 'DER WAL',
     'town.whaleFeat': 'Größter Einzelverkauf',
@@ -485,9 +486,10 @@ export const de: Strings = {
     'town.ore': '{ore} Erz',
     'town.orePerCoin': '{rate} Erz/Münze',
     'town.newOwners': 'NEUE BESITZER',
-    'town.activeUsers': 'AKTIVE SPIELER',
-    'town.activeUsersCount': 'Aktive Spieler: {count}',
+    'town.activeUsers': 'SPIELER ONLINE',
+    'town.activeUsersCount': 'Online: {count}',
     'town.more': '+{count} weitere',
+    'town.andMore': '...und {count} weitere',
     'town.statHand': 'Von Hand abgebautes Erz',
     'town.statRig': 'Von M.U.L.E.s gefördertes Erz',
     'town.statSold': 'Verkauftes Erz',
@@ -495,6 +497,7 @@ export const de: Strings = {
     'town.statIn': 'Eingenommene Münzen',
     'town.statOut': 'Ausgegebene Münzen',
     'town.statNet': 'Münzen in der Stadt, Veränderung',
+    'town.statCirculation': 'Münzen im Umlauf',
 
     // Slot machine
     'slots.title': 'SPIELAUTOMAT',
@@ -532,6 +535,8 @@ export const de: Strings = {
     'hover.playSlots': 'Am Automaten spielen',
     'hover.mine': 'Abbauen',
     'hover.mule': 'M.U.L.E. öffnen',
+    'hover.townPrev': 'Zurück',
+    'hover.townNext': 'Weiter',
     'hover.ownersPlace': 'Bei {name}',
 
     // Mining messages

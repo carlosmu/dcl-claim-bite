@@ -470,6 +470,7 @@ export const pt: Strings = {
     // Town board
     'town.title': 'MURAL DA CIDADE',
     'town.last7Days': 'Últimos 7 dias',
+    'town.previousWeek': 'Semana anterior',
     'town.empty': 'Ainda não há nada no mural',
     'town.whale': 'A BALEIA',
     'town.whaleFeat': 'A maior venda',
@@ -484,9 +485,10 @@ export const pt: Strings = {
     'town.ore': '{ore} de minério',
     'town.orePerCoin': '{rate} minério/moeda',
     'town.newOwners': 'NOVOS DONOS',
-    'town.activeUsers': 'JOGADORES ATIVOS',
-    'town.activeUsersCount': 'Jogadores ativos: {count}',
+    'town.activeUsers': 'JOGADORES ONLINE',
+    'town.activeUsersCount': 'Online: {count}',
     'town.more': '+{count} mais',
+    'town.andMore': '...e mais {count}',
     'town.statHand': 'Minério minerado à mão',
     'town.statRig': 'Minério das M.U.L.E.s',
     'town.statSold': 'Minério vendido',
@@ -494,6 +496,7 @@ export const pt: Strings = {
     'town.statIn': 'Moedas que entraram',
     'town.statOut': 'Moedas gastas',
     'town.statNet': 'Variação de moedas na cidade',
+    'town.statCirculation': 'Moedas em circulação',
 
     // Slot machine
     'slots.title': 'CAÇA-NÍQUEL',
@@ -531,6 +534,8 @@ export const pt: Strings = {
     'hover.playSlots': 'Jogar no caça-níquel',
     'hover.mine': 'Minerar',
     'hover.mule': 'Abrir M.U.L.A.',
+    'hover.townPrev': 'Anterior',
+    'hover.townNext': 'Próximo',
     'hover.ownersPlace': 'Casa de {name}',
 
     // Mining messages

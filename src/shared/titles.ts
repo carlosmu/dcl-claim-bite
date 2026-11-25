@@ -37,10 +37,12 @@ export type DayStats = {
   /** Coins that came into the town (sales, the bank buying homes back, slot wins, compensations), and coins spent (the Market, fuel, homes, the Tailor Shop, slot bets). */
   coinsIn: number
   coinsOut: number
+  /** Coins spent on things bought (the Market and homes, fuel, the Tailor Shop): coinsOut without the slot bets. Days saved before it was kept have none. */
+  purchases?: number
 }
 
 export function emptyDayStats(): DayStats {
-  return { hand: 0, rig: 0, oreSold: 0, bankPaid: 0, coinsIn: 0, coinsOut: 0 }
+  return { hand: 0, rig: 0, oreSold: 0, bankPaid: 0, coinsIn: 0, coinsOut: 0, purchases: 0 }
 }
 
 /** The economy over these days, added up. */
@@ -54,6 +56,7 @@ export function weekStats(days: TownDay[]): DayStats {
       total.bankPaid += entry.stats.bankPaid
       total.coinsIn += entry.stats.coinsIn
       total.coinsOut += entry.stats.coinsOut
+      total.purchases = (total.purchases ?? 0) + (entry.stats.purchases ?? 0)
     } else {
       for (const miner of Object.values(entry.miners)) {
         total.hand += miner.hand
@@ -87,9 +90,22 @@ export function dayKeyOf(now: number): string {
   return new Date(now - DAY_START_OFFSET_MS).toISOString().slice(0, 10)
 }
 
-/** The days still inside the window on `today`. */
-export function daysInWindow(days: TownDay[], today: number): TownDay[] {
-  return days.filter((entry) => entry.day > today - TITLE_WINDOW_DAYS && entry.day <= today)
+/** How many days are kept: this window, and the one before it, which the board falls back on while this one has nothing. */
+export const KEPT_DAYS = TITLE_WINDOW_DAYS * 2
+
+/** The days still inside the window on `today` (`windowDays` long, today included). */
+export function daysInWindow(days: TownDay[], today: number, windowDays: number = TITLE_WINDOW_DAYS): TownDay[] {
+  return days.filter((entry) => entry.day > today - windowDays && entry.day <= today)
+}
+
+/** The days of the window just before the one on `today`: last week. */
+export function daysInPreviousWindow(days: TownDay[], today: number): TownDay[] {
+  return daysInWindow(days, today - TITLE_WINDOW_DAYS)
+}
+
+/** True if nothing at all happened in these stats. */
+export function isEmptyDayStats(stats: DayStats): boolean {
+  return stats.hand === 0 && stats.rig === 0 && stats.oreSold === 0 && stats.bankPaid === 0 && stats.coinsIn === 0 && stats.coinsOut === 0 && (stats.purchases ?? 0) === 0
 }
 
 /**

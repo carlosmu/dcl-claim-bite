@@ -470,6 +470,7 @@ export const nl: Strings = {
     // Town board
     'town.title': 'STADSBORD',
     'town.last7Days': 'Afgelopen 7 dagen',
+    'town.previousWeek': 'Vorige week',
     'town.empty': 'Nog niets op het bord',
     'town.whale': 'DE WALVIS',
     'town.whaleFeat': 'Grootste verkoop',
@@ -484,9 +485,10 @@ export const nl: Strings = {
     'town.ore': '{ore} erts',
     'town.orePerCoin': '{rate} erts/munt',
     'town.newOwners': 'NIEUWE EIGENAARS',
-    'town.activeUsers': 'ACTIEVE SPELERS',
-    'town.activeUsersCount': 'Actieve spelers: {count}',
+    'town.activeUsers': 'SPELERS ONLINE',
+    'town.activeUsersCount': 'Online: {count}',
     'town.more': '+{count} meer',
+    'town.andMore': '...en nog {count}',
     'town.statHand': 'Erts met de hand gedolven',
     'town.statRig': 'Erts van M.U.L.E.s',
     'town.statSold': 'Verkocht erts',
@@ -494,6 +496,7 @@ export const nl: Strings = {
     'town.statIn': 'Munten binnen',
     'town.statOut': 'Munten uitgegeven',
     'town.statNet': 'Munten in de stad, verschil',
+    'town.statCirculation': 'Munten in omloop',
 
     // Slot machine
     'slots.title': 'GOKKAST',
@@ -531,6 +534,8 @@ export const nl: Strings = {
     'hover.playSlots': 'Gokkast spelen',
     'hover.mine': 'Hakken',
     'hover.mule': 'M.U.L.E. openen',
+    'hover.townPrev': 'Vorige',
+    'hover.townNext': 'Volgende',
     'hover.ownersPlace': 'Bij {name}',
 
     // Mining messages

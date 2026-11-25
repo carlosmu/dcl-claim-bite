@@ -1,8 +1,9 @@
 // The town's titles and its newest property owners.
 //
-// One stored record holds the whole board: a record per day for the last seven days, plus the
+// One stored record holds the whole board: a record per day for the last two weeks, plus the
 // newest owners. Titles are worked out from those days rather than kept, so when a day lapses the
-// next-best player simply takes over, without anyone having to do anything or be here.
+// next-best player simply takes over, without anyone having to do anything or be here. A title (or
+// the week's economy) with nothing in the last seven days shows last week's instead, marked as such.
 //
 // Like the other town-wide records, the board is only changed once it has been read (or confirmed
 // absent): a failed read is never taken for an empty board, or the next write would wipe it. What
@@ -13,7 +14,22 @@ import { syncEntity } from '@dcl/sdk/network'
 
 import { PANIC_SELLER_MIN_ORE, RATE_BASE } from '../shared/economy/constants'
 import { TOWN_TITLES_ENTITY_ENUM_ID, TownTitles } from '../shared/net/town-titles-sync'
-import { dayOf, daysInWindow, DayStats, emptyDayStats, featuredOwners, NEW_OWNERS_SHOWN, NewOwner, titleHolders, TownDay, weekStats } from '../shared/titles'
+import {
+  dayOf,
+  daysInPreviousWindow,
+  daysInWindow,
+  DayStats,
+  emptyDayStats,
+  featuredOwners,
+  isEmptyDayStats,
+  KEPT_DAYS,
+  NEW_OWNERS_SHOWN,
+  NewOwner,
+  titleHolders,
+  TownDay,
+  weekStats
+} from '../shared/titles'
+import { coinsInCirculation } from './coin-ledger'
 import { loadTitles, saveTitles } from './persistence'
 
 /** How often the board is published. */
@@ -27,7 +43,7 @@ const LOAD_RETRY_SECONDS = 5
 
 /**
  * Miners kept per day; past this the smallest tally makes room. A value may hold 512 KB, and at
- * about 90 bytes a miner this keeps a full week of days near 190 KB.
+ * about 90 bytes a miner this keeps the two weeks of days (KEPT_DAYS) near 380 KB.
  */
 const MAX_MINERS_PER_DAY = 300
 
@@ -51,9 +67,9 @@ function whenLoaded(apply: () => void): void {
   else waiting.push(apply)
 }
 
-/** Drops the days that have left the window. */
+/** Drops the days that are no longer kept (KEPT_DAYS). */
 function dropOldDays(): void {
-  const kept = daysInWindow(days, dayOf(Date.now()))
+  const kept = daysInWindow(days, dayOf(Date.now()), KEPT_DAYS)
   if (kept.length === days.length) return
   days = kept
   boardDirty = true
@@ -83,6 +99,16 @@ export function noteCoins(created: number, spent: number): void {
     const stats = todayStats()
     stats.coinsIn += Math.max(0, created)
     stats.coinsOut += Math.max(0, spent)
+    boardDirty = true
+  })
+}
+
+/** Coins spent on something bought (not a slot bet), for the board's weekly purchases. */
+export function noteSpentOnPurchase(coins: number): void {
+  if (coins <= 0) return
+  whenLoaded(() => {
+    const stats = todayStats()
+    stats.purchases = (stats.purchases ?? 0) + coins
     boardDirty = true
   })
 }
@@ -188,10 +214,36 @@ export function saveTitlesNow(): boolean {
 }
 
 function publish(): void {
+  const now = dayOf(Date.now())
+  const thisWeek = daysInWindow(days, now)
+  const lastWeek = daysInPreviousWindow(days, now)
+
+  // Each title from the last seven days; one nobody earned in them, from the seven before.
+  const current = titleHolders(thisWeek)
+  const fallback = titleHolders(lastWeek).filter((holder) => !current.some((other) => other.id === holder.id))
+  const titles = [
+    ...current.map(({ id, address, name, value }) => ({ id, address, name, value, previous: false })),
+    ...fallback.map(({ id, address, name, value }) => ({ id, address, name, value, previous: true }))
+  ]
+
+  // The same for the economy, as a whole: a quiet week shows the one before.
+  let week = weekStats(thisWeek)
+  let weekPrevious = false
+  if (isEmptyDayStats(week)) {
+    const previous = weekStats(lastWeek)
+    if (!isEmptyDayStats(previous)) {
+      week = previous
+      weekPrevious = true
+    }
+  }
+
   const board = {
-    titles: titleHolders(days).map(({ id, address, name, value }) => ({ id, address, name, value })),
+    titles,
     owners: featuredOwners(owners).map(({ kind, address, name }) => ({ kind, address, name })),
-    week: weekStats(days)
+    week: { ...week, purchases: week.purchases ?? 0 },
+    weekPrevious,
+    // -1 until the ledger has been read.
+    circulation: coinsInCirculation() ?? -1
   }
 
   // Only on a real change, like the rest of the synced state.
@@ -202,6 +254,8 @@ function publish(): void {
   mutable.titles = board.titles
   mutable.owners = board.owners
   mutable.week = board.week
+  mutable.weekPrevious = board.weekPrevious
+  mutable.circulation = board.circulation
 }
 
 function tick(dt: number): void {
@@ -224,7 +278,7 @@ function tick(dt: number): void {
 
 export function setupTitles(): void {
   boardEntity = engine.addEntity()
-  TownTitles.create(boardEntity, { titles: [], owners: [], week: emptyDayStats() })
+  TownTitles.create(boardEntity, { titles: [], owners: [], week: { ...emptyDayStats(), purchases: 0 }, weekPrevious: false, circulation: -1 })
   syncEntity(boardEntity, [TownTitles.componentId], TOWN_TITLES_ENTITY_ENUM_ID)
 
   engine.addSystem(tick, undefined, 'server:titles')

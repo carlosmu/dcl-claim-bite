@@ -5510,13 +5510,14 @@ const townCardLine = (value: string, fontSize: number, color: Color4) => (
     <Label value={value} fontSize={fontSize} color={color} textAlign="middle-center" textWrap="nowrap" uiTransform={{ width: '100%', height: fontSize + 8 }} />
 )
 
-const townTitleCard = (title: string, address: string, name: string, description: string) => (
+const townTitleCard = (title: string, address: string, name: string, description: string, previous: boolean) => (
     <UiEntity key={title} uiTransform={{ width: '100%', flexDirection: 'column', alignItems: 'center' }}>
         <BitmapText value={title} fontSize={34} color={BANK_GOLD_LIGHT} align="center" uiTransform={{ width: '100%', margin: { bottom: 10 } }} />
         {townPhoto(address, TOWN_TITLE_PHOTO_SIZE)}
         <UiEntity uiTransform={{ width: '100%', height: 8 }} />
         {townCardLine(name, 22, BANK_CREAM)}
         {townCardLine(description, 16, BANK_CAPTION)}
+        {previous ? townCardLine(t('town.previousWeek'), 14, BANK_GOLD_LIGHT) : null}
     </UiEntity>
 )
 
@@ -5594,7 +5595,7 @@ function townBoardCards(): ReactEcs.JSX.Element[] {
     const cards: ReactEcs.JSX.Element[] = []
     for (const entry of TOWN_TITLES) {
         const holder = board?.titles.find((title) => title.id === entry.id)
-        if (holder !== undefined) cards.push(townTitleCard(entry.title, holder.address, holder.name, `${entry.feat}: ${entry.value(holder.value)}`))
+        if (holder !== undefined) cards.push(townTitleCard(entry.title, holder.address, holder.name, `${entry.feat}: ${entry.value(holder.value)}`, holder.previous))
     }
     if (board !== null && board.owners.length > 0) cards.push(townOwnersCard(board.owners))
     // Always last, and always there: whoever is in the scene right now.

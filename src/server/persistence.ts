@@ -57,6 +57,9 @@ const JACKPOT_KEY = seasonKey('casino-pot')
 /** Scene-wide key: the slot machines' figures per day, for the owner to read in the Storage export. */
 const CASINO_STATS_KEY = seasonKey('casino-stats')
 
+/** The last balance seen for each player, for the coins in circulation (coin-ledger.ts). */
+const COIN_LEDGER_KEY = seasonKey('coin-ledger')
+
 /**
  * Scene-wide key: things the owner has to look at and maybe put right by hand (coins owed to a
  * player, say), for reading in the Storage panel. Not per season: an alert outlives a reset.
@@ -327,6 +330,24 @@ export async function saveCasinoStats(stats: StoredCasinoStats): Promise<boolean
     return ok
   } catch (error) {
     console.log(`[Server] could not save the casino stats: ${error}`)
+    return false
+  }
+}
+
+/** Each player's last balance seen, or null if none was ever saved. Throws if the read failed. */
+export function loadCoinLedger(): Promise<Record<string, number> | null> {
+  return readValue<Record<string, number>>(`/values/${encodeURIComponent(COIN_LEDGER_KEY)}`)
+}
+
+/** Resolves true once the write is confirmed, like savePurse. */
+export async function saveCoinLedger(ledger: Record<string, number>): Promise<boolean> {
+  if (writesStopped) return true
+  try {
+    const ok = await Storage.set(COIN_LEDGER_KEY, ledger)
+    if (!ok) console.log('[Server] could not save the coin ledger')
+    return ok
+  } catch (error) {
+    console.log(`[Server] could not save the coin ledger: ${error}`)
     return false
   }
 }

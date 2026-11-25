@@ -472,6 +472,7 @@ export const tr: Strings = {
     // Town board
     'town.title': 'KASABA PANOSU',
     'town.last7Days': 'Son 7 gün',
+    'town.previousWeek': 'Geçen hafta',
     'town.empty': 'Panoda henüz bir şey yok',
     'town.whale': 'BALİNA',
     'town.whaleFeat': 'Tek seferde en büyük satış',
@@ -486,9 +487,10 @@ export const tr: Strings = {
     'town.ore': '{ore} cevher',
     'town.orePerCoin': '{rate} cevher/para',
     'town.newOwners': 'YENİ SAHİPLER',
-    'town.activeUsers': 'AKTİF OYUNCULAR',
-    'town.activeUsersCount': 'Aktif oyuncu: {count}',
+    'town.activeUsers': 'ÇEVRİMİÇİ OYUNCULAR',
+    'town.activeUsersCount': 'Çevrimiçi: {count}',
     'town.more': '+{count} kişi daha',
+    'town.andMore': '...ve {count} kişi daha',
     'town.statHand': 'Elle kazılan cevher',
     'town.statRig': 'M.U.L.E. cevheri',
     'town.statSold': 'Satılan cevher',
@@ -496,6 +498,7 @@ export const tr: Strings = {
     'town.statIn': 'Gelen jeton',
     'town.statOut': 'Harcanan jeton',
     'town.statNet': 'Kasabadaki jeton değişimi',
+    'town.statCirculation': 'Dolaşımdaki jetonlar',
 
     // Slot machine
     'slots.title': 'SLOT MAKİNESİ',
@@ -533,6 +536,8 @@ export const tr: Strings = {
     'hover.playSlots': 'Slot oyna',
     'hover.mine': 'Kaz',
     'hover.mule': 'M.U.L.E.’yi aç',
+    'hover.townPrev': 'Önceki',
+    'hover.townNext': 'Sonraki',
     'hover.ownersPlace': '{name} evi',
 
     // Mining messages

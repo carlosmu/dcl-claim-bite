@@ -470,6 +470,7 @@ export const es: Strings = {
     // Town board
     'town.title': 'TABLÓN DEL PUEBLO',
     'town.last7Days': 'Últimos 7 días',
+    'town.previousWeek': 'Semana anterior',
     'town.empty': 'Aún no hay nada en el tablón',
     'town.whale': 'LA BALLENA',
     'town.whaleFeat': 'La mayor venta',
@@ -484,9 +485,10 @@ export const es: Strings = {
     'town.ore': '{ore} de mineral',
     'town.orePerCoin': '{rate} mineral/moneda',
     'town.newOwners': 'NUEVOS DUEÑOS',
-    'town.activeUsers': 'JUGADORES ACTIVOS',
-    'town.activeUsersCount': 'Jugadores activos: {count}',
+    'town.activeUsers': 'JUGADORES CONECTADOS',
+    'town.activeUsersCount': 'Conectados: {count}',
     'town.more': '+{count} más',
+    'town.andMore': '...y {count} más',
     'town.statHand': 'Ore minado a mano',
     'town.statRig': 'Ore de los M.U.L.E.',
     'town.statSold': 'Ore vendido',
@@ -494,6 +496,7 @@ export const es: Strings = {
     'town.statIn': 'Monedas que entraron',
     'town.statOut': 'Monedas gastadas',
     'town.statNet': 'Cambio de monedas en el pueblo',
+    'town.statCirculation': 'Monedas en circulación',
 
     // Slot machine
     'slots.title': 'TRAGAMONEDAS',
@@ -531,6 +534,8 @@ export const es: Strings = {
     'hover.playSlots': 'Jugar a la tragamonedas',
     'hover.mine': 'Minar',
     'hover.mule': 'Abrir M.U.L.A.',
+    'hover.townPrev': 'Anterior',
+    'hover.townNext': 'Siguiente',
     'hover.ownersPlace': 'Casa de {name}',
 
     // Mining messages

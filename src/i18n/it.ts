@@ -470,6 +470,7 @@ export const it: Strings = {
     // Town board
     'town.title': 'BACHECA',
     'town.last7Days': 'Ultimi 7 giorni',
+    'town.previousWeek': 'Settimana precedente',
     'town.empty': 'Ancora niente in bacheca',
     'town.whale': 'LA BALENA',
     'town.whaleFeat': 'La vendita più grande',
@@ -484,9 +485,10 @@ export const it: Strings = {
     'town.ore': '{ore} di minerale',
     'town.orePerCoin': '{rate} minerale/moneta',
     'town.newOwners': 'NUOVI PROPRIETARI',
-    'town.activeUsers': 'GIOCATORI ATTIVI',
-    'town.activeUsersCount': 'Giocatori attivi: {count}',
+    'town.activeUsers': 'GIOCATORI ONLINE',
+    'town.activeUsersCount': 'Online: {count}',
     'town.more': '+{count} altri',
+    'town.andMore': '...e altri {count}',
     'town.statHand': 'Minerale estratto a mano',
     'town.statRig': 'Minerale dai M.U.L.E.',
     'town.statSold': 'Minerale venduto',
@@ -494,6 +496,7 @@ export const it: Strings = {
     'town.statIn': 'Monete entrate',
     'town.statOut': 'Monete spese',
     'town.statNet': 'Variazione monete in città',
+    'town.statCirculation': 'Monete in circolazione',
 
     // Slot machine
     'slots.title': 'SLOT MACHINE',
@@ -531,6 +534,8 @@ export const it: Strings = {
     'hover.playSlots': 'Gioca alla slot',
     'hover.mine': 'Scava',
     'hover.mule': 'Apri la M.U.L.E.',
+    'hover.townPrev': 'Precedente',
+    'hover.townNext': 'Successivo',
     'hover.ownersPlace': 'Casa di {name}',
 
     // Mining messages

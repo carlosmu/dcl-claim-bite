@@ -472,6 +472,7 @@ export const en = {
     // Town board
     'town.title': 'TOWN BOARD',
     'town.last7Days': 'Last 7 days',
+    'town.previousWeek': 'Previous week',
     'town.empty': 'Nothing on the board yet',
     'town.whale': 'THE WHALE',
     'town.whaleFeat': 'Biggest single sale',
@@ -486,9 +487,10 @@ export const en = {
     'town.ore': '{ore} ore',
     'town.orePerCoin': '{rate} ore/coin',
     'town.newOwners': 'NEW OWNERS',
-    'town.activeUsers': 'ACTIVE USERS',
-    'town.activeUsersCount': 'Active Users: {count}',
+    'town.activeUsers': 'PLAYERS ONLINE',
+    'town.activeUsersCount': 'Online: {count}',
     'town.more': '+{count} more',
+    'town.andMore': '...and {count} more',
     'town.statHand': 'Ore mined by hand',
     'town.statRig': 'Ore dug by M.U.L.E.s',
     'town.statSold': 'Ore sold',
@@ -496,6 +498,7 @@ export const en = {
     'town.statIn': 'Coins in',
     'town.statOut': 'Coins spent',
     'town.statNet': 'Coins in town, change',
+    'town.statCirculation': 'Coins in circulation',
 
     // Slot machine
     'slots.title': 'SLOT MACHINE',
@@ -533,6 +536,8 @@ export const en = {
     'hover.playSlots': 'Play Slots',
     'hover.mine': 'Mine',
     'hover.mule': 'Open M.U.L.E.',
+    'hover.townPrev': 'Previous',
+    'hover.townNext': 'Next',
     'hover.ownersPlace': "{name}'s place",
 
     // Mining messages

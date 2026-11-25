@@ -78,7 +78,8 @@ import { addFuelGallons, fuelGallons, fuelHoursLeft, settleMule } from './mule'
 import { clearNotes, deleteNote, leaveBankNote, leaveNote, sendNotes, setupNotes } from './notes'
 import { SELL_HOME_NOTE_TEXT } from '../shared/notes'
 import { sendPrefs, setLanguagePref, setSoundPrefs } from './prefs'
-import { noteCoins, noteMined, noteNewOwner, noteSale, noteSlotWin, saveTitlesNow, setupTitles } from './titles'
+import { noteBalance, saveCoinLedgerNow, setupCoinLedger } from './coin-ledger'
+import { noteCoins, noteMined, noteNewOwner, noteSpentOnPurchase, noteSale, noteSlotWin, saveTitlesNow, setupTitles } from './titles'
 import { isCasinoReady, saveJackpotNow, setupCasino, spin } from './casino'
 import { saveCasinoStatsNow } from './casino-stats'
 import { SLOT_BETS, SLOT_MIN_SECONDS_BETWEEN_SPINS } from '../shared/economy/slots'
@@ -483,7 +484,10 @@ function handleClaimReward(address: string, campaignId: string): void {
         })
       }
     }
-    if (result.ok && price > 0) noteCoins(0, price)
+    if (result.ok && price > 0) {
+      noteCoins(0, price)
+      noteSpentOnPurchase(price)
+    }
     if (claimedNow && now !== undefined) {
       const stored = rewardOf(now, campaign.id)
       const before = copiesOf(stored)
@@ -600,6 +604,8 @@ function encodeOwned(purse: Purse): string {
 function sendWallet(address: string): void {
   const purse = purses.get(address)
   if (purse === undefined) return
+  // Whatever the player is shown, the town's ledger hears too.
+  noteBalance(address, purse.coins)
 
   const owned = (id: ShopItemId) => purse.owned[id] ?? 0
   room.send(
@@ -782,6 +788,7 @@ function handleBuy(address: string, itemId: string): void {
 
   purse.coins -= price
   noteCoins(0, price)
+  noteSpentOnPurchase(price)
   if (item.line === 'pick') giveFreshPick(purse, item)
   else purse.owned[item.id] = (purse.owned[item.id] ?? 0) + 1
   // The first rig comes with a gallon, a day of running; later ones share what is in the tank.
@@ -820,6 +827,7 @@ function buyFuel(address: string, purse: Purse, item: ShopItem): void {
   }
   purse.coins -= order.price
   noteCoins(0, order.price)
+  noteSpentOnPurchase(order.price)
   dirty.add(address)
 
   sendWallet(address)
@@ -1075,6 +1083,7 @@ function flushPurse(address: string): void {
   const purse = purses.get(address)
   if (purse === undefined || !dirty.has(address)) return
   dirty.delete(address)
+  noteBalance(address, purse.coins)
   const saved = savePurse(address, {
     ore: purse.ore,
     coins: purse.coins,
@@ -1739,6 +1748,7 @@ function saveEverythingNow(): boolean {
   if (saveJackpotNow()) any = true
   if (saveCasinoStatsNow()) any = true
   if (saveTitlesNow()) any = true
+  if (saveCoinLedgerNow()) any = true
   return any
 }
 
@@ -1954,6 +1964,7 @@ export function setupEconomy(): void {
   engine.addSystem(moveSpentRocks, undefined, 'server:rock-move')
   setupNotes()
   setupTitles()
+  setupCoinLedger()
   setupCasino()
   setupCreditsCampaign()
 }

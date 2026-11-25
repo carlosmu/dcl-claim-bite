@@ -473,6 +473,7 @@ export const ja: Strings = {
     // Town board
     'town.title': '町の掲示板',
     'town.last7Days': '過去 7 日間',
+    'town.previousWeek': '先週',
     'town.empty': '掲示板はまだ空です',
     'town.whale': 'クジラ',
     'town.whaleFeat': '一度の売却額が最大',
@@ -490,6 +491,7 @@ export const ja: Strings = {
     'town.activeUsers': 'オンライン中のプレイヤー',
     'town.activeUsersCount': 'オンライン：{count} 人',
     'town.more': 'ほか {count} 人',
+    'town.andMore': '…ほか {count} 人',
     'town.statHand': '手掘りの鉱石',
     'town.statRig': 'M.U.L.E.の鉱石',
     'town.statSold': '売れた鉱石',
@@ -497,6 +499,7 @@ export const ja: Strings = {
     'town.statIn': '入ったコイン',
     'town.statOut': '使われたコイン',
     'town.statNet': '町のコインの増減',
+    'town.statCirculation': '流通しているコイン',
 
     // Slot machine
     'slots.title': 'スロットマシン',
@@ -534,6 +537,8 @@ export const ja: Strings = {
     'hover.playSlots': 'スロットで遊ぶ',
     'hover.mine': '掘る',
     'hover.mule': 'ラバを開く',
+    'hover.townPrev': '前へ',
+    'hover.townNext': '次へ',
     'hover.ownersPlace': '{name}の家',
 
     // Mining messages

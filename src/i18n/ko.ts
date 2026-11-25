@@ -473,6 +473,7 @@ export const ko: Strings = {
     // Town board
     'town.title': '마을 게시판',
     'town.last7Days': '최근 7일',
+    'town.previousWeek': '지난주',
     'town.empty': '게시판이 아직 비어 있어요',
     'town.whale': '고래',
     'town.whaleFeat': '한 번에 가장 큰 판매',
@@ -490,6 +491,7 @@ export const ko: Strings = {
     'town.activeUsers': '접속 중인 플레이어',
     'town.activeUsersCount': '접속 중: {count}명',
     'town.more': '외 {count}명',
+    'town.andMore': '...외 {count}명',
     'town.statHand': '손으로 캔 광석',
     'town.statRig': 'M.U.L.E.가 캔 광석',
     'town.statSold': '판매된 광석',
@@ -497,6 +499,7 @@ export const ko: Strings = {
     'town.statIn': '들어온 코인',
     'town.statOut': '쓴 코인',
     'town.statNet': '마을 코인 증감',
+    'town.statCirculation': '유통 중인 코인',
 
     // Slot machine
     'slots.title': '슬롯머신',
@@ -534,6 +537,8 @@ export const ko: Strings = {
     'hover.playSlots': '슬롯 하기',
     'hover.mine': '캐기',
     'hover.mule': '노새 열기',
+    'hover.townPrev': '이전',
+    'hover.townNext': '다음',
     'hover.ownersPlace': '{name}님의 집',
 
     // Mining messages

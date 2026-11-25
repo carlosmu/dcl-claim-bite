@@ -13,7 +13,9 @@ export const TownTitles = engine.defineComponent('claimbite:TownTitles', {
       id: Schemas.String,
       address: Schemas.String,
       name: Schemas.String,
-      value: Schemas.Float
+      value: Schemas.Float,
+      /** Nobody earned it in the last seven days, so this is last week's holder. */
+      previous: Schemas.Boolean
     })
   ),
   owners: Schemas.Array(
@@ -23,15 +25,20 @@ export const TownTitles = engine.defineComponent('claimbite:TownTitles', {
       name: Schemas.String
     })
   ),
-  /** The town's economy over the last seven days (shared/titles.ts, DayStats), for the board in the plaza. */
+  /** The town's economy over the last seven days, or the seven before (weekPrevious); shared/titles.ts, DayStats. For the board in the plaza. */
   week: Schemas.Map({
     hand: Schemas.Float,
     rig: Schemas.Float,
     oreSold: Schemas.Float,
     bankPaid: Schemas.Float,
     coinsIn: Schemas.Float,
-    coinsOut: Schemas.Float
-  })
+    coinsOut: Schemas.Float,
+    purchases: Schemas.Float
+  }),
+  /** The last seven days had nothing, so `week` is the seven before. */
+  weekPrevious: Schemas.Boolean,
+  /** Every player's coins right now, added up (server/coin-ledger.ts); -1 until the server knows. Not a weekly figure. */
+  circulation: Schemas.Float
 })
 
 // Only the server hands out titles. Otherwise a client could crown itself.

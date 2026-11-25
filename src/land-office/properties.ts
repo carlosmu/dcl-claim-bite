@@ -481,7 +481,7 @@ function syncLod(dt: number): void {
 }
 
 /** Where an entity stands in the world, through however many parents it has. */
-function worldPosition(entity: Entity): Vector3 {
+export function worldPosition(entity: Entity): Vector3 {
   const transform = Transform.get(entity)
   let position = Vector3.clone(transform.position)
   let parent = transform.parent

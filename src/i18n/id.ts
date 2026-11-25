@@ -471,6 +471,7 @@ export const id: Strings = {
     // Town board
     'town.title': 'PAPAN KOTA',
     'town.last7Days': '7 hari terakhir',
+    'town.previousWeek': 'Minggu lalu',
     'town.empty': 'Papan masih kosong',
     'town.whale': 'SI PAUS',
     'town.whaleFeat': 'Penjualan tunggal terbesar',
@@ -485,9 +486,10 @@ export const id: Strings = {
     'town.ore': '{ore} bijih',
     'town.orePerCoin': '{rate} bijih/koin',
     'town.newOwners': 'PEMILIK BARU',
-    'town.activeUsers': 'PEMAIN AKTIF',
-    'town.activeUsersCount': 'Pemain aktif: {count}',
+    'town.activeUsers': 'PEMAIN ONLINE',
+    'town.activeUsersCount': 'Online: {count}',
     'town.more': '+{count} lagi',
+    'town.andMore': '...dan {count} lainnya',
     'town.statHand': 'Bijih ditambang manual',
     'town.statRig': 'Bijih dari M.U.L.E.',
     'town.statSold': 'Bijih terjual',
@@ -495,6 +497,7 @@ export const id: Strings = {
     'town.statIn': 'Koin masuk',
     'town.statOut': 'Koin dibelanjakan',
     'town.statNet': 'Perubahan koin di kota',
+    'town.statCirculation': 'Koin yang beredar',
 
     // Slot machine
     'slots.title': 'MESIN SLOT',
@@ -532,6 +535,8 @@ export const id: Strings = {
     'hover.playSlots': 'Main Slot',
     'hover.mine': 'Tambang',
     'hover.mule': 'Buka M.U.L.E.',
+    'hover.townPrev': 'Sebelumnya',
+    'hover.townNext': 'Berikutnya',
     'hover.ownersPlace': 'Rumah {name}',
 
     // Mining messages

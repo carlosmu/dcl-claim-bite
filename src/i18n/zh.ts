@@ -472,6 +472,7 @@ export const zh: Strings = {
     // Town board
     'town.title': '小镇公告板',
     'town.last7Days': '最近 7 天',
+    'town.previousWeek': '上周',
     'town.empty': '公告板上还没有内容',
     'town.whale': '大鲸鱼',
     'town.whaleFeat': '单笔最大出售',
@@ -489,6 +490,7 @@ export const zh: Strings = {
     'town.activeUsers': '在线玩家',
     'town.activeUsersCount': '在线玩家：{count}',
     'town.more': '还有 {count} 人',
+    'town.andMore': '……还有 {count} 人',
     'town.statHand': '手工开采的矿石',
     'town.statRig': 'M.U.L.E. 挖的矿石',
     'town.statSold': '卖出的矿石',
@@ -496,6 +498,7 @@ export const zh: Strings = {
     'town.statIn': '流入的金币',
     'town.statOut': '花掉的金币',
     'town.statNet': '镇上金币变化',
+    'town.statCirculation': '流通中的金币',
 
     // Slot machine
     'slots.title': '老虎机',
@@ -533,6 +536,8 @@ export const zh: Strings = {
     'hover.playSlots': '玩老虎机',
     'hover.mine': '挖矿',
     'hover.mule': '打开骡子',
+    'hover.townPrev': '上一页',
+    'hover.townNext': '下一页',
     'hover.ownersPlace': '{name} 的家',
 
     // Mining messages

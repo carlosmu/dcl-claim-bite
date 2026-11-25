@@ -472,6 +472,7 @@ export const vi: Strings = {
     // Town board
     'town.title': 'BẢNG TIN THỊ TRẤN',
     'town.last7Days': '7 ngày qua',
+    'town.previousWeek': 'Tuần trước',
     'town.empty': 'Bảng tin còn trống',
     'town.whale': 'CÁ VOI',
     'town.whaleFeat': 'Lần bán lớn nhất',
@@ -489,6 +490,7 @@ export const vi: Strings = {
     'town.activeUsers': 'NGƯỜI CHƠI ĐANG ONLINE',
     'town.activeUsersCount': 'Đang online: {count}',
     'town.more': '+{count} người nữa',
+    'town.andMore': '...và {count} người khác',
     'town.statHand': 'Quặng đào bằng tay',
     'town.statRig': 'Quặng từ M.U.L.E.',
     'town.statSold': 'Quặng đã bán',
@@ -496,6 +498,7 @@ export const vi: Strings = {
     'town.statIn': 'Xu vào',
     'town.statOut': 'Xu đã tiêu',
     'town.statNet': 'Thay đổi xu trong thị trấn',
+    'town.statCirculation': 'Xu đang lưu hành',
 
     // Slot machine
     'slots.title': 'MÁY ĐÁNH BẠC',
@@ -533,6 +536,8 @@ export const vi: Strings = {
     'hover.playSlots': 'Chơi máy đánh bạc',
     'hover.mine': 'Đào',
     'hover.mule': 'Mở M.U.L.E.',
+    'hover.townPrev': 'Trước',
+    'hover.townNext': 'Tiếp',
     'hover.ownersPlace': 'Nhà của {name}',
 
     // Mining messages

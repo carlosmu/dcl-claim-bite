@@ -474,6 +474,7 @@ export const ru: Strings = {
     // Town board
     'town.title': 'ДОСКА ГОРОДА',
     'town.last7Days': 'Последние 7 дней',
+    'town.previousWeek': 'Прошлая неделя',
     'town.empty': 'На доске пока пусто',
     'town.whale': 'КИТ',
     'town.whaleFeat': 'Самая крупная продажа',
@@ -491,6 +492,7 @@ export const ru: Strings = {
     'town.activeUsers': 'ИГРОКИ В СЕТИ',
     'town.activeUsersCount': 'Игроков в сети: {count}',
     'town.more': 'и ещё {count}',
+    'town.andMore': '...и ещё {count}',
     'town.statHand': 'Руда, добытая вручную',
     'town.statRig': 'Руда от M.U.L.E.',
     'town.statSold': 'Продано руды',
@@ -498,6 +500,7 @@ export const ru: Strings = {
     'town.statIn': 'Монет поступило',
     'town.statOut': 'Монет потрачено',
     'town.statNet': 'Изменение монет в городе',
+    'town.statCirculation': 'Монеты в обращении',
 
     // Slot machine
     'slots.title': 'ИГРОВОЙ АВТОМАТ',
@@ -535,6 +538,8 @@ export const ru: Strings = {
     'hover.playSlots': 'Играть в автомат',
     'hover.mine': 'Копать',
     'hover.mule': 'Открыть М.У.Л.',
+    'hover.townPrev': 'Назад',
+    'hover.townNext': 'Далее',
     'hover.ownersPlace': 'Участок: {name}',
 
     // Mining messages
