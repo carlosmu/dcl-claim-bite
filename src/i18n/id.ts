@@ -488,6 +488,13 @@ export const id: Strings = {
     'town.activeUsers': 'PEMAIN AKTIF',
     'town.activeUsersCount': 'Pemain aktif: {count}',
     'town.more': '+{count} lagi',
+    'town.statHand': 'Bijih ditambang manual',
+    'town.statRig': 'Bijih dari M.U.L.E.',
+    'town.statSold': 'Bijih terjual',
+    'town.statBank': 'Koin dibayar bank',
+    'town.statIn': 'Koin masuk',
+    'town.statOut': 'Koin dibelanjakan',
+    'town.statNet': 'Perubahan koin di kota',
 
     // Slot machine
     'slots.title': 'MESIN SLOT',

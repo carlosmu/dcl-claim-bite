@@ -489,6 +489,13 @@ export const en = {
     'town.activeUsers': 'ACTIVE USERS',
     'town.activeUsersCount': 'Active Users: {count}',
     'town.more': '+{count} more',
+    'town.statHand': 'Ore mined by hand',
+    'town.statRig': 'Ore dug by M.U.L.E.s',
+    'town.statSold': 'Ore sold',
+    'town.statBank': 'Coins paid by the bank',
+    'town.statIn': 'Coins in',
+    'town.statOut': 'Coins spent',
+    'town.statNet': 'Coins in town, change',
 
     // Slot machine
     'slots.title': 'SLOT MACHINE',

@@ -490,6 +490,13 @@ export const ko: Strings = {
     'town.activeUsers': '접속 중인 플레이어',
     'town.activeUsersCount': '접속 중: {count}명',
     'town.more': '외 {count}명',
+    'town.statHand': '손으로 캔 광석',
+    'town.statRig': 'M.U.L.E.가 캔 광석',
+    'town.statSold': '판매된 광석',
+    'town.statBank': '은행이 지급한 코인',
+    'town.statIn': '들어온 코인',
+    'town.statOut': '쓴 코인',
+    'town.statNet': '마을 코인 증감',
 
     // Slot machine
     'slots.title': '슬롯머신',

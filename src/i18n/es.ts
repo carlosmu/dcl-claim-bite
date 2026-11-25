@@ -487,6 +487,13 @@ export const es: Strings = {
     'town.activeUsers': 'JUGADORES ACTIVOS',
     'town.activeUsersCount': 'Jugadores activos: {count}',
     'town.more': '+{count} más',
+    'town.statHand': 'Ore minado a mano',
+    'town.statRig': 'Ore de los M.U.L.E.',
+    'town.statSold': 'Ore vendido',
+    'town.statBank': 'Monedas pagadas por el banco',
+    'town.statIn': 'Monedas que entraron',
+    'town.statOut': 'Monedas gastadas',
+    'town.statNet': 'Cambio de monedas en el pueblo',
 
     // Slot machine
     'slots.title': 'TRAGAMONEDAS',

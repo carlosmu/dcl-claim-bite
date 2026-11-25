@@ -491,6 +491,13 @@ export const ru: Strings = {
     'town.activeUsers': 'ИГРОКИ В СЕТИ',
     'town.activeUsersCount': 'Игроков в сети: {count}',
     'town.more': 'и ещё {count}',
+    'town.statHand': 'Руда, добытая вручную',
+    'town.statRig': 'Руда от M.U.L.E.',
+    'town.statSold': 'Продано руды',
+    'town.statBank': 'Монет выплатил банк',
+    'town.statIn': 'Монет поступило',
+    'town.statOut': 'Монет потрачено',
+    'town.statNet': 'Изменение монет в городе',
 
     // Slot machine
     'slots.title': 'ИГРОВОЙ АВТОМАТ',

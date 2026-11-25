@@ -489,6 +489,13 @@ export const vi: Strings = {
     'town.activeUsers': 'NGƯỜI CHƠI ĐANG ONLINE',
     'town.activeUsersCount': 'Đang online: {count}',
     'town.more': '+{count} người nữa',
+    'town.statHand': 'Quặng đào bằng tay',
+    'town.statRig': 'Quặng từ M.U.L.E.',
+    'town.statSold': 'Quặng đã bán',
+    'town.statBank': 'Xu ngân hàng đã trả',
+    'town.statIn': 'Xu vào',
+    'town.statOut': 'Xu đã tiêu',
+    'town.statNet': 'Thay đổi xu trong thị trấn',
 
     // Slot machine
     'slots.title': 'MÁY ĐÁNH BẠC',

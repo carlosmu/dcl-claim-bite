@@ -489,6 +489,13 @@ export const zh: Strings = {
     'town.activeUsers': '在线玩家',
     'town.activeUsersCount': '在线玩家：{count}',
     'town.more': '还有 {count} 人',
+    'town.statHand': '手工开采的矿石',
+    'town.statRig': 'M.U.L.E. 挖的矿石',
+    'town.statSold': '卖出的矿石',
+    'town.statBank': '银行支付的金币',
+    'town.statIn': '流入的金币',
+    'town.statOut': '花掉的金币',
+    'town.statNet': '镇上金币变化',
 
     // Slot machine
     'slots.title': '老虎机',

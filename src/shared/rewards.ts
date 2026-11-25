@@ -108,7 +108,7 @@ export const REWARD_CAMPAIGNS: readonly RewardCampaign[] = [
     kind: 'emotes',
     dispenserKeyVar: 'REWARDS_DISPENSER_KEY_MINING_EMOTE'
   },
-  // The Drifter set. Until their campaigns exist: Coming Soon. Icons from Collectibles.png (ui.tsx, REWARD_ICONS).
+  // The Drifter set: the Tailor Shop campaign, one dispenser each (SHOP_DRIFTER_*). Icons from Collectibles.png (ui.tsx, REWARD_ICONS).
   {
     id: 'drifter-boots',
     cardTitle: 'Boots',
@@ -118,11 +118,11 @@ export const REWARD_CAMPAIGNS: readonly RewardCampaign[] = [
     venue: 'tailor',
     steps: [],
     price: 300,
-    comingSoon: true,
+    comingSoon: false,
     kind: 'wearables',
     bodyPart: 'feet',
     collection: 'drifter',
-    dispenserKeyVar: 'REWARDS_DISPENSER_KEY_DRIFTER_BOOTS'
+    dispenserKeyVar: 'SHOP_DRIFTER_BOOTS'
   },
   {
     id: 'drifter-hat',
@@ -133,11 +133,11 @@ export const REWARD_CAMPAIGNS: readonly RewardCampaign[] = [
     venue: 'tailor',
     steps: [],
     price: 600,
-    comingSoon: true,
+    comingSoon: false,
     kind: 'wearables',
     bodyPart: 'head',
     collection: 'drifter',
-    dispenserKeyVar: 'REWARDS_DISPENSER_KEY_DRIFTER_HAT'
+    dispenserKeyVar: 'SHOP_DRIFTER_HAT'
   },
   {
     id: 'drifter-pants',
@@ -148,11 +148,11 @@ export const REWARD_CAMPAIGNS: readonly RewardCampaign[] = [
     venue: 'tailor',
     steps: [],
     price: 1200,
-    comingSoon: true,
+    comingSoon: false,
     kind: 'wearables',
     bodyPart: 'lowerBody',
     collection: 'drifter',
-    dispenserKeyVar: 'REWARDS_DISPENSER_KEY_DRIFTER_PANTS'
+    dispenserKeyVar: 'SHOP_DRIFTER_PANTS'
   },
   {
     id: 'drifter-gear',
@@ -163,11 +163,11 @@ export const REWARD_CAMPAIGNS: readonly RewardCampaign[] = [
     venue: 'tailor',
     steps: [],
     price: 900,
-    comingSoon: true,
+    comingSoon: false,
     kind: 'wearables',
     bodyPart: 'upperBody',
     collection: 'drifter',
-    dispenserKeyVar: 'REWARDS_DISPENSER_KEY_DRIFTER_GEAR'
+    dispenserKeyVar: 'SHOP_DRIFTER_GEAR'
   }
 ]
 

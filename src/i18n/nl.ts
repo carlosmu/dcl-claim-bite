@@ -487,6 +487,13 @@ export const nl: Strings = {
     'town.activeUsers': 'ACTIEVE SPELERS',
     'town.activeUsersCount': 'Actieve spelers: {count}',
     'town.more': '+{count} meer',
+    'town.statHand': 'Erts met de hand gedolven',
+    'town.statRig': 'Erts van M.U.L.E.s',
+    'town.statSold': 'Verkocht erts',
+    'town.statBank': 'Munten betaald door de bank',
+    'town.statIn': 'Munten binnen',
+    'town.statOut': 'Munten uitgegeven',
+    'town.statNet': 'Munten in de stad, verschil',
 
     // Slot machine
     'slots.title': 'GOKKAST',

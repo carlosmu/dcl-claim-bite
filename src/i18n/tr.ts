@@ -489,6 +489,13 @@ export const tr: Strings = {
     'town.activeUsers': 'AKTİF OYUNCULAR',
     'town.activeUsersCount': 'Aktif oyuncu: {count}',
     'town.more': '+{count} kişi daha',
+    'town.statHand': 'Elle kazılan cevher',
+    'town.statRig': 'M.U.L.E. cevheri',
+    'town.statSold': 'Satılan cevher',
+    'town.statBank': 'Bankanın ödediği jeton',
+    'town.statIn': 'Gelen jeton',
+    'town.statOut': 'Harcanan jeton',
+    'town.statNet': 'Kasabadaki jeton değişimi',
 
     // Slot machine
     'slots.title': 'SLOT MAKİNESİ',

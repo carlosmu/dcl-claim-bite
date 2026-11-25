@@ -47,6 +47,7 @@ import { setupPlaytest } from './playtest'
 import { skipTitleCard } from './ui/intro-screen'
 import { DEBUG_SKIP_INTRO } from './shared/debug-flags'
 import { setupLocalPreview } from './shared/local-preview'
+import { setupTownBoard3d } from './world/town-board-3d'
 
 // One bundle, two runtimes. The server runs this same file headlessly, so everything that
 // draws, plays or listens has to sit behind the isServer() branch — on the server there is
@@ -82,6 +83,8 @@ export async function main() {
     setupClaimOffice()
     setupTailorShop()
     setupProperties()
+
+    setupTownBoard3d()
     setupOwnerCard()
     setupMule()
     setupMuleSmoke()

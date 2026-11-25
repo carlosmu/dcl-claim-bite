@@ -13,7 +13,7 @@ import { syncEntity } from '@dcl/sdk/network'
 
 import { PANIC_SELLER_MIN_ORE, RATE_BASE } from '../shared/economy/constants'
 import { TOWN_TITLES_ENTITY_ENUM_ID, TownTitles } from '../shared/net/town-titles-sync'
-import { dayOf, daysInWindow, featuredOwners, NEW_OWNERS_SHOWN, NewOwner, titleHolders, TownDay } from '../shared/titles'
+import { dayOf, daysInWindow, DayStats, emptyDayStats, featuredOwners, NEW_OWNERS_SHOWN, NewOwner, titleHolders, TownDay, weekStats } from '../shared/titles'
 import { loadTitles, saveTitles } from './persistence'
 
 /** How often the board is published. */
@@ -69,9 +69,31 @@ function today(): TownDay {
   return entry
 }
 
-/** A sale went through: `ore` sold, at the rate it was priced at. Within a day a draw goes to the latest. */
-export function noteSale(address: string, name: string, ore: number, rate: number): void {
+/** Today's economy figures, started on first need. */
+function todayStats(): DayStats {
+  const entry = today()
+  if (entry.stats === undefined) entry.stats = emptyDayStats()
+  return entry.stats
+}
+
+/** Coins that came into the town (`created`) or were spent (`spent`), for the board's weekly totals. Debug grants are not counted. */
+export function noteCoins(created: number, spent: number): void {
+  if (created <= 0 && spent <= 0) return
   whenLoaded(() => {
+    const stats = todayStats()
+    stats.coinsIn += Math.max(0, created)
+    stats.coinsOut += Math.max(0, spent)
+    boardDirty = true
+  })
+}
+
+/** A sale went through: `ore` sold for `coins`, at the rate it was priced at. Within a day a draw goes to the latest. */
+export function noteSale(address: string, name: string, ore: number, rate: number, coins: number): void {
+  whenLoaded(() => {
+    const stats = todayStats()
+    stats.oreSold += ore
+    stats.bankPaid += coins
+    stats.coinsIn += coins
     const entry = today()
     if (ore >= (entry.whale?.value ?? 0)) entry.whale = { address, name, value: ore }
     // A market at its base is not a panic, it is just a sale.
@@ -95,6 +117,9 @@ export function noteSlotWin(address: string, name: string, coins: number): void 
 export function noteMined(address: string, name: string, hand: number, rig: number): void {
   if (hand <= 0 && rig <= 0) return
   whenLoaded(() => {
+    const stats = todayStats()
+    stats.hand += Math.max(0, hand)
+    stats.rig += Math.max(0, rig)
     const { miners } = today()
     const miner = miners[address] ?? { name, hand: 0, rig: 0 }
     miner.name = name
@@ -165,7 +190,8 @@ export function saveTitlesNow(): boolean {
 function publish(): void {
   const board = {
     titles: titleHolders(days).map(({ id, address, name, value }) => ({ id, address, name, value })),
-    owners: featuredOwners(owners).map(({ kind, address, name }) => ({ kind, address, name }))
+    owners: featuredOwners(owners).map(({ kind, address, name }) => ({ kind, address, name })),
+    week: weekStats(days)
   }
 
   // Only on a real change, like the rest of the synced state.
@@ -175,6 +201,7 @@ function publish(): void {
   const mutable = TownTitles.getMutable(boardEntity)
   mutable.titles = board.titles
   mutable.owners = board.owners
+  mutable.week = board.week
 }
 
 function tick(dt: number): void {
@@ -197,7 +224,7 @@ function tick(dt: number): void {
 
 export function setupTitles(): void {
   boardEntity = engine.addEntity()
-  TownTitles.create(boardEntity, { titles: [], owners: [] })
+  TownTitles.create(boardEntity, { titles: [], owners: [], week: emptyDayStats() })
   syncEntity(boardEntity, [TownTitles.componentId], TOWN_TITLES_ENTITY_ENUM_ID)
 
   engine.addSystem(tick, undefined, 'server:titles')

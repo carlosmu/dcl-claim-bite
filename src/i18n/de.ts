@@ -488,6 +488,13 @@ export const de: Strings = {
     'town.activeUsers': 'AKTIVE SPIELER',
     'town.activeUsersCount': 'Aktive Spieler: {count}',
     'town.more': '+{count} weitere',
+    'town.statHand': 'Von Hand abgebautes Erz',
+    'town.statRig': 'Von M.U.L.E.s gefördertes Erz',
+    'town.statSold': 'Verkauftes Erz',
+    'town.statBank': 'Von der Bank gezahlte Münzen',
+    'town.statIn': 'Eingenommene Münzen',
+    'town.statOut': 'Ausgegebene Münzen',
+    'town.statNet': 'Münzen in der Stadt, Veränderung',
 
     // Slot machine
     'slots.title': 'SPIELAUTOMAT',

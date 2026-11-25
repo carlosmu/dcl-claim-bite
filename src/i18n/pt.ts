@@ -487,6 +487,13 @@ export const pt: Strings = {
     'town.activeUsers': 'JOGADORES ATIVOS',
     'town.activeUsersCount': 'Jogadores ativos: {count}',
     'town.more': '+{count} mais',
+    'town.statHand': 'Minério minerado à mão',
+    'town.statRig': 'Minério das M.U.L.E.s',
+    'town.statSold': 'Minério vendido',
+    'town.statBank': 'Moedas pagas pelo banco',
+    'town.statIn': 'Moedas que entraram',
+    'town.statOut': 'Moedas gastas',
+    'town.statNet': 'Variação de moedas na cidade',
 
     // Slot machine
     'slots.title': 'CAÇA-NÍQUEL',

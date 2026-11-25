@@ -20,7 +20,49 @@ export type TitleHolder = TitleFeat & { id: TitleId }
 export type MinerTally = { name: string; hand: number; rig: number }
 
 /** One day of the town: its biggest sale, its worst-priced one, its biggest slot win, and what each player dug. */
-export type TownDay = { day: number; whale?: TitleFeat; panic?: TitleFeat; roller?: TitleFeat; miners: Record<string, MinerTally> }
+export type TownDay = { day: number; whale?: TitleFeat; panic?: TitleFeat; roller?: TitleFeat; miners: Record<string, MinerTally>; stats?: DayStats }
+
+/**
+ * One day of the town's economy, for the board in the plaza. Kept apart from the miners' tallies,
+ * which drop their smallest entries to stay under the storage limit. Days saved before these were
+ * kept have none: their ore is then counted from the tallies, and their coins as nothing.
+ */
+export type DayStats = {
+  /** Ore mined by hand, and dug by the rigs. */
+  hand: number
+  rig: number
+  /** Ore sold to the bank, and the coins it paid for it. */
+  oreSold: number
+  bankPaid: number
+  /** Coins that came into the town (sales, the bank buying homes back, slot wins, compensations), and coins spent (the Market, fuel, homes, the Tailor Shop, slot bets). */
+  coinsIn: number
+  coinsOut: number
+}
+
+export function emptyDayStats(): DayStats {
+  return { hand: 0, rig: 0, oreSold: 0, bankPaid: 0, coinsIn: 0, coinsOut: 0 }
+}
+
+/** The economy over these days, added up. */
+export function weekStats(days: TownDay[]): DayStats {
+  const total = emptyDayStats()
+  for (const entry of days) {
+    if (entry.stats !== undefined) {
+      total.hand += entry.stats.hand
+      total.rig += entry.stats.rig
+      total.oreSold += entry.stats.oreSold
+      total.bankPaid += entry.stats.bankPaid
+      total.coinsIn += entry.stats.coinsIn
+      total.coinsOut += entry.stats.coinsOut
+    } else {
+      for (const miner of Object.values(entry.miners)) {
+        total.hand += miner.hand
+        total.rig += miner.rig
+      }
+    }
+  }
+  return total
+}
 
 /** A property bought: who bought it, which kind, and when (wall-clock ms). */
 export type NewOwner = { kind: string; address: string; name: string; at: number }

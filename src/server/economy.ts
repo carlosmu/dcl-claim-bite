@@ -78,7 +78,7 @@ import { addFuelGallons, fuelGallons, fuelHoursLeft, settleMule } from './mule'
 import { clearNotes, deleteNote, leaveBankNote, leaveNote, sendNotes, setupNotes } from './notes'
 import { SELL_HOME_NOTE_TEXT } from '../shared/notes'
 import { sendPrefs, setLanguagePref, setSoundPrefs } from './prefs'
-import { noteMined, noteNewOwner, noteSale, noteSlotWin, saveTitlesNow, setupTitles } from './titles'
+import { noteCoins, noteMined, noteNewOwner, noteSale, noteSlotWin, saveTitlesNow, setupTitles } from './titles'
 import { isCasinoReady, saveJackpotNow, setupCasino, spin } from './casino'
 import { saveCasinoStatsNow } from './casino-stats'
 import { SLOT_BETS, SLOT_MIN_SECONDS_BETWEEN_SPINS } from '../shared/economy/slots'
@@ -483,6 +483,7 @@ function handleClaimReward(address: string, campaignId: string): void {
         })
       }
     }
+    if (result.ok && price > 0) noteCoins(0, price)
     if (claimedNow && now !== undefined) {
       const stored = rewardOf(now, campaign.id)
       const before = copiesOf(stored)
@@ -527,6 +528,7 @@ function handleClaimCompensation(address: string, id: string): void {
   }
   if (!purse.compensations.includes(entry.id)) {
     purse.coins += entry.coins
+    noteCoins(entry.coins, 0)
     purse.compensations.push(entry.id)
     dirty.add(address)
     // Written now: credited coins are exactly what must not be lost to a restart.
@@ -722,7 +724,7 @@ function handleSell(address: string, requested: number): void {
   // Only the ore that actually bought those coins is taken; the remainder stays in the bag
   // rather than being burned by the rounding.
   const spent = Math.min(amount, oreForCoins(getRate(), payout))
-  noteSale(address, displayNameOf(address), spent, quotedRate(getRate()))
+  noteSale(address, displayNameOf(address), spent, quotedRate(getRate()), payout)
   // The rigs are settled on both sides of the sale: before, so the time they sat paused on a
   // full storage is not paid at the new room; after, so ore waiting on them fills the room now.
   const owned = (id: ShopItemId) => purse.owned[id] ?? 0
@@ -779,6 +781,7 @@ function handleBuy(address: string, itemId: string): void {
   settleMule(purse, mules, carryCapacity(owned))
 
   purse.coins -= price
+  noteCoins(0, price)
   if (item.line === 'pick') giveFreshPick(purse, item)
   else purse.owned[item.id] = (purse.owned[item.id] ?? 0) + 1
   // The first rig comes with a gallon, a day of running; later ones share what is in the tank.
@@ -816,6 +819,7 @@ function buyFuel(address: string, purse: Purse, item: ShopItem): void {
     return
   }
   purse.coins -= order.price
+  noteCoins(0, order.price)
   dirty.add(address)
 
   sendWallet(address)
@@ -852,6 +856,7 @@ function handleSlotSpin(address: string, bet: number): void {
 
   const { reels, win, jackpot } = spin(bet)
   purse.coins += win - bet
+  noteCoins(win, bet)
   dirty.add(address)
   if (win > 0) noteSlotWin(address, displayNameOf(address), win)
 
@@ -1378,6 +1383,7 @@ function handleSellHome(address: string, itemId: string): void {
 
   delete purse.owned[offer.item.id]
   purse.coins += offer.coins
+  noteCoins(offer.coins, 0)
   dirty.add(address)
   // Off this lot and onto a free one of the tier below; with none free, the presence check retries.
   if (standingLots.delete(address)) lotsDirty = true

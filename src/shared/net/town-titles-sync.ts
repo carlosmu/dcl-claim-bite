@@ -22,7 +22,16 @@ export const TownTitles = engine.defineComponent('claimbite:TownTitles', {
       address: Schemas.String,
       name: Schemas.String
     })
-  )
+  ),
+  /** The town's economy over the last seven days (shared/titles.ts, DayStats), for the board in the plaza. */
+  week: Schemas.Map({
+    hand: Schemas.Float,
+    rig: Schemas.Float,
+    oreSold: Schemas.Float,
+    bankPaid: Schemas.Float,
+    coinsIn: Schemas.Float,
+    coinsOut: Schemas.Float
+  })
 })
 
 // Only the server hands out titles. Otherwise a client could crown itself.

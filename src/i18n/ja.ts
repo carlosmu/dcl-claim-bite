@@ -490,6 +490,13 @@ export const ja: Strings = {
     'town.activeUsers': 'オンライン中のプレイヤー',
     'town.activeUsersCount': 'オンライン：{count} 人',
     'town.more': 'ほか {count} 人',
+    'town.statHand': '手掘りの鉱石',
+    'town.statRig': 'M.U.L.E.の鉱石',
+    'town.statSold': '売れた鉱石',
+    'town.statBank': '銀行が支払ったコイン',
+    'town.statIn': '入ったコイン',
+    'town.statOut': '使われたコイン',
+    'town.statNet': '町のコインの増減',
 
     // Slot machine
     'slots.title': 'スロットマシン',
