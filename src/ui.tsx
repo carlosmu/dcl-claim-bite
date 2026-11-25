@@ -37,7 +37,7 @@ import {
     isClaimOfficePanelOpen,
     toggleClaimOfficeFromButton
 } from './claim-office/claim-office'
-import { RewardCampaign, rewardCampaignsAt, TAILOR_BODY_PARTS, TAILOR_COLLECTIONS, TAILOR_KINDS, TailorBodyPart, TailorKind } from './shared/rewards'
+import { MAX_COPIES_PER_PLAYER, RewardCampaign, rewardCampaignsAt, rewardLimitReached, TAILOR_BODY_PARTS, TAILOR_COLLECTIONS, TAILOR_KINDS, TailorBodyPart, TailorKind } from './shared/rewards'
 import {
     buyTailorItem,
     canBuyTailorItem,
@@ -2665,9 +2665,11 @@ const tailorDetailView = (campaign: RewardCampaign) => {
     const claim = getRewardStatus(campaign.id)
     const muted = state === 'soon' || state === 'soldOut'
     let action: Action
-    // Owned copies do not stop another purchase: the button stays BUY.
+    // Owned copies do not stop another purchase until the per-player limit: then LIMIT REACHED.
+    const atLimit = rewardLimitReached(campaign, claim.count)
     if (state === 'soon') action = { label: t('action.comingSoon'), kind: 'off' }
     else if (state === 'soldOut') action = { label: t('action.soldOut'), kind: 'off' }
+    else if (atLimit) action = { label: t('action.limitReached'), kind: 'off' }
     else if (claim.claiming) action = { label: t('action.buying'), kind: 'off' }
     else action = { label: t('action.buy'), kind: canBuyTailorItem(campaign.id) ? 'buy' : 'off', onClick: () => buyTailorItem(campaign.id) }
 
@@ -2745,7 +2747,14 @@ const tailorDetailView = (campaign: RewardCampaign) => {
 
 const tailorShopPanel = () => {
     const selected = TAILOR_CAMPAIGNS.find((campaign) => campaign.id === getSelectedTailorItem())
-    const body = isTailorDetailOpen() && selected !== undefined ? tailorDetailView(selected) : tailorCatalogueView()
+    const view = isTailorDetailOpen() && selected !== undefined ? tailorDetailView(selected) : tailorCatalogueView()
+    // At the foot of the window, in both views: how many copies of each item one player can buy.
+    const body = (
+        <UiEntity uiTransform={{ width: '100%', flexGrow: 1, flexDirection: 'column' }}>
+            {view}
+            <Label value={t('tailor.limitNote', { max: MAX_COPIES_PER_PLAYER })} fontSize={DETAIL_CAPTION_SIZE} color={BANK_CAPTION} textAlign="middle-center" textWrap="wrap" uiTransform={{ width: '100%', minHeight: 26, margin: { top: 8 }, flexShrink: 0 }} />
+        </UiEntity>
+    )
     return panelFrame(t('tailor.title'), closeTailorShopPanel, true, body)
 }
 

@@ -86,7 +86,7 @@ import { TUTORIAL_ROCK_SEQS } from '../shared/net/rock-sync'
 import { advanceRock, getRockSeqs, hasFinishedRock, isRock, isRockStarted, isUnknownRock, markFinished } from './rock'
 import { requestReward } from './rewards'
 import { onResponseSaved } from '../scene-feedback/lib/server/hooks'
-import { findRewardCampaign, isRewardRepeatable, LEGACY_GIFT_CAMPAIGN_ID, REWARD_CAMPAIGNS, REWARD_SURVEY_QUESTIONS, RewardStepId } from '../shared/rewards'
+import { findRewardCampaign, isRewardRepeatable, LEGACY_GIFT_CAMPAIGN_ID, rewardLimitReached, REWARD_CAMPAIGNS, REWARD_SURVEY_QUESTIONS, RewardStepId } from '../shared/rewards'
 import { Compensation, compensationsFor } from './compensations'
 import { isAdmin } from '../shared/admins'
 import { getGenerationId, getNewestEntity } from './generation'
@@ -428,6 +428,10 @@ function handleClaimReward(address: string, campaignId: string): void {
   const repeatable = isRewardRepeatable(campaign)
   if (reward.claimed && !repeatable) {
     sendResult(address, 'claimReward', false, 'already claimed')
+    return
+  }
+  if (rewardLimitReached(campaign, copiesOf(reward))) {
+    sendResult(address, 'claimReward', false, 'limit reached')
     return
   }
   if (!campaign.steps.every((step) => reward.steps[step] === true)) {

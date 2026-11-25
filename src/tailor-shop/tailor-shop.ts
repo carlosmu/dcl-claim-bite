@@ -108,7 +108,7 @@ export function selectTailorItem(id: string): void {
   selectedId = id
 }
 
-/** On sale, not being bought (copies already owned do not matter), quest met (none, for now) and the coins in the purse. */
+/** On sale, not being bought, under the per-player copy limit, quest met (none, for now) and the coins in the purse. */
 export function canBuyTailorItem(id: string): boolean {
   const item = rewardCampaignsAt('tailor').find((campaign) => campaign.id === id)
   if (item === undefined || item.comingSoon || item.soldOut === true) return false
@@ -120,7 +120,7 @@ export function buyTailorItem(id: string): void {
   claimReward(id)
 }
 
-/** Copies of the item the player has bought. They can always buy another. */
+/** Copies of the item the player has bought, up to MAX_COPIES_PER_PLAYER. */
 export function tailorItemCount(id: string): number {
   return getRewardStatus(id).count
 }

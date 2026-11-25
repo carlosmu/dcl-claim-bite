@@ -101,7 +101,7 @@ export const REWARD_CAMPAIGNS: readonly RewardCampaign[] = [
     thumbnail: '',
     venue: 'tailor',
     steps: [],
-    price: 500,
+    price: 250,
     comingSoon: true,
     kind: 'emotes',
     dispenserKeyVar: 'REWARDS_DISPENSER_KEY_MINING_EMOTE'
@@ -115,7 +115,7 @@ export const REWARD_CAMPAIGNS: readonly RewardCampaign[] = [
     thumbnail: '',
     venue: 'tailor',
     steps: [],
-    price: 800,
+    price: 300,
     comingSoon: true,
     kind: 'wearables',
     bodyPart: 'feet',
@@ -130,7 +130,7 @@ export const REWARD_CAMPAIGNS: readonly RewardCampaign[] = [
     thumbnail: '',
     venue: 'tailor',
     steps: [],
-    price: 1000,
+    price: 600,
     comingSoon: true,
     kind: 'wearables',
     bodyPart: 'head',
@@ -160,7 +160,7 @@ export const REWARD_CAMPAIGNS: readonly RewardCampaign[] = [
     thumbnail: '',
     venue: 'tailor',
     steps: [],
-    price: 1400,
+    price: 900,
     comingSoon: true,
     kind: 'wearables',
     bodyPart: 'upperBody',
@@ -180,6 +180,17 @@ export function rewardCampaignsAt(venue: RewardVenue): RewardCampaign[] {
  */
 export function isRewardRepeatable(campaign: RewardCampaign): boolean {
   return campaign.venue === 'tailor'
+}
+
+/**
+ * The most copies of one sold item a player can buy, so nobody can empty a campaign's stock and
+ * leave the rest of the town without it.
+ */
+export const MAX_COPIES_PER_PLAYER = 10
+
+/** Whether this player already has as many copies of a sold item as they are allowed. */
+export function rewardLimitReached(campaign: RewardCampaign, copies: number): boolean {
+  return isRewardRepeatable(campaign) && copies >= MAX_COPIES_PER_PLAYER
 }
 
 /** The campaign that saves from before there were several (the purse's old `gift`) belong to. */

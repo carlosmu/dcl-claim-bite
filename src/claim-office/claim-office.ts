@@ -2,7 +2,7 @@ import { ColliderLayer, engine, GltfContainer } from '@dcl/sdk/ecs'
 
 import { focusPanel, registerPanel } from '../world/panel-focus'
 import { createProximityZone, ProximityZone } from '../world/proximity-zone'
-import { findRewardCampaign, isRewardRepeatable, RewardStatus } from '../shared/rewards'
+import { findRewardCampaign, isRewardRepeatable, rewardLimitReached, RewardStatus } from '../shared/rewards'
 import { sendClaimReward } from '../net/economy-link'
 
 // The Claim Office: where rewards are handed out, apart from anything that is sold. One card per
@@ -62,6 +62,7 @@ export function canClaimReward(campaignId: string): boolean {
   const campaign = findRewardCampaign(campaignId)
   if (campaign === null) return false
   const status = getRewardStatus(campaignId)
+  if (rewardLimitReached(campaign, status.count)) return false
   return (!status.claimed || isRewardRepeatable(campaign)) && !status.claiming && campaign.steps.every((step) => status.done.includes(step))
 }
 
