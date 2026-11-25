@@ -37,10 +37,12 @@ import {
     isClaimOfficePanelOpen,
     toggleClaimOfficeFromButton
 } from './claim-office/claim-office'
-import { MAX_COPIES_PER_PLAYER, RewardCampaign, rewardCampaignsAt, rewardLimitReached, TAILOR_BODY_PARTS, TAILOR_COLLECTIONS, TAILOR_KINDS, TailorBodyPart, TailorKind } from './shared/rewards'
+import { DEBUG_STAND_IN_SUFFIX, MAX_COPIES_PER_PLAYER, RewardCampaign, rewardCampaignsAt, rewardLimitReached, TAILOR_BODY_PARTS, TAILOR_COLLECTIONS, TAILOR_KINDS, TailorBodyPart, TailorKind } from './shared/rewards'
 import {
     buyTailorItem,
     canBuyTailorItem,
+    getTailorPage,
+    setTailorPage,
     closeTailorShopPanel,
     closeTailorDetail,
     getSelectedTailorItem,
@@ -2187,7 +2189,7 @@ const REWARD_ICONS: Record<string, Icon> = {
 /** The item's thumbnail when one is set, else its atlas icon, else the gift box. */
 function giftIcon(campaign: RewardCampaign): Icon {
     if (campaign.thumbnail !== '') return { src: campaign.thumbnail, uvs: [0, 0, 0, 1, 1, 1, 1, 0] }
-    return REWARD_ICONS[campaign.id] ?? ICON_GIFT
+    return REWARD_ICONS[campaign.id] ?? REWARD_ICONS[campaign.id.replace(DEBUG_STAND_IN_SUFFIX, '')] ?? ICON_GIFT
 }
 
 /** No "Locked" while the quest is under way: the card's Quest x/3 already says where it stands. */
@@ -2430,8 +2432,12 @@ const TAILOR_CARD_GAP = 10
 const TAILOR_FILTER_HEIGHT = 44
 const TAILOR_FILTER_GAP = 8
 const TAILOR_MENU_ROW = 42
-/** Two rows and a sliver of the third, which says there is more below. */
-const TAILOR_GRID_HEIGHT = 2 * (TAILOR_CARD_HEIGHT + TAILOR_CARD_GAP) + 56
+/** Rows of cards on one page of the catalogue; the arrows under them turn the page. */
+const TAILOR_ROWS_PER_PAGE = 2
+/** The page arrows' row, under the cards. */
+const TAILOR_PAGER_HEIGHT = 48
+/** A page of cards and the arrows under it. */
+const TAILOR_GRID_HEIGHT = TAILOR_ROWS_PER_PAGE * (TAILOR_CARD_HEIGHT + TAILOR_CARD_GAP) + TAILOR_PAGER_HEIGHT + 8
 /** The catalogue's height on desktop, which the detail keeps so the panel does not jump. A function: the tab constants are declared further down. */
 function tailorBodyHeight(): number {
     return INVENTORY_TAB_HEIGHT + TAB_BODY_PADDING_TOP + TAB_BODY_PADDING + TAILOR_FILTER_HEIGHT + TAILOR_FILTER_GAP + TAILOR_GRID_HEIGHT
@@ -2622,25 +2628,42 @@ const tailorFilterMenu = (menu: TailorFilterMenu) => {
     )
 }
 
-/** The cards, wrapped into rows and scrolled. On desktop a fixed height; on mobile what the screen leaves. */
+/**
+ * The cards, a page at a time, with arrows under them to turn the page. Pages rather than a scroll:
+ * the SDK's scrollbar cannot be styled. On desktop a fixed height; on mobile what the screen leaves.
+ */
 const tailorGrid = (items: RewardCampaign[]) => {
     const columns = tailorColumns()
+    const perPage = columns * TAILOR_ROWS_PER_PAGE
+    const pages = Math.max(1, Math.ceil(items.length / perPage))
+    // A filter can leave fewer pages than the one on show: then the last one.
+    const page = Math.min(getTailorPage(), pages - 1)
+    const first = page * perPage
     return (
         <UiEntity
             uiTransform={{
                 width: '100%',
                 ...(isMobile() ? { flexGrow: 1, flexBasis: 0 } : { height: TAILOR_GRID_HEIGHT, flexShrink: 0 }),
-                flexDirection: 'column',
-                overflow: 'scroll'
+                flexDirection: 'column'
             }}
         >
             {items.length === 0 ? (
                 <Label value={t('tailor.empty')} fontSize={DETAIL_TEXT_SIZE} color={BANK_CAPTION} textAlign="middle-center" uiTransform={{ width: '100%', height: TAILOR_CARD_HEIGHT }} />
             ) : (
-                <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', flexWrap: 'wrap', flexShrink: 0 }}>
-                    {items.map((campaign) => tailorCard(campaign, columns))}
+                // As tall as a full page, so the arrows stay put on a shorter last page.
+                <UiEntity
+                    uiTransform={{ width: '100%', height: TAILOR_ROWS_PER_PAGE * (TAILOR_CARD_HEIGHT + TAILOR_CARD_GAP), flexDirection: 'row', flexWrap: 'wrap', alignContent: 'flex-start', flexShrink: 0 }}
+                >
+                    {items.slice(first, first + perPage).map((campaign) => tailorCard(campaign, columns))}
                 </UiEntity>
             )}
+            {pages > 1 ? (
+                <UiEntity uiTransform={{ width: '100%', height: TAILOR_PAGER_HEIGHT, margin: { top: 8 }, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {pageButton('<', page > 0, () => setTailorPage(page - 1))}
+                    <Label value={`${page + 1}/${pages}`} fontSize={16} color={BANK_CAPTION} textAlign="middle-center" uiTransform={{ width: 60, height: 44 }} />
+                    {pageButton('>', page < pages - 1, () => setTailorPage(page + 1))}
+                </UiEntity>
+            ) : null}
         </UiEntity>
     )
 }

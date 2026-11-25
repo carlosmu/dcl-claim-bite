@@ -40,6 +40,14 @@ export const DEBUG_FILL_PROPERTY_LOTS = DEBUG_ENABLED && false
  * their own property can be seen without buying one. Skipped while they really own a property. */
 export const DEBUG_OWN_CABIN = DEBUG_ENABLED && true
 
+/** Pads the Tailor Shop with stand-in wearables, on this client only, up to DEBUG_TAILOR_WEARABLES,
+ * so a full catalogue (scrolling, filters, every card state) can be seen. They copy the Drifter
+ * items in turn, some on sale, some Coming Soon, some Sold Out; none can really be bought. */
+export const DEBUG_FILL_TAILOR_SHOP = DEBUG_ENABLED && false
+
+/** How many wearables the padded Tailor Shop shows, the real ones included. */
+export const DEBUG_TAILOR_WEARABLES = 20
+
 /** Parks a stand-in M.U.L.E. on every free spot of the yard, on this client only, so the full
  * yard (and its smoke) can be seen at once. Real owners still take their own spots. */
 export const DEBUG_FILL_MULE_YARD = DEBUG_ENABLED && false

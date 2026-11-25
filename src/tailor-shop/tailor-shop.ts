@@ -31,6 +31,8 @@ let collection = 'all'
 let detailOpen = false
 /** The filter whose list is open, if any. */
 let openMenu: TailorFilterMenu | null = null
+/** The catalogue page on show, from 0. Back to the first whenever the tab or a filter changes. */
+let page = 0
 
 export type TailorFilterMenu = 'bodyPart' | 'collection'
 
@@ -41,6 +43,7 @@ export function getTailorKind(): TailorKind {
 export function setTailorKind(next: TailorKind): void {
   kind = next
   openMenu = null
+  page = 0
 }
 
 export function getTailorBodyPart(): TailorBodyPart | 'all' {
@@ -50,6 +53,7 @@ export function getTailorBodyPart(): TailorBodyPart | 'all' {
 export function setTailorBodyPart(next: TailorBodyPart | 'all'): void {
   bodyPart = next
   openMenu = null
+  page = 0
 }
 
 export function getTailorCollection(): string {
@@ -58,6 +62,16 @@ export function getTailorCollection(): string {
 
 export function setTailorCollection(next: string): void {
   collection = next
+  openMenu = null
+  page = 0
+}
+
+export function getTailorPage(): number {
+  return page
+}
+
+export function setTailorPage(next: number): void {
+  page = Math.max(0, Math.floor(next))
   openMenu = null
 }
 

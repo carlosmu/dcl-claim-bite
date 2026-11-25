@@ -11,6 +11,8 @@
 // sends the campaign's dispenser key and the player's address. What is here is the quest and how
 // the Claim Office presents it.
 
+import { DEBUG_FILL_TAILOR_SHOP, DEBUG_TAILOR_WEARABLES } from './debug-flags'
+
 /**
  * The things a quest can ask for, each noticed by the server when it happens:
  *   sold      sold ore at the Bank
@@ -171,7 +173,30 @@ export const REWARD_CAMPAIGNS: readonly RewardCampaign[] = [
 
 /** The items one place hands out, in the order they are listed. */
 export function rewardCampaignsAt(venue: RewardVenue): RewardCampaign[] {
-  return REWARD_CAMPAIGNS.filter((campaign) => campaign.venue === venue)
+  const campaigns = REWARD_CAMPAIGNS.filter((campaign) => campaign.venue === venue)
+  return venue === 'tailor' && DEBUG_FILL_TAILOR_SHOP ? padWithStandIns(campaigns) : campaigns
+}
+
+/** Suffix of a stand-in's id (DEBUG_FILL_TAILOR_SHOP); the UI strips it to find the real item's icon. */
+export const DEBUG_STAND_IN_SUFFIX = /-debug-\d+$/
+
+/** DEBUG_FILL_TAILOR_SHOP: copies of the real wearables, in turn, up to DEBUG_TAILOR_WEARABLES. */
+function padWithStandIns(campaigns: RewardCampaign[]): RewardCampaign[] {
+  const wearables = campaigns.filter((campaign) => campaign.kind === 'wearables')
+  if (wearables.length === 0) return campaigns
+  const standIns: RewardCampaign[] = []
+  for (let n = wearables.length; n < DEBUG_TAILOR_WEARABLES; n++) {
+    const source = wearables[n % wearables.length]
+    standIns.push({
+      ...source,
+      id: `${source.id}-debug-${n}`,
+      cardTitle: `${source.cardTitle} ${n + 1}`,
+      // One on sale, one Coming Soon, one Sold Out, in turn: every card state at once.
+      comingSoon: n % 3 === 1,
+      soldOut: n % 3 === 2
+    })
+  }
+  return [...campaigns, ...standIns]
 }
 
 /**
