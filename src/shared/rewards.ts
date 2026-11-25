@@ -211,7 +211,7 @@ export function isRewardRepeatable(campaign: RewardCampaign): boolean {
  * The most copies of one sold item a player can buy, so nobody can empty a campaign's stock and
  * leave the rest of the town without it.
  */
-export const MAX_COPIES_PER_PLAYER = 10
+export const MAX_COPIES_PER_PLAYER = 5
 
 /** Whether this player already has as many copies of a sold item as they are allowed. */
 export function rewardLimitReached(campaign: RewardCampaign, copies: number): boolean {
