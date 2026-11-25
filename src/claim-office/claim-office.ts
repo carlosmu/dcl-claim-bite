@@ -22,6 +22,15 @@ let openedFromButton = false
 
 /** Where the player stands with each campaign, by its id. Empty until the server says. */
 let statuses = new Map<string, RewardStatus>()
+/**
+ * After an item is bought it is not sold again for this long, seconds. The Rewards service takes a
+ * while to put it in the backpack, and a player who does not see it yet could think the purchase
+ * failed and buy it again.
+ */
+export const REBUY_WAIT_SECONDS = 120
+/** When each campaign was last handed over to this player (Date.now()), for REBUY_WAIT_SECONDS. */
+const handedOverAt = new Map<string, number>()
+
 /** The last refusal of a claim and the campaign it was for, shown under its button until the next try. */
 let claimError = ''
 let claimErrorFor = ''
@@ -57,12 +66,20 @@ export function getRewardClaimError(campaignId: string): string {
   return claimErrorFor === campaignId ? claimError : ''
 }
 
+/** Seconds left before the item just handed over can be had again; 0 when it can. */
+export function rebuyWaitLeft(campaignId: string): number {
+  const at = handedOverAt.get(campaignId)
+  if (at === undefined) return 0
+  return Math.max(0, Math.ceil(REBUY_WAIT_SECONDS - (Date.now() - at) / 1000))
+}
+
 /** Every step of the campaign's quest is done and it has not been claimed yet (or it can be had again). */
 export function canClaimReward(campaignId: string): boolean {
   const campaign = findRewardCampaign(campaignId)
   if (campaign === null) return false
   const status = getRewardStatus(campaignId)
   if (rewardLimitReached(campaign, status.count)) return false
+  if (rebuyWaitLeft(campaignId) > 0) return false
   return (!status.claimed || isRewardRepeatable(campaign)) && !status.claiming && campaign.steps.every((step) => status.done.includes(step))
 }
 
@@ -75,12 +92,19 @@ export function claimReward(campaignId: string): void {
 
 /** Fed every `rewardStatus` from the economy link. */
 export function applyRewardStatus(next: RewardStatus[]): void {
+  // A copy more than before is one just handed over. The first status after joining only sets
+  // where things stand: there is nothing before it to compare with.
+  for (const status of next) {
+    const before = statuses.get(status.id)
+    if (before !== undefined && status.count > before.count) handedOverAt.set(status.id, Date.now())
+  }
   statuses = new Map(next.map((status) => [status.id, status]))
 }
 
 /** Fed the `claimReward` action results: the answer to the last claim sent. */
 export function onRewardClaimResult(ok: boolean, detail: string): void {
   claimError = ok ? '' : detail
+  if (ok && claimErrorFor !== '') handedOverAt.set(claimErrorFor, Date.now())
 }
 
 export function setupClaimOffice(): void {

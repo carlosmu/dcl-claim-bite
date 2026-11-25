@@ -143,6 +143,9 @@ export const ru: Strings = {
 
     // Big action buttons
     'action.buy': 'КУПИТЬ',
+    'action.buyAgain': 'КУПИТЬ ЕЩЁ',
+    'action.needCoins': 'НЕ ХВАТАЕТ {coins}',
+    'action.confirm': 'ПОДТВЕРДИТЬ',
     'action.locked': 'ЗАКРЫТО',
     'action.equipped': 'В РУКАХ',
     'action.equip': 'ВЗЯТЬ',
@@ -256,8 +259,9 @@ export const ru: Strings = {
     'action.claim': 'ПОЛУЧИТЬ',
     'action.owned': 'ЕСТЬ',
     'action.buying': 'ПОКУПАЕМ...',
+    'action.onItsWay': 'В ПУТИ... {seconds} с',
     'reward.onItsWay': 'Уже летит в твой рюкзак',
-    'reward.fewMinutes': 'Это может занять несколько минут',
+    'reward.fewMinutes': 'Это может занять до 15 минут',
     'reward.pressI': 'Нажми I, чтобы открыть рюкзак',
     'rewardStep.sold': 'Продай руду в Банке',
     'rewardStep.bought': 'Купи что-нибудь в Лавке',

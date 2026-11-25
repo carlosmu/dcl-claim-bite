@@ -140,6 +140,9 @@ export const en = {
 
     // Big action buttons
     'action.buy': 'BUY',
+    'action.buyAgain': 'BUY AGAIN',
+    'action.needCoins': '{coins} MORE NEEDED',
+    'action.confirm': 'CONFIRM',
     'action.locked': 'LOCKED',
     'action.equipped': 'EQUIPPED',
     'action.equip': 'EQUIP',
@@ -253,8 +256,9 @@ export const en = {
     'action.claim': 'CLAIM',
     'action.owned': 'OWNED',
     'action.buying': 'BUYING...',
+    'action.onItsWay': 'ON ITS WAY... {seconds}s',
     'reward.onItsWay': 'On its way to your backpack',
-    'reward.fewMinutes': 'It may take a few minutes',
+    'reward.fewMinutes': 'It may take up to 15 minutes',
     'reward.pressI': 'Press I to open your backpack',
     'rewardStep.sold': 'Sell ore at the Bank',
     'rewardStep.bought': 'Buy at the General Store',

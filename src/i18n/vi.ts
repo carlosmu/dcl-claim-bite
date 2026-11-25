@@ -140,6 +140,9 @@ export const vi: Strings = {
 
     // Big action buttons
     'action.buy': 'MUA',
+    'action.buyAgain': 'MUA LẠI',
+    'action.needCoins': 'CÒN THIẾU {coins}',
+    'action.confirm': 'XÁC NHẬN',
     'action.locked': 'ĐÃ KHÓA',
     'action.equipped': 'ĐANG DÙNG',
     'action.equip': 'TRANG BỊ',
@@ -253,8 +256,9 @@ export const vi: Strings = {
     'action.claim': 'NHẬN',
     'action.owned': 'ĐÃ CÓ',
     'action.buying': 'ĐANG MUA...',
+    'action.onItsWay': 'ĐANG GIAO... {seconds}s',
     'reward.onItsWay': 'Đang được gửi vào ba lô',
-    'reward.fewMinutes': 'Có thể mất vài phút',
+    'reward.fewMinutes': 'Có thể mất tới 15 phút',
     'reward.pressI': 'Nhấn I để mở ba lô',
     'rewardStep.sold': 'Bán quặng ở Ngân Hàng',
     'rewardStep.bought': 'Mua đồ ở Tiệm Tạp Hóa',

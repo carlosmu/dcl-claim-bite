@@ -140,6 +140,9 @@ export const zh: Strings = {
 
     // Big action buttons
     'action.buy': '购买',
+    'action.buyAgain': '再次购买',
+    'action.needCoins': '还差 {coins}',
+    'action.confirm': '确认',
     'action.locked': '未解锁',
     'action.equipped': '已装备',
     'action.equip': '装备',
@@ -253,8 +256,9 @@ export const zh: Strings = {
     'action.claim': '领取',
     'action.owned': '已拥有',
     'action.buying': '购买中...',
+    'action.onItsWay': '配送中... {seconds}秒',
     'reward.onItsWay': '正在送往你的背包',
-    'reward.fewMinutes': '可能需要几分钟',
+    'reward.fewMinutes': '最多可能需要 15 分钟',
     'reward.pressI': '按 I 打开背包',
     'rewardStep.sold': '在银行出售矿石',
     'rewardStep.bought': '在杂货店买东西',

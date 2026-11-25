@@ -141,6 +141,9 @@ export const ja: Strings = {
 
     // Big action buttons
     'action.buy': '購入',
+    'action.buyAgain': 'もう一度購入',
+    'action.needCoins': 'あと {coins} 必要',
+    'action.confirm': '確定',
     'action.locked': 'ロック中',
     'action.equipped': '装備中',
     'action.equip': '装備する',
@@ -254,8 +257,9 @@ export const ja: Strings = {
     'action.claim': '受け取る',
     'action.owned': '所持',
     'action.buying': '購入中...',
+    'action.onItsWay': '配送中... {seconds}秒',
     'reward.onItsWay': 'バックパックへ配送中',
-    'reward.fewMinutes': '数分かかることがあります',
+    'reward.fewMinutes': '最大 15 分ほどかかることがあります',
     'reward.pressI': 'I キーでバックパックを開く',
     'rewardStep.sold': '銀行で鉱石を売る',
     'rewardStep.bought': '雑貨屋で買い物する',

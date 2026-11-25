@@ -140,6 +140,9 @@ export const tr: Strings = {
 
     // Big action buttons
     'action.buy': 'SATIN AL',
+    'action.buyAgain': 'TEKRAR SATIN AL',
+    'action.needCoins': '{coins} EKSİK',
+    'action.confirm': 'ONAYLA',
     'action.locked': 'KİLİTLİ',
     'action.equipped': 'KUŞANILDI',
     'action.equip': 'KUŞAN',
@@ -253,8 +256,9 @@ export const tr: Strings = {
     'action.claim': 'AL',
     'action.owned': 'SENDE',
     'action.buying': 'SATIN ALINIYOR...',
+    'action.onItsWay': 'YOLDA... {seconds}sn',
     'reward.onItsWay': 'Sırt çantana geliyor',
-    'reward.fewMinutes': 'Birkaç dakika sürebilir',
+    'reward.fewMinutes': '15 dakikaya kadar sürebilir',
     'reward.pressI': 'Sırt çantanı açmak için I’ya bas',
     'rewardStep.sold': 'Bankada cevher sat',
     'rewardStep.bought': 'Genel Dükkândan alışveriş yap',

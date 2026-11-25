@@ -138,6 +138,9 @@ export const it: Strings = {
 
     // Big action buttons
     'action.buy': 'COMPRA',
+    'action.buyAgain': 'COMPRA ANCORA',
+    'action.needCoins': 'MANCANO {coins}',
+    'action.confirm': 'CONFERMA',
     'action.locked': 'BLOCCATO',
     'action.equipped': 'EQUIPAGGIATO',
     'action.equip': 'EQUIPAGGIA',
@@ -251,8 +254,9 @@ export const it: Strings = {
     'action.claim': 'RITIRA',
     'action.owned': 'TUO',
     'action.buying': 'ACQUISTO...',
+    'action.onItsWay': 'IN ARRIVO... {seconds}s',
     'reward.onItsWay': 'In arrivo nel tuo zaino',
-    'reward.fewMinutes': 'Può volerci qualche minuto',
+    'reward.fewMinutes': 'Può volerci fino a 15 minuti',
     'reward.pressI': 'Premi I per aprire lo zaino',
     'rewardStep.sold': 'Vendi minerale in Banca',
     'rewardStep.bought': 'Compra all’Emporio',

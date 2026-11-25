@@ -141,6 +141,9 @@ export const ko: Strings = {
 
     // Big action buttons
     'action.buy': '구매',
+    'action.buyAgain': '다시 구매',
+    'action.needCoins': '{coins} 부족',
+    'action.confirm': '확인',
     'action.locked': '잠김',
     'action.equipped': '장착 중',
     'action.equip': '장착',
@@ -254,8 +257,9 @@ export const ko: Strings = {
     'action.claim': '받기',
     'action.owned': '보유 중',
     'action.buying': '구매 중...',
+    'action.onItsWay': '배송 중... {seconds}초',
     'reward.onItsWay': '가방으로 가는 중',
-    'reward.fewMinutes': '몇 분 걸릴 수 있어요',
+    'reward.fewMinutes': '최대 15분 걸릴 수 있어요',
     'reward.pressI': 'I 키를 눌러 가방을 여세요',
     'rewardStep.sold': '은행에서 광석 팔기',
     'rewardStep.bought': '잡화점에서 물건 사기',

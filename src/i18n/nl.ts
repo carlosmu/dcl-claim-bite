@@ -138,6 +138,9 @@ export const nl: Strings = {
 
     // Big action buttons
     'action.buy': 'KOPEN',
+    'action.buyAgain': 'OPNIEUW KOPEN',
+    'action.needCoins': 'NOG {coins} NODIG',
+    'action.confirm': 'BEVESTIGEN',
     'action.locked': 'OP SLOT',
     'action.equipped': 'UITGERUST',
     'action.equip': 'UITRUSTEN',
@@ -251,8 +254,9 @@ export const nl: Strings = {
     'action.claim': 'OPHALEN',
     'action.owned': 'IN BEZIT',
     'action.buying': 'KOPEN...',
+    'action.onItsWay': 'ONDERWEG... {seconds}s',
     'reward.onItsWay': 'Onderweg naar je rugzak',
-    'reward.fewMinutes': 'Dit kan een paar minuten duren',
+    'reward.fewMinutes': 'Dit kan tot 15 minuten duren',
     'reward.pressI': 'Druk op I om je rugzak te openen',
     'rewardStep.sold': 'Verkoop erts bij de Bank',
     'rewardStep.bought': 'Koop iets bij de Handelspost',

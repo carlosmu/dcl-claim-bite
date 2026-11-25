@@ -35,6 +35,7 @@ import {
     getRewardClaimError,
     getRewardStatus,
     isClaimOfficePanelOpen,
+    rebuyWaitLeft,
     toggleClaimOfficeFromButton
 } from './claim-office/claim-office'
 import { DEBUG_STAND_IN_SUFFIX, MAX_COPIES_PER_PLAYER, RewardCampaign, rewardCampaignsAt, rewardLimitReached, TAILOR_BODY_PARTS, TAILOR_COLLECTIONS, TAILOR_KINDS, TailorBodyPart, TailorKind } from './shared/rewards'
@@ -2451,6 +2452,29 @@ function tailorColumns(): number {
 
 type TailorState = 'available' | 'owned' | 'soon' | 'soldOut'
 
+/** The Owned badge in an item's detail: its height and lettering size. */
+const TAILOR_OWNED_BADGE_HEIGHT = 40
+const TAILOR_OWNED_BADGE_FONT = 24
+/** The same badge, smaller, on a card in the catalogue. */
+const TAILOR_CARD_OWNED_BADGE_HEIGHT = 22
+const TAILOR_CARD_OWNED_BADGE_FONT = 14
+
+/** The Owned badge: green, the count in dark lettering. */
+const tailorOwnedBadge = (text: string, height: number, fontSize: number, padding: number) => (
+    <UiEntity
+        uiTransform={{ height, flexShrink: 0, flexDirection: 'row', alignItems: 'center', padding: { left: padding, right: padding }, borderRadius: Math.min(8, height / 3) }}
+        uiBackground={{ color: PRICE_GOOD_COLOR }}
+    >
+        <BitmapText value={upper(text)} fontSize={fontSize} color={BANK_INK} />
+    </UiEntity>
+)
+
+/**
+ * The item whose BUY was tapped once and now asks to be confirmed; null when none is. A wearable is
+ * minted for good, so a stray tap must not buy it. Forgotten when the shop closes or another item opens.
+ */
+let tailorConfirmFor: string | null = null
+
 /** 'owned': at least one copy bought, and still on sale: another can be bought. */
 function tailorState(campaign: RewardCampaign): TailorState {
     if (campaign.comingSoon) return 'soon'
@@ -2544,7 +2568,11 @@ const tailorCard = (campaign: RewardCampaign, columns: number) => {
                 <UiEntity uiTransform={{ flexGrow: 1 }} />
                 <UiEntity uiTransform={{ width: '100%', height: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
                     {campaign.price > 0 ? coinAmount(campaign.price, priceColor, 20) : <BitmapText value={t('store.freeCaps')} fontSize={20} color={priceColor} />}
-                    <Label value={status.text} fontSize={14} color={status.color} textAlign="middle-right" textWrap="nowrap" uiTransform={{ height: 22 }} />
+                    {state === 'owned' ? (
+                        tailorOwnedBadge(status.text, TAILOR_CARD_OWNED_BADGE_HEIGHT, TAILOR_CARD_OWNED_BADGE_FONT, 8)
+                    ) : (
+                        <Label value={status.text} fontSize={14} color={status.color} textAlign="middle-right" textWrap="nowrap" uiTransform={{ height: 22 }} />
+                    )}
                 </UiEntity>
             </UiEntity>
         </UiEntity>
@@ -2694,10 +2722,17 @@ const tailorDetailView = (campaign: RewardCampaign) => {
     else if (state === 'soldOut') action = { label: t('action.soldOut'), kind: 'off' }
     else if (atLimit) action = { label: t('action.limitReached'), kind: 'off' }
     else if (claim.claiming) action = { label: t('action.buying'), kind: 'off' }
-    else action = { label: t('action.buy'), kind: canBuyTailorItem(campaign.id) ? 'buy' : 'off', onClick: () => buyTailorItem(campaign.id) }
+    // Just bought: not sold again until it has had time to reach the backpack.
+    else if (rebuyWaitLeft(campaign.id) > 0) action = { label: t('action.onItsWay', { seconds: rebuyWaitLeft(campaign.id) }), kind: 'off' }
+    // A copy already owned: the button says so, so another purchase is a choice, not a mistake.
+    // Not enough coins: the button says how many are missing, rather than just going grey.
+    else if (getCoins() < campaign.price) action = { label: t('action.needCoins', { coins: withCommas(campaign.price - getCoins()) }), kind: 'off' }
+    else action = { label: claim.count > 0 ? t('action.buyAgain') : t('action.buy'), kind: canBuyTailorItem(campaign.id) ? 'buy' : 'off', onClick: () => (tailorConfirmFor = campaign.id) }
+    // Another item's question is not this one's; and one that can no longer be bought has nothing to confirm.
+    if (tailorConfirmFor !== campaign.id || action.kind !== 'buy') tailorConfirmFor = null
 
     const notes: ReactEcs.JSX.Element[] = []
-    if (claim.claimed) {
+    if (rebuyWaitLeft(campaign.id) > 0) {
         // Minted on chain by the Rewards service when gas allows: it can take a while to show up.
         notes.push(detailNote(t('reward.onItsWay'), PRICE_GOOD_COLOR))
         notes.push(detailNote(t('reward.fewMinutes'), BANK_CAPTION))
@@ -2752,7 +2787,14 @@ const tailorDetailView = (campaign: RewardCampaign) => {
                         <Label value={upper(tailorCollectionName(campaign.collection))} fontSize={DETAIL_CAPTION_SIZE} color={BANK_CAPTION} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 24 }} />
                     ) : null}
                     {wrappedTitle(upper(rewardText(campaign, 'name')), 32, BANK_GOLD_LIGHT, 2, 'left')}
-                    <Label value={status.text} fontSize={DETAIL_TEXT_SIZE} color={status.color} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 28 }} />
+                    {state === 'owned' ? (
+                        // Owned is what a buyer looks for: a badge, not a line of text.
+                        <UiEntity uiTransform={{ alignSelf: 'flex-start', margin: { top: 4, bottom: 4 } }}>
+                            {tailorOwnedBadge(status.text, TAILOR_OWNED_BADGE_HEIGHT, TAILOR_OWNED_BADGE_FONT, 16)}
+                        </UiEntity>
+                    ) : (
+                        <Label value={status.text} fontSize={DETAIL_TEXT_SIZE} color={status.color} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 28 }} />
+                    )}
                     <Label value={rewardText(campaign, 'description')} fontSize={DETAIL_TEXT_SIZE} color={BANK_CREAM} textAlign="top-left" textWrap="wrap" uiTransform={{ width: '100%', minHeight: 56, margin: { top: 6 } }} />
                     <UiEntity uiTransform={{ flexDirection: 'column', margin: { top: 10 } }}>
                         <Label value={t('store.price')} fontSize={DETAIL_CAPTION_SIZE} color={BANK_CAPTION} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: 26 }} />
@@ -2761,7 +2803,26 @@ const tailorDetailView = (campaign: RewardCampaign) => {
                     {notes}
                     {/* The action sits at the bottom, however much the item above has to say. */}
                     <UiEntity uiTransform={{ flexGrow: 1 }} />
-                    {storeActionButton(action)}
+                    {/* Right above the button, where a buyer looks: how many copies of each item one player can buy. */}
+                    <Label value={t('tailor.limitNote', { max: MAX_COPIES_PER_PLAYER })} fontSize={DETAIL_CAPTION_SIZE} color={BANK_CAPTION} textAlign="middle-center" textWrap="wrap" uiTransform={{ width: '100%', minHeight: 26, margin: { bottom: 6 }, flexShrink: 0 }} />
+                    {tailorConfirmFor === campaign.id ? (
+                        // Step 2: CANCEL in red like the window's X, CONFIRM in the gold of BUY.
+                        <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', justifyContent: 'space-between' }}>
+                            <UiEntity uiTransform={{ width: '48%' }}>{storeActionButton({ label: t('land.warningCancel'), kind: 'danger', onClick: () => (tailorConfirmFor = null) })}</UiEntity>
+                            <UiEntity uiTransform={{ width: '48%' }}>
+                                {storeActionButton({
+                                    label: t('action.confirm'),
+                                    kind: 'buy',
+                                    onClick: () => {
+                                        tailorConfirmFor = null
+                                        buyTailorItem(campaign.id)
+                                    }
+                                })}
+                            </UiEntity>
+                        </UiEntity>
+                    ) : (
+                        storeActionButton(action)
+                    )}
                 </UiEntity>
             </UiEntity>
         </UiEntity>
@@ -2770,12 +2831,13 @@ const tailorDetailView = (campaign: RewardCampaign) => {
 
 const tailorShopPanel = () => {
     const selected = TAILOR_CAMPAIGNS.find((campaign) => campaign.id === getSelectedTailorItem())
-    const view = isTailorDetailOpen() && selected !== undefined ? tailorDetailView(selected) : tailorCatalogueView()
-    // At the foot of the window, in both views: how many copies of each item one player can buy.
+    const detail = isTailorDetailOpen() && selected !== undefined
+    // Back in the catalogue, no purchase is waiting to be confirmed.
+    if (!detail) tailorConfirmFor = null
+    const view = detail ? tailorDetailView(selected) : tailorCatalogueView()
     const body = (
         <UiEntity uiTransform={{ width: '100%', flexGrow: 1, flexDirection: 'column' }}>
             {view}
-            <Label value={t('tailor.limitNote', { max: MAX_COPIES_PER_PLAYER })} fontSize={DETAIL_CAPTION_SIZE} color={BANK_CAPTION} textAlign="middle-center" textWrap="wrap" uiTransform={{ width: '100%', minHeight: 26, margin: { top: 8 }, flexShrink: 0 }} />
         </UiEntity>
     )
     return panelFrame(t('tailor.title'), closeTailorShopPanel, true, body)

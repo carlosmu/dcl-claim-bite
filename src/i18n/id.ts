@@ -139,6 +139,9 @@ export const id: Strings = {
 
     // Big action buttons
     'action.buy': 'BELI',
+    'action.buyAgain': 'BELI LAGI',
+    'action.needCoins': 'KURANG {coins}',
+    'action.confirm': 'KONFIRMASI',
     'action.locked': 'TERKUNCI',
     'action.equipped': 'DIPAKAI',
     'action.equip': 'PAKAI',
@@ -252,8 +255,9 @@ export const id: Strings = {
     'action.claim': 'AMBIL',
     'action.owned': 'DIMILIKI',
     'action.buying': 'MEMBELI...',
+    'action.onItsWay': 'DALAM PERJALANAN... {seconds}d',
     'reward.onItsWay': 'Sedang dikirim ke ranselmu',
-    'reward.fewMinutes': 'Bisa butuh beberapa menit',
+    'reward.fewMinutes': 'Bisa butuh hingga 15 menit',
     'reward.pressI': 'Tekan I untuk membuka ransel',
     'rewardStep.sold': 'Jual bijih di Bank',
     'rewardStep.bought': 'Beli sesuatu di Toko Serba Ada',
