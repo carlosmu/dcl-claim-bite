@@ -46,7 +46,11 @@ export const COMPENSATIONS: readonly Compensation[] = [
   { id: 'slot-timeout-2026-11-13', address: '0x53e22947510ad64ae85c96526bdbedb0b3e54f31', coins: 411, date: 'November 13', kind: 'casino' },
 
   // 2026-11-13: lost progress in the evening's run of deploys (two servers at once). 250 coins, as the bank.
-  { id: 'deploys-2026-11-13', address: '0xa988612376214e731de1d2cbe9c16515374caeb2', coins: 250, date: 'November 13' }
+  { id: 'deploys-2026-11-13', address: '0xa988612376214e731de1d2cbe9c16515374caeb2', coins: 250, date: 'November 13' },
+
+  // 2026-11-25: gifts from the owner, paid through the bank's screen.
+  { id: 'gift-2026-11-25', address: '0xf605e3257c5662406b8baa9e6040dc393d05922f', coins: 500, date: 'November 25' }, // JayElf
+  { id: 'gift-2026-11-25', address: '0x5f20a069011559f3433c269f50151fcbd5c304dd', coins: 1000, date: 'November 25' } // Grafkaal
 ]
 
 /** The compensations meant for this wallet, in list order. */
