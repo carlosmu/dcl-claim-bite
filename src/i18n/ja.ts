@@ -428,7 +428,7 @@ export const ja: Strings = {
     'claim.creditsLaterDay': '別の日ならいつでも',
     'claim.creditsOpensIn': 'あと{time}で開始',
     'claim.creditsOnce': '1アカウント1回 · 24時間以内に届きます',
-    'claim.creditsLate': '遅すぎます：2日目の前に終了',
+    'claim.creditsLate': '受付終了',
     'claim.creditsReward': '報酬',
     'claim.creditsAmount': '{credits} クレジット',
     'claim.creditsEnds': '終了まで',

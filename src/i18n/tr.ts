@@ -427,7 +427,7 @@ export const tr: Strings = {
     'claim.creditsLaterDay': 'Sonraki herhangi bir gün',
     'claim.creditsOpensIn': '{time} içinde açılır',
     'claim.creditsOnce': 'Hesap başına bir kez · 24 saatte teslim',
-    'claim.creditsLate': 'Çok geç: 2. günden önce bitiyor',
+    'claim.creditsLate': 'Kayıtlar kapandı',
     'claim.creditsReward': 'Ödül',
     'claim.creditsAmount': '{credits} KREDİ',
     'claim.creditsEnds': 'Bitişe',

@@ -57,6 +57,12 @@ const JACKPOT_KEY = seasonKey('casino-pot')
 /** Scene-wide key: the slot machines' figures per day, for the owner to read in the Storage export. */
 const CASINO_STATS_KEY = seasonKey('casino-stats')
 
+/**
+ * How many of each sold item its dispenser has handed over (reward-stock.ts). No season suffix: the
+ * dispensers are real and do not start over with a season.
+ */
+const REWARD_STOCK_KEY = 'reward-stock'
+
 /** The last balance seen for each player, for the coins in circulation (coin-ledger.ts). */
 const COIN_LEDGER_KEY = seasonKey('coin-ledger')
 
@@ -334,6 +340,24 @@ export async function saveCasinoStats(stats: StoredCasinoStats): Promise<boolean
   }
 }
 
+/** Units handed over by each dispenser, or null if none were ever saved. Throws if the read failed. */
+export function loadRewardStock(): Promise<Record<string, number> | null> {
+  return readValue<Record<string, number>>(`/values/${encodeURIComponent(REWARD_STOCK_KEY)}`)
+}
+
+/** Resolves true once the write is confirmed, like savePurse. */
+export async function saveRewardStock(delivered: Record<string, number>): Promise<boolean> {
+  if (writesStopped) return true
+  try {
+    const ok = await Storage.set(REWARD_STOCK_KEY, delivered)
+    if (!ok) console.log('[Server] could not save the reward stock')
+    return ok
+  } catch (error) {
+    console.log(`[Server] could not save the reward stock: ${error}`)
+    return false
+  }
+}
+
 /** Each player's last balance seen, or null if none was ever saved. Throws if the read failed. */
 export function loadCoinLedger(): Promise<Record<string, number> | null> {
   return readValue<Record<string, number>>(`/values/${encodeURIComponent(COIN_LEDGER_KEY)}`)
@@ -426,6 +450,8 @@ export type StoredCampaignConfig = {
   softCap: number
   /** Local preview only: a "day" lasts this many minutes, to test day 2 without waiting. 0: real days. */
   testDayMinutes?: number
+  /** ISO date (UTC): no new reservations from then on; claims stay open until `end`. Empty or missing: until the last day. */
+  reserveEnd?: string
   /** Rocks to finish on each day. Missing or not a positive whole number: CAMPAIGN_ROCKS_PER_DAY. */
   rocksPerDay?: number
   /** Free text for the owner; never read. */

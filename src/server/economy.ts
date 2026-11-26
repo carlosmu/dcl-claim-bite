@@ -79,6 +79,7 @@ import { clearNotes, deleteNote, leaveBankNote, leaveNote, sendNotes, setupNotes
 import { SELL_HOME_NOTE_TEXT } from '../shared/notes'
 import { sendPrefs, setLanguagePref, setSoundPrefs } from './prefs'
 import { noteBalance, saveCoinLedgerNow, setupCoinLedger } from './coin-ledger'
+import { releaseStock, reserveStock, saveRewardStockNow, setupRewardStock } from './reward-stock'
 import { noteCoins, noteMined, noteNewOwner, noteSpentOnPurchase, noteSale, noteSlotWin, saveTitlesNow, setupTitles } from './titles'
 import { isCasinoReady, saveJackpotNow, setupCasino, spin } from './casino'
 import { saveCasinoStatsNow } from './casino-stats'
@@ -446,6 +447,16 @@ function handleClaimReward(address: string, campaignId: string): void {
     sendResult(address, 'claimReward', false, `needs ${price - purse.coins} more coins`)
     return
   }
+  // A unit of the dispenser's stock is held for this claim until the service answers.
+  const stock = reserveStock(campaign.id)
+  if (stock === 'loading') {
+    sendResult(address, 'claimReward', false, 'still loading')
+    return
+  }
+  if (stock === 'soldOut') {
+    sendResult(address, 'claimReward', false, 'sold out')
+    return
+  }
   claimingReward.add(key)
   // A sold item's coins are taken now, before the service answers, so they cannot be spent on
   // something else meanwhile. Given back below if the item is not handed over.
@@ -458,6 +469,7 @@ function handleClaimReward(address: string, campaignId: string): void {
 
   void requestReward(address, campaign.dispenserKeyVar).then((result) => {
     claimingReward.delete(key)
+    releaseStock(campaign.id, result.ok, result.outOfStock)
     // Looked up again: the player may have left while the service answered. Then the claim is
     // not recorded here, and the campaign's one-per-player limit is what stops a second one.
     const now = purses.get(address)
@@ -1749,6 +1761,7 @@ function saveEverythingNow(): boolean {
   if (saveCasinoStatsNow()) any = true
   if (saveTitlesNow()) any = true
   if (saveCoinLedgerNow()) any = true
+  if (saveRewardStockNow()) any = true
   return any
 }
 
@@ -1965,6 +1978,7 @@ export function setupEconomy(): void {
   setupNotes()
   setupTitles()
   setupCoinLedger()
+  setupRewardStock()
   setupCasino()
   setupCreditsCampaign()
 }

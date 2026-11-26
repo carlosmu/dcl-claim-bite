@@ -426,7 +426,7 @@ export const id: Strings = {
     'claim.creditsLaterDay': 'Di hari berikutnya',
     'claim.creditsOpensIn': 'buka dalam {time}',
     'claim.creditsOnce': 'Sekali per akun · dikirim dalam 24 jam',
-    'claim.creditsLate': 'Terlambat: berakhir sebelum Hari 2',
+    'claim.creditsLate': 'Pendaftaran ditutup',
     'claim.creditsReward': 'Hadiah',
     'claim.creditsAmount': '{credits} KREDIT',
     'claim.creditsEnds': 'Berakhir dalam',

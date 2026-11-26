@@ -428,7 +428,7 @@ export const ko: Strings = {
     'claim.creditsLaterDay': '이후 아무 날이나',
     'claim.creditsOpensIn': '{time} 후 열림',
     'claim.creditsOnce': '계정당 1회 · 24시간 이내 지급',
-    'claim.creditsLate': '너무 늦음: 2일차 전에 종료',
+    'claim.creditsLate': '참가 마감',
     'claim.creditsReward': '보상',
     'claim.creditsAmount': '{credits} 크레딧',
     'claim.creditsEnds': '종료까지',

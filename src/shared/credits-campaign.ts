@@ -25,7 +25,8 @@ export const CAMPAIGN_REWARD_CREDITS = 10
  * Where a player stands, as the server tells it:
  *   off       no campaign right now (over, or not configured): nothing shown
  *   soon      configured but not started yet: shown with the time left to the start
- *   late     open, but this is its last day and they have not reserved: day 2 would never come
+ *   late      open, but they have not reserved and can no longer: reservations closed (`reserveEnd`),
+ *             or this is the last day and day 2 would never come
  *   day1      counting towards the reservation
  *   reserved  reserved today; the claim opens with the next game day
  *   day2      a later day: counting towards the claim

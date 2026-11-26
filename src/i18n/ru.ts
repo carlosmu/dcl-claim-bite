@@ -429,7 +429,7 @@ export const ru: Strings = {
     'claim.creditsLaterDay': 'В любой следующий день',
     'claim.creditsOpensIn': 'откроется через {time}',
     'claim.creditsOnce': 'Один раз на аккаунт · придут за 24 ч',
-    'claim.creditsLate': 'Поздно: акция кончится до дня 2',
+    'claim.creditsLate': 'Запись закрыта',
     'claim.creditsReward': 'Награда',
     'claim.creditsAmount': '{credits} КРЕДИТОВ',
     'claim.creditsEnds': 'До конца',

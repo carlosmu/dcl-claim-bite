@@ -21,7 +21,7 @@ const REWARDS_URL = 'https://rewards.decentraland.org/api/rewards'
  * campaign's one-per-player limit). The scene then records the gift as claimed, so a record it
  * lost (another server's storage, a wiped preview) is put right on the next try.
  */
-export type RewardResult = { ok: boolean; detail: string; alreadyClaimed: boolean }
+export type RewardResult = { ok: boolean; detail: string; alreadyClaimed: boolean; outOfStock: boolean }
 
 /**
  * The Rewards API does not document its refusal for a wallet over the limit, so this reads the
@@ -29,12 +29,15 @@ export type RewardResult = { ok: boolean; detail: string; alreadyClaimed: boolea
  */
 const ALREADY_CLAIMED_PATTERN = /already|limit|exceed/i
 
+/** The same guess for a dispenser with nothing left to hand out (reward-stock.ts then marks it sold out). */
+const OUT_OF_STOCK_PATTERN = /out of stock|sold out|no more items|no items left|no stock|exhausted/i
+
 /** Asks the campaign whose dispenser key is in `dispenserKeyVar` to assign its wearable to this wallet. Never throws. */
 export async function requestReward(address: string, dispenserKeyVar: string): Promise<RewardResult> {
   const key = await EnvVar.get(dispenserKeyVar)
   if (key === '') {
     console.log(`[Server] ${dispenserKeyVar} is not set: the gift cannot be claimed`)
-    return { ok: false, detail: 'The gift is not available right now', alreadyClaimed: false }
+    return { ok: false, detail: 'The gift is not available right now', alreadyClaimed: false, outOfStock: false }
   }
   try {
     const response = await fetch(REWARDS_URL, {
@@ -49,12 +52,12 @@ export async function requestReward(address: string, dispenserKeyVar: string): P
     } catch {
       // not JSON: logged below as is
     }
-    if (response.ok && body.ok === true) return { ok: true, detail: 'assigned', alreadyClaimed: false }
+    if (response.ok && body.ok === true) return { ok: true, detail: 'assigned', alreadyClaimed: false, outOfStock: false }
     console.log(`[Server] Rewards refused ${address}: ${response.status} ${text.slice(0, 300)}`)
     const detail = body.error ?? body.message ?? `Rewards answered ${response.status}`
-    return { ok: false, detail, alreadyClaimed: ALREADY_CLAIMED_PATTERN.test(detail) }
+    return { ok: false, detail, alreadyClaimed: ALREADY_CLAIMED_PATTERN.test(detail), outOfStock: OUT_OF_STOCK_PATTERN.test(detail) }
   } catch (error) {
     console.log(`[Server] Rewards request failed for ${address}: ${error}`)
-    return { ok: false, detail: 'Could not reach the Rewards service, try again later', alreadyClaimed: false }
+    return { ok: false, detail: 'Could not reach the Rewards service, try again later', alreadyClaimed: false, outOfStock: false }
   }
 }

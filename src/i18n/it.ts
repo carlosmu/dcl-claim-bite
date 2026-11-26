@@ -425,7 +425,7 @@ export const it: Strings = {
     'claim.creditsLaterDay': 'Un giorno successivo',
     'claim.creditsOpensIn': 'apre tra {time}',
     'claim.creditsOnce': 'Una volta per account · consegna in 24 h',
-    'claim.creditsLate': 'Troppo tardi: finisce prima del Giorno 2',
+    'claim.creditsLate': 'Iscrizioni chiuse',
     'claim.creditsReward': 'Ricompensa',
     'claim.creditsAmount': '{credits} CREDITI',
     'claim.creditsEnds': 'Finisce tra',

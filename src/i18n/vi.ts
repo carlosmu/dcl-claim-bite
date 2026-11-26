@@ -427,7 +427,7 @@ export const vi: Strings = {
     'claim.creditsLaterDay': 'Vào bất kỳ ngày nào sau đó',
     'claim.creditsOpensIn': 'mở sau {time}',
     'claim.creditsOnce': 'Mỗi tài khoản một lần · gửi trong 24 giờ',
-    'claim.creditsLate': 'Quá muộn: kết thúc trước ngày 2',
+    'claim.creditsLate': 'Đã hết hạn đăng ký',
     'claim.creditsReward': 'Phần thưởng',
     'claim.creditsAmount': '{credits} TÍN DỤNG',
     'claim.creditsEnds': 'Kết thúc sau',

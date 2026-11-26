@@ -5,6 +5,7 @@ import { createProximityZone, ProximityZone } from '../world/proximity-zone'
 import { rewardCampaignsAt, TailorBodyPart, TailorKind } from '../shared/rewards'
 import { canClaimReward, claimReward, getRewardStatus } from '../claim-office/claim-office'
 import { getCoins } from '../shared/state/wallet'
+import { isRewardOutOfStock } from '../shared/net/reward-stock-sync'
 
 // The Tailor Shop: wearables and emotes sold for coins. Each item is a Rewards campaign
 // (shared/rewards.ts, venue 'tailor') with a price and no quest, bought through the same claim as
@@ -100,9 +101,9 @@ export function closeTailorDetail(): void {
   detailOpen = false
 }
 
-/** No more to be had, owned or not. */
+/** No more to be had, owned or not: marked so by hand, or its dispenser's stock is gone (the server's word). */
 export function isTailorItemSoldOut(id: string): boolean {
-  return rewardCampaignsAt('tailor').find((campaign) => campaign.id === id)?.soldOut === true
+  return rewardCampaignsAt('tailor').find((campaign) => campaign.id === id)?.soldOut === true || isRewardOutOfStock(id)
 }
 
 export function isTailorShopPanelOpen(): boolean {
@@ -125,7 +126,7 @@ export function selectTailorItem(id: string): void {
 /** On sale, not being bought, under the per-player copy limit, quest met (none, for now) and the coins in the purse. */
 export function canBuyTailorItem(id: string): boolean {
   const item = rewardCampaignsAt('tailor').find((campaign) => campaign.id === id)
-  if (item === undefined || item.comingSoon || item.soldOut === true) return false
+  if (item === undefined || item.comingSoon || isTailorItemSoldOut(id)) return false
   return canClaimReward(id) && getCoins() >= item.price
 }
 

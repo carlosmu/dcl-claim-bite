@@ -427,7 +427,7 @@ export const en = {
     'claim.creditsLaterDay': 'On any later day',
     'claim.creditsOpensIn': 'opens in {time}',
     'claim.creditsOnce': 'Once per account · delivered within 24 h',
-    'claim.creditsLate': 'Too late to start: it ends before Day 2',
+    'claim.creditsLate': 'Sign-ups are closed',
     'claim.creditsReward': 'Reward',
     'claim.creditsAmount': '{credits} CREDITS',
     'claim.creditsEnds': 'Ends in',

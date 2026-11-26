@@ -70,6 +70,11 @@ export type RewardCampaign = {
   comingSoon: boolean
   /** No more to sell: the card says Sold Out and the server turns claims down. Unset: on sale. */
   soldOut?: boolean
+  /**
+   * How many its dispenser holds in all. Once that many have been handed over (server/reward-stock.ts)
+   * it is sold out for everyone. Unset: not counted.
+   */
+  stock?: number
   /** The Tailor Shop tab it is on. Unset: the Claim Office's items, never in the shop. */
   kind?: TailorKind
   /** A wearable's place on the avatar. Unset: shown under All body parts only. */
@@ -122,6 +127,7 @@ export const REWARD_CAMPAIGNS: readonly RewardCampaign[] = [
     kind: 'wearables',
     bodyPart: 'feet',
     collection: 'drifter',
+    stock: 900,
     dispenserKeyVar: 'SHOP_DRIFTER_BOOTS'
   },
   {
@@ -137,6 +143,7 @@ export const REWARD_CAMPAIGNS: readonly RewardCampaign[] = [
     kind: 'wearables',
     bodyPart: 'head',
     collection: 'drifter',
+    stock: 900,
     dispenserKeyVar: 'SHOP_DRIFTER_HAT'
   },
   {
@@ -152,6 +159,7 @@ export const REWARD_CAMPAIGNS: readonly RewardCampaign[] = [
     kind: 'wearables',
     bodyPart: 'lowerBody',
     collection: 'drifter',
+    stock: 900,
     dispenserKeyVar: 'SHOP_DRIFTER_PANTS'
   },
   {
@@ -167,6 +175,7 @@ export const REWARD_CAMPAIGNS: readonly RewardCampaign[] = [
     kind: 'wearables',
     bodyPart: 'upperBody',
     collection: 'drifter',
+    stock: 900,
     dispenserKeyVar: 'SHOP_DRIFTER_GEAR'
   }
 ]

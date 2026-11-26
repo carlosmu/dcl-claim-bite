@@ -427,7 +427,7 @@ export const zh: Strings = {
     'claim.creditsLaterDay': '之后任意一天',
     'claim.creditsOpensIn': '{time}后开放',
     'claim.creditsOnce': '每个账号一次 · 24小时内发放',
-    'claim.creditsLate': '太晚了：活动在第2天前结束',
+    'claim.creditsLate': '报名已截止',
     'claim.creditsReward': '奖励',
     'claim.creditsAmount': '{credits} 积分',
     'claim.creditsEnds': '剩余时间',

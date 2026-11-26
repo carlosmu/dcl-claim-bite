@@ -425,7 +425,7 @@ export const es: Strings = {
     'claim.creditsLaterDay': 'Cualquier día posterior',
     'claim.creditsOpensIn': 'abre en {time}',
     'claim.creditsOnce': 'Una vez por cuenta · llegan en 24 h',
-    'claim.creditsLate': 'Muy tarde: termina antes del Día 2',
+    'claim.creditsLate': 'Inscripción cerrada',
     'claim.creditsReward': 'Recompensa',
     'claim.creditsAmount': '{credits} CRÉDITOS',
     'claim.creditsEnds': 'Termina en',

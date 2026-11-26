@@ -12,6 +12,7 @@ import './shared/net/property-lots-sync'
 import './shared/net/tiers-sync'
 import './shared/net/town-titles-sync'
 import './shared/net/casino-sync'
+import './shared/net/reward-stock-sync'
 import './shared/net/protocol'
 // Scene Feedback starts on import, on both halves: the client asks, the server stores the CSV.
 import './scene-feedback'

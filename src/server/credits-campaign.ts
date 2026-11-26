@@ -10,6 +10,7 @@
 // only: nobody is turned away past it, an alert is stored (persistence.ts, `alerts`) when the
 // winners reach it. `testDayMinutes` makes a day that many minutes long, in a local preview only.
 // `rocksPerDay` changes the rocks each day asks for (default CAMPAIGN_ROCKS_PER_DAY); the clients are told.
+// `reserveEnd` closes new reservations at that moment; whoever reserved can still claim until `end`.
 //
 // THE WINNERS: Scene → `<CAMPAIGN_ID>-entries`, one row per wallet that reserved; the winners are
 // the rows with `claimedAt`. Admins can also copy them as CSV from the bug-report menu.
@@ -57,9 +58,10 @@ const CONFIG_TEMPLATE: StoredCampaignConfig = {
   start: '',
   end: '',
   softCap: 60,
+  reserveEnd: '',
   testDayMinutes: 0,
   rocksPerDay: CAMPAIGN_ROCKS_PER_DAY,
-  help: 'ISO dates in UTC, e.g. 2026-11-20T10:00:00Z. Empty start or end: off. softCap is informational. testDayMinutes works in a local preview only.'
+  help: 'ISO dates in UTC, e.g. 2026-11-20T10:00:00Z. Empty start or end: off. reserveEnd: no new reservations from then on (empty: until the last day). softCap is informational. testDayMinutes works in a local preview only.'
 }
 
 let clock = 0
@@ -153,6 +155,8 @@ function phaseOf(record: StoredCampaignProgress, now: number): CampaignPhase {
   if (now < span.start) return 'soon'
   if (record.claimedDay !== undefined) return 'claimed'
   if (record.reservedDay !== undefined) return record.reservedDay === dayKey(now) ? 'reserved' : 'day2'
+  const reserveEnd = parseTime(config?.reserveEnd)
+  if (Number.isFinite(reserveEnd) && now >= reserveEnd) return 'late'
   return nextDayAt(now) >= span.end ? 'late' : 'day1'
 }
 

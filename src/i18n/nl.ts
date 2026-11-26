@@ -425,7 +425,7 @@ export const nl: Strings = {
     'claim.creditsLaterDay': 'Op een latere dag',
     'claim.creditsOpensIn': 'opent over {time}',
     'claim.creditsOnce': 'Eén keer per account · binnen 24 u geleverd',
-    'claim.creditsLate': 'Te laat: eindigt vóór Dag 2',
+    'claim.creditsLate': 'Inschrijving gesloten',
     'claim.creditsReward': 'Beloning',
     'claim.creditsAmount': '{credits} CREDITS',
     'claim.creditsEnds': 'Eindigt over',
