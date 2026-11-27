@@ -1268,12 +1268,15 @@ const adminCampaignRow = () => {
     const campaign = getCampaignAdmin()
     if (!amAdmin() || campaign === null) return null
     const known = campaign.reserved >= 0
-    const summary = `Credits ${campaign.open ? 'OPEN' : 'closed'} · ${known ? `${campaign.reserved} reserved · ${campaign.claimed}/${campaign.softCap} won` : 'reading...'}`
+    // Two lines, each its own label: the state, then the figures. One label with a line break ran its second line under the button.
+    const state = `Credits ${campaign.open ? 'OPEN' : 'closed'}`
+    const figures = known ? `${campaign.reserved} reserved · ${campaign.claimed}/${campaign.softCap} won` : 'reading...'
     const copied = getWinnersCopied()
     const justCopied = Date.now() - copied.at < WINNERS_COPIED_MS
     return (
         <UiEntity key="campaign" uiTransform={{ width: '100%', flexDirection: 'column', margin: { top: FEEDBACK_MENU_GAP } }}>
-            <Label value={summary} fontSize={14} color={MUTED_COLOR} textAlign="middle-center" uiTransform={{ width: '100%', height: 20 }} />
+            <Label value={state} fontSize={14} color={MUTED_COLOR} textAlign="middle-center" textWrap="nowrap" uiTransform={{ width: '100%', height: 20, flexShrink: 0 }} />
+            <Label value={figures} fontSize={14} color={MUTED_COLOR} textAlign="middle-center" textWrap="nowrap" uiTransform={{ width: '100%', height: 20, flexShrink: 0, margin: { bottom: 6 } }} />
             <UiEntity
                 uiTransform={{
                     width: '100%',
