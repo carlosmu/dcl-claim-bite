@@ -459,6 +459,7 @@ export const zh: Strings = {
     'owner.propertyOf': '房产主人',
     'owner.noteLeft': '便条已留在门口',
     'owner.notSent': '未发送：{detail}',
+    'owner.visitSender': '去{name}的家',
     'common.clear': '清空',
 
     // Notifications, feedback menu, sound

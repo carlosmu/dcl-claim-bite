@@ -201,6 +201,7 @@ type StandingProperty = {
   pinPicture: Entity
   shownName: string | null
   ownerAddress?: string
+  ownerName?: string
 }
 
 const areas = new Map<PropertyKind, Area>()
@@ -454,6 +455,7 @@ function syncLots(): void {
       owner === undefined ? FOR_SALE_COLOR : OWNER_TEXT_COLOR
     )
     property.ownerAddress = owner?.address
+    property.ownerName = owner?.name
     setOwnerPicture(property.picture, owner?.address)
     setPin(property, mine ? owner.address : undefined)
     setOwnerClick(property, owner)
@@ -483,8 +485,12 @@ function syncLod(dt: number): void {
 /** Where an entity stands in the world, through however many parents it has. */
 export function worldPosition(entity: Entity): Vector3 {
   const transform = Transform.get(entity)
-  let position = Vector3.clone(transform.position)
-  let parent = transform.parent
+  return worldPoint(transform.parent, transform.position)
+}
+
+/** Where a point given in `parent`'s space stands in the world. */
+function worldPoint(parent: Entity | undefined, local: Vector3): Vector3 {
+  let position = Vector3.clone(local)
   while (parent !== undefined && parent !== engine.RootEntity) {
     const p = Transform.getOrNull(parent)
     if (p === null) break
@@ -492,6 +498,53 @@ export function worldPosition(entity: Entity): Vector3 {
     parent = p.parent
   }
   return position
+}
+
+/** How far in front of a property's front wall a visitor is set down, out on the street. */
+const VISIT_FRONT_METERS = 4
+/** What a visitor set down there looks at: a point on the front wall, about head high. */
+const VISIT_LOOK_HEIGHT_METERS = 1.6
+
+/**
+ * Where to set a visitor down in front of `address`'s property and what to face, or null when
+ * they have none standing. The lot's origin is the middle of its front wall, the model reaching
+ * back into -Z, so +Z is the street.
+ */
+const loggedMissing = new Set<string>()
+
+export function propertyFrontOf(address: string): { position: Vector3; lookAt: Vector3 } | null {
+  const wanted = address.toLowerCase()
+  for (const [, property] of standing) {
+    if (property.ownerAddress?.toLowerCase() === wanted) return frontOf(property)
+  }
+  // TEMP: which owners this client knows, to see why the sender's property was not found.
+  if (!loggedMissing.has(wanted)) {
+    loggedMissing.add(wanted)
+    const owners = [...standing].filter(([, p]) => p.ownerAddress !== undefined).map(([key, p]) => `${key}=${p.ownerName}(${p.ownerAddress})`)
+    console.log(`[properties] no property for ${wanted}; standing owners: ${owners.join(', ')}`)
+  }
+  return null
+}
+
+/**
+ * The same, found by the owner's display name instead, for notes left before senders' wallets
+ * were kept. Only when exactly one property's owner goes by that name: two could be anyone's.
+ */
+export function propertyFrontOfName(name: string): { position: Vector3; lookAt: Vector3 } | null {
+  let found: StandingProperty | null = null
+  for (const [, property] of standing) {
+    if (property.ownerName !== name) continue
+    if (found !== null) return null
+    found = property
+  }
+  return found === null ? null : frontOf(found)
+}
+
+function frontOf(property: StandingProperty): { position: Vector3; lookAt: Vector3 } {
+  return {
+    position: worldPoint(property.root, Vector3.create(0, 0, VISIT_FRONT_METERS)),
+    lookAt: worldPoint(property.root, Vector3.create(0, VISIT_LOOK_HEIGHT_METERS, 0))
+  }
 }
 
 // A lot on sale answers no click: the Land Office is where it is bought.

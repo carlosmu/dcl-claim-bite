@@ -459,6 +459,7 @@ export const vi: Strings = {
     'owner.propertyOf': 'CHỦ NHÀ',
     'owner.noteLeft': 'Đã để lời nhắn trước cửa',
     'owner.notSent': 'Chưa gửi được: {detail}',
+    'owner.visitSender': 'Đến nhà {name}',
     'common.clear': 'XÓA',
 
     // Notifications, feedback menu, sound

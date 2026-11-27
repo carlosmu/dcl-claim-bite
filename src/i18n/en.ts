@@ -459,6 +459,7 @@ export const en = {
     'owner.propertyOf': 'PROPERTY OF',
     'owner.noteLeft': 'Note left at the door',
     'owner.notSent': 'Not sent: {detail}',
+    'owner.visitSender': 'Visit {name}’s place',
     'common.clear': 'CLEAR',
 
     // Notifications, feedback menu, sound

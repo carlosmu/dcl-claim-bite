@@ -64,6 +64,7 @@ import {
 } from './tailor-shop/tailor-shop'
 import {
     canSendNote,
+    canVisitSender,
     clearMyNotes,
     closeOwnerCard,
     deleteMyNote,
@@ -76,7 +77,8 @@ import {
     isOwnCard,
     isOwnerCardOpen,
     sendNote,
-    setNoteDraft
+    setNoteDraft,
+    visitSender
 } from './land-office/owner-card'
 import { ownerHasFace } from './land-office/properties'
 import { Note, NOTE_MAX_CHARS, NOTE_MAX_KEPT } from './shared/notes'
@@ -4698,8 +4700,23 @@ const OWNER_STAT_HEIGHT = 32
 const OWNER_ONLINE_DOT = 12
 const OWNER_NOTE_INPUT_HEIGHT = 48
 const OWNER_PICTURE_FALLBACK = 'assets/images/fallback_profile_pic.png'
+/** The note field: parchment, so the explorer's dark text caret shows on it. */
+const OWNER_NOTE_FIELD = Color4.fromHexString('#F3E6C8FF')
+const OWNER_NOTE_PLACEHOLDER = Color4.fromHexString('#8C7558FF')
+/** The owner's wallet under their picture, tapped to copy it; the icon turns to a tick this long after. */
+const OWNER_ADDRESS_HEIGHT = 32
+const OWNER_COPY_ICON_SIZE = 20
+const OWNER_COPIED_MS = 1500
+/** The link under a note that takes the reader to its sender's property. */
+const OWNER_VISIT_HEIGHT = 32
 
 let ownerNotesPage = 0
+let ownerAddressCopiedAt = 0
+
+/** "0x1a2b…9f3c": a wallet short enough to sit under the picture. */
+function shortAddress(address: string): string {
+    return address.length > 12 ? `${address.slice(0, 6)}…${address.slice(-4)}` : address
+}
 
 /** "just now", "3 min ago", "2 h ago", "4 d ago", from a wall-clock moment. */
 function noteAge(at: number): string {
@@ -4752,14 +4769,15 @@ const leaveNoteSection = () => {
     return (
         <UiEntity uiTransform={{ width: '100%', flexDirection: 'column' }}>
             <BitmapText value={t('owner.leaveNote')} fontSize={24} color={BANK_GOLD_LIGHT} uiTransform={{ margin: { bottom: 8 } }} />
+            {/* A light field with dark ink: the explorer draws the text caret dark and offers no way to colour it, so on dark wood it could not be seen. */}
             <Input
                 placeholder={t('owner.sayHowdy', { name: getOpenOwnerName() })}
                 value={draft}
                 fontSize={18}
-                color={BANK_CREAM}
-                placeholderColor={MUTED_COLOR}
+                color={BANK_INK}
+                placeholderColor={OWNER_NOTE_PLACEHOLDER}
                 uiTransform={{ width: '100%', height: OWNER_NOTE_INPUT_HEIGHT, borderRadius: 8, borderWidth: 2, borderColor: BANK_TRIM }}
-                uiBackground={{ color: BANK_WOOD }}
+                uiBackground={{ color: OWNER_NOTE_FIELD }}
                 onChange={setNoteDraft}
                 onSubmit={(value) => {
                     setNoteDraft(value)
@@ -4811,6 +4829,16 @@ const ownerNoteRow = (note: Note) => (
             </UiEntity>
             {/* Room for the longest note there can be. */}
             <Label value={noteBody(note.text)} fontSize={16} color={BANK_CREAM} textAlign="top-left" textWrap="wrap" uiTransform={{ width: '100%', height: 66 }} />
+            {/* Inside the row, so it takes taps on mobile too. Only when the sender has a property standing. */}
+            {canVisitSender(note) ? (
+                <UiEntity
+                    uiTransform={{ height: OWNER_VISIT_HEIGHT, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center' }}
+                    onMouseDown={() => visitSender(note)}
+                >
+                    <UiEntity uiTransform={{ width: OWNER_COPY_ICON_SIZE, height: OWNER_COPY_ICON_SIZE, margin: { right: 6 }, flexShrink: 0 }} uiBackground={iconBackground(ICON_HOUSE_HOME)} />
+                    <Label value={`${t('owner.visitSender', { name: noteSender(note.from) })} ›`} fontSize={15} color={BANK_GOLD_LIGHT} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: OWNER_VISIT_HEIGHT }} />
+                </UiEntity>
+            ) : null}
         </UiEntity>
         {/* Throws away this note only, from beside it at the top; inside the row, so it takes taps on mobile too. */}
         <UiEntity uiTransform={{ flexShrink: 0, margin: { left: 10 } }}>
@@ -4910,14 +4938,32 @@ const ownerCardPanel = () => {
                 onMouseDown={closeOwnerCard}
             />
             <UiEntity uiTransform={{ width: '100%', flexDirection: 'row', alignItems: 'flex-start', margin: { bottom: 16 } }}>
-                <UiEntity
-                    uiTransform={{ width: OWNER_PHOTO_SIZE, height: OWNER_PHOTO_SIZE, margin: { right: 20 }, flexShrink: 0, borderRadius: 10, borderWidth: 3, borderColor: BANK_TRIM }}
-                    uiBackground={
-                        ownerHasFace(owner)
-                            ? { textureMode: 'stretch', avatarTexture: { userId: owner } }
-                            : { textureMode: 'stretch', texture: { src: OWNER_PICTURE_FALLBACK } }
-                    }
-                />
+                <UiEntity uiTransform={{ width: OWNER_PHOTO_SIZE, margin: { right: 20 }, flexShrink: 0, flexDirection: 'column', alignItems: 'center' }}>
+                    <UiEntity
+                        uiTransform={{ width: OWNER_PHOTO_SIZE, height: OWNER_PHOTO_SIZE, flexShrink: 0, borderRadius: 10, borderWidth: 3, borderColor: BANK_TRIM }}
+                        uiBackground={
+                            ownerHasFace(owner)
+                                ? { textureMode: 'stretch', avatarTexture: { userId: owner } }
+                                : { textureMode: 'stretch', texture: { src: OWNER_PICTURE_FALLBACK } }
+                        }
+                    />
+                    {/* The owner's wallet, tapped anywhere along it to copy it. */}
+                    {owner !== '' ? (
+                        <UiEntity
+                            uiTransform={{ width: '100%', height: OWNER_ADDRESS_HEIGHT, margin: { top: 4 }, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}
+                            onMouseDown={() => {
+                                ownerAddressCopiedAt = Date.now()
+                                void copyToClipboard({ text: owner })
+                            }}
+                        >
+                            <Label value={shortAddress(owner)} fontSize={14} color={BANK_CAPTION} textAlign="middle-center" textWrap="nowrap" uiTransform={{ height: OWNER_ADDRESS_HEIGHT }} />
+                            <UiEntity
+                                uiTransform={{ width: OWNER_COPY_ICON_SIZE, height: OWNER_COPY_ICON_SIZE, margin: { left: 4 }, flexShrink: 0 }}
+                                uiBackground={iconBackground(Date.now() - ownerAddressCopiedAt < OWNER_COPIED_MS ? ICON_COPIED : ICON_COPY)}
+                            />
+                        </UiEntity>
+                    ) : null}
+                </UiEntity>
                 {ownerStats()}
             </UiEntity>
             <UiEntity uiTransform={{ width: '100%', height: 2, margin: { bottom: 12 } }} uiBackground={{ color: BANK_TRIM }} />

@@ -459,6 +459,7 @@ export const tr: Strings = {
     'owner.propertyOf': 'SAHİBİ',
     'owner.noteLeft': 'Not kapıya bırakıldı',
     'owner.notSent': 'Gönderilmedi: {detail}',
+    'owner.visitSender': '{name} adlı oyuncunun evine git',
     'common.clear': 'TEMİZLE',
 
     // Notifications, feedback menu, sound

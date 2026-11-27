@@ -457,6 +457,7 @@ export const pt: Strings = {
     'owner.propertyOf': 'PROPRIEDADE DE',
     'owner.noteLeft': 'Recado deixado na porta',
     'owner.notSent': 'Não enviado: {detail}',
+    'owner.visitSender': 'Visitar a casa de {name}',
     'common.clear': 'LIMPAR',
 
     // Notifications, feedback menu, sound

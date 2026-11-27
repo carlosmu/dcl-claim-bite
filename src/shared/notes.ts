@@ -1,7 +1,10 @@
 // Notes left at a property's door, as both halves of the scene see them.
 
-/** One note: who left it (their display name), what it says, and when (wall-clock ms). */
-export type Note = { from: string; text: string; at: number }
+/**
+ * One note: who left it (their display name), what it says, and when (wall-clock ms). `fromAddress`
+ * is the sender's wallet, so the reader can visit their property; notes left before it was kept have none.
+ */
+export type Note = { from: string; text: string; at: number; fromAddress?: string }
 
 /**
  * A note the bank leaves, not a player: `from` and `text` are these markers, and each client

@@ -460,6 +460,7 @@ export const ja: Strings = {
     'owner.propertyOf': '持ち主',
     'owner.noteLeft': 'ドアにメモを残しました',
     'owner.notSent': '送れませんでした：{detail}',
+    'owner.visitSender': '{name}の家へ行く',
     'common.clear': '消去',
 
     // Notifications, feedback menu, sound

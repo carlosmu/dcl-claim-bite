@@ -1,10 +1,12 @@
 import { engine, Transform } from '@dcl/sdk/ecs'
 import { Vector3 } from '@dcl/sdk/math'
 import { getPlayer } from '@dcl/sdk/players'
+import { movePlayerTo } from '~system/RestrictedActions'
 
 import { room } from '../shared/net/protocol'
-import { cleanNoteText, Note, NOTE_MAX_CHARS, parseNotes } from '../shared/notes'
+import { BANK_NOTE_FROM, cleanNoteText, Note, NOTE_MAX_CHARS, parseNotes } from '../shared/notes'
 import { focusPanel, registerPanel } from '../world/panel-focus'
+import { propertyFrontOf, propertyFrontOfName } from './properties'
 import { t } from '../i18n'
 
 // The card a property's owner shows when their property is clicked: who they are and what they
@@ -129,6 +131,36 @@ export function clearMyNotes(): void {
 
 export function deleteMyNote(note: Note): void {
   room.send('deleteNote', { at: note.at, from: note.from })
+}
+
+/** Whether the note's sender has a property standing to visit. */
+export function canVisitSender(note: Note): boolean {
+  const front = senderFront(note)
+  // TEMP: why a note has no visit link. Logged once per note.
+  const key = `${note.at}|${note.from}`
+  if (!loggedVisit.has(key)) {
+    loggedVisit.add(key)
+    console.log(`[owner-card] note from "${note.from}" fromAddress=${note.fromAddress ?? '(none)'} front=${front === null ? 'NOT FOUND' : JSON.stringify(front.position)}`)
+  }
+  return front !== null
+}
+const loggedVisit = new Set<string>()
+
+/** In front of the sender's property: by their wallet, or by their name on notes left before wallets were kept. The bank has none. */
+function senderFront(note: Note): { position: Vector3; lookAt: Vector3 } | null {
+  if (note.fromAddress !== undefined) return propertyFrontOf(note.fromAddress)
+  if (note.from === BANK_NOTE_FROM) return null
+  return propertyFrontOfName(note.from)
+}
+
+/** Sets the player down in front of the note's sender's property, facing it, and closes the card. */
+export function visitSender(note: Note): void {
+  const front = senderFront(note)
+  if (front === null) return
+  closeOwnerCard()
+  movePlayerTo({ newRelativePosition: front.position, cameraTarget: front.lookAt, avatarTarget: front.lookAt }).catch((error) => {
+    console.error('[owner-card] could not take the player to the sender\'s property', error)
+  })
 }
 
 /** Goes up each time notes arrive that this client had not seen, with who left the newest. */

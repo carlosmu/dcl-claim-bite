@@ -457,6 +457,7 @@ export const nl: Strings = {
     'owner.propertyOf': 'EIGENDOM VAN',
     'owner.noteLeft': 'Briefje aan de deur achtergelaten',
     'owner.notSent': 'Niet verstuurd: {detail}',
+    'owner.visitSender': 'Naar het huis van {name}',
     'common.clear': 'LEEGMAKEN',
 
     // Notifications, feedback menu, sound

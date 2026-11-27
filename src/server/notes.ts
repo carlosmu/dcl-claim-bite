@@ -103,7 +103,7 @@ export async function leaveNote(from: string, fromName: string, owner: string, t
     lastAnyNoteAt.delete(from)
     return 'their mailbox is full'
   }
-  notes.push({ from: fromName, text: clean, at: now })
+  notes.push({ from: fromName, text: clean, at: now, fromAddress: from })
   dirty.add(owner)
   return null
 }

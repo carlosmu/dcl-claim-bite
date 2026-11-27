@@ -458,6 +458,7 @@ export const de: Strings = {
     'owner.propertyOf': 'EIGENTUM VON',
     'owner.noteLeft': 'Notiz an der Tür hinterlassen',
     'owner.notSent': 'Nicht gesendet: {detail}',
+    'owner.visitSender': 'Zum Grundstück von {name}',
     'common.clear': 'LEEREN',
 
     // Notifications, feedback menu, sound

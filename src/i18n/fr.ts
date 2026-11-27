@@ -459,6 +459,7 @@ export const fr: Strings = {
     'owner.propertyOf': 'PROPRIÉTÉ DE',
     'owner.noteLeft': 'Mot laissé à la porte',
     'owner.notSent': 'Non envoyé : {detail}',
+    'owner.visitSender': 'Aller chez {name}',
     'common.clear': 'VIDER',
 
     // Notifications, feedback menu, sound

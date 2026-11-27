@@ -458,6 +458,7 @@ export const id: Strings = {
     'owner.propertyOf': 'MILIK',
     'owner.noteLeft': 'Catatan ditinggalkan di pintu',
     'owner.notSent': 'Tidak terkirim: {detail}',
+    'owner.visitSender': 'Kunjungi rumah {name}',
     'common.clear': 'HAPUS',
 
     // Notifications, feedback menu, sound

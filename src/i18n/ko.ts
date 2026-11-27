@@ -460,6 +460,7 @@ export const ko: Strings = {
     'owner.propertyOf': '주인',
     'owner.noteLeft': '문 앞에 쪽지를 남겼어요',
     'owner.notSent': '보내지 못했어요: {detail}',
+    'owner.visitSender': '{name}님 집으로 가기',
     'common.clear': '비우기',
 
     // Notifications, feedback menu, sound

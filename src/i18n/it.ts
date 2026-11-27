@@ -457,6 +457,7 @@ export const it: Strings = {
     'owner.propertyOf': 'PROPRIETÀ DI',
     'owner.noteLeft': 'Biglietto lasciato alla porta',
     'owner.notSent': 'Non inviato: {detail}',
+    'owner.visitSender': 'Vai da {name}',
     'common.clear': 'SVUOTA',
 
     // Notifications, feedback menu, sound

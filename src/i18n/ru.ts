@@ -461,6 +461,7 @@ export const ru: Strings = {
     'owner.propertyOf': 'ВЛАДЕЛЕЦ',
     'owner.noteLeft': 'Записка оставлена у двери',
     'owner.notSent': 'Не отправлено: {detail}',
+    'owner.visitSender': 'К дому {name}',
     'common.clear': 'ОЧИСТИТЬ',
 
     // Notifications, feedback menu, sound
