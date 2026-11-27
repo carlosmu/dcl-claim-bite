@@ -50,7 +50,10 @@ export const COMPENSATIONS: readonly Compensation[] = [
 
   // 2026-11-25: gifts from the owner, paid through the bank's screen.
   { id: 'gift-2026-11-25', address: '0xf605e3257c5662406b8baa9e6040dc393d05922f', coins: 500, date: 'November 25' }, // JayElf
-  { id: 'gift-2026-11-25', address: '0x5f20a069011559f3433c269f50151fcbd5c304dd', coins: 1000, date: 'November 25' } // Grafkaal
+  { id: 'gift-2026-11-25', address: '0x5f20a069011559f3433c269f50151fcbd5c304dd', coins: 1000, date: 'November 25' }, // Grafkaal
+
+  // 2026-11-27: a gift from the owner, paid through the bank's screen.
+  { id: 'gift-2026-11-27', address: '0x60d2b7bc992c88351b00e03e624bbc900078946e', coins: 100, date: 'November 27' }
 ]
 
 /** The compensations meant for this wallet, in list order. */
