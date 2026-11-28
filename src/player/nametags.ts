@@ -33,8 +33,9 @@ const STAFF_PLATE: StaffStyle = {
 }
 
 const STAFF: Record<string, StaffStyle> = {
-  '0x4b538e1e044922aec2f428ec7e17a99f44205ff9': STAFF_PLATE
-  // '0x…': STAFF_PLATE,
+  '0x4b538e1e044922aec2f428ec7e17a99f44205ff9': STAFF_PLATE,
+  '0xe339ebc7ec708bf42eed1b54a4df852312db2c5b': STAFF_PLATE,
+  '0xc723cf4771b5373e4a2f5cfd1d773a61c9d6e18d': STAFF_PLATE
 }
 
 /** The tier (and language) each avatar was last tagged with, so a plate is only rewritten when either changes. */
