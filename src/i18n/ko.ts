@@ -411,6 +411,12 @@ export const ko: Strings = {
     'obj.mineFirstOre': '바위에서 광석 {goal} 캐기',
     'obj.sellYourOre': '은행에서 광석을 파세요',
     'obj.tryLuck': '도박장에서 운을 시험해 보세요',
+    'obj.visitTailor': '재단사 가게에 가 보세요',
+    'obj.tailorFeet': '새 부츠가 기다리고 있어요',
+    'obj.tailorHead': '새 모자가 기다리고 있어요',
+    'obj.tailorUpperBody': '새 장비가 기다리고 있어요',
+    'obj.tailorLowerBody': '새 바지가 기다리고 있어요',
+    'obj.tailorSomething': '새로운 것이 기다리고 있어요',
     'obj.credits': '크레딧 보상',
     'obj.creditsDay1': '1일차 퀘스트: 바위 {goal}개 캐기',
     'obj.creditsReserved': '1일차 완료! 보상 예약됨',
@@ -461,6 +467,8 @@ export const ko: Strings = {
     'owner.noteLeft': '문 앞에 쪽지를 남겼어요',
     'owner.notSent': '보내지 못했어요: {detail}',
     'owner.visitSender': '{name}님 집으로 가기',
+    'owner.senderNoHome': '{name}님은 아직 집이 없어요',
+    'owner.goToLandOffice': '토지 관리소로 가기',
     'common.clear': '비우기',
 
     // Notifications, feedback menu, sound

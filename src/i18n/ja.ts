@@ -411,6 +411,12 @@ export const ja: Strings = {
     'obj.mineFirstOre': '岩から鉱石を {goal} 掘ろう',
     'obj.sellYourOre': '銀行で鉱石を売ろう',
     'obj.tryLuck': 'カジノで運試ししよう',
+    'obj.visitTailor': '仕立て屋へ行こう',
+    'obj.tailorFeet': '新しいブーツが待っています',
+    'obj.tailorHead': '新しい帽子が待っています',
+    'obj.tailorUpperBody': '新しい装備が待っています',
+    'obj.tailorLowerBody': '新しいズボンが待っています',
+    'obj.tailorSomething': '新しいアイテムが待っています',
     'obj.credits': 'クレジット報酬',
     'obj.creditsDay1': '1日目クエスト：岩を{goal}個掘ろう',
     'obj.creditsReserved': '1日目クリア！報酬を予約済み',
@@ -461,6 +467,8 @@ export const ja: Strings = {
     'owner.noteLeft': 'ドアにメモを残しました',
     'owner.notSent': '送れませんでした：{detail}',
     'owner.visitSender': '{name}の家へ行く',
+    'owner.senderNoHome': '{name}はまだ家を持っていません',
+    'owner.goToLandOffice': '土地事務所へ行く',
     'common.clear': '消去',
 
     // Notifications, feedback menu, sound

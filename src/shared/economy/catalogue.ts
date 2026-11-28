@@ -22,6 +22,7 @@ import {
   STORAGE_TIER_1,
   STORAGE_TIER_2
 } from './constants'
+import { rewardCampaignsAt, tailorNewsId } from '../rewards'
 
 export type ShopItemId =
   | 'pick'
@@ -109,8 +110,11 @@ export const HOUSING_DEMAND: Partial<Record<ShopItemId, { freeLots: number; perL
  */
 export const SELL_HOME_NEWS = 'sell-home'
 export const SELL_HOME_NOTE_NEWS = 'sell-home-note'
-/** The news a client may mark as seen; the note is the server's to mark. */
-export const CLIENT_NEWS = [SELL_HOME_NEWS]
+/**
+ * The news a client may mark as seen; the note is the server's to mark. tailorNewsId(item): the
+ * tracker said the item is within their coins, once ever, when their coins first reached its price.
+ */
+export const CLIENT_NEWS = [SELL_HOME_NEWS, ...rewardCampaignsAt('tailor').map((campaign) => tailorNewsId(campaign.id))]
 
 /** The share of today's price the bank pays for a home sold back to it. The player drops one tier. */
 export const BUYBACK_RATE = 0.5

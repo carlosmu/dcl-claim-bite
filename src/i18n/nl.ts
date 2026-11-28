@@ -408,6 +408,12 @@ export const nl: Strings = {
     'obj.mineFirstOre': 'Hak {goal} erts uit de rotsen',
     'obj.sellYourOre': 'Verkoop je erts bij de Bank',
     'obj.tryLuck': 'Waag je kans in de Speelhal',
+    'obj.visitTailor': 'Ga naar de Kleermaker',
+    'obj.tailorFeet': 'Een paar laarzen wacht op je',
+    'obj.tailorHead': 'Een nieuwe hoed wacht op je',
+    'obj.tailorUpperBody': 'Nieuwe uitrusting wacht op je',
+    'obj.tailorLowerBody': 'Een nieuwe broek wacht op je',
+    'obj.tailorSomething': 'Er wacht iets nieuws op je',
     'obj.credits': 'CREDIT-BELONING',
     'obj.creditsDay1': 'Quest Dag 1: Hak {goal} rotsen',
     'obj.creditsReserved': 'Dag 1 klaar! Beloning gereserveerd',
@@ -458,6 +464,8 @@ export const nl: Strings = {
     'owner.noteLeft': 'Briefje aan de deur achtergelaten',
     'owner.notSent': 'Niet verstuurd: {detail}',
     'owner.visitSender': 'Naar het huis van {name}',
+    'owner.senderNoHome': '{name} heeft nog geen huis',
+    'owner.goToLandOffice': 'Naar het Kadaster',
     'common.clear': 'LEEGMAKEN',
 
     // Notifications, feedback menu, sound

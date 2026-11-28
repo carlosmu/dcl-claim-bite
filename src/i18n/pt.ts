@@ -408,6 +408,12 @@ export const pt: Strings = {
     'obj.mineFirstOre': 'Minere {goal} de minério nas rochas',
     'obj.sellYourOre': 'Venda seu minério no Banco',
     'obj.tryLuck': 'Tente a sorte no Salão de Jogos',
+    'obj.visitTailor': 'Visite a Alfaiataria',
+    'obj.tailorFeet': 'Umas botas esperam por você',
+    'obj.tailorHead': 'Um chapéu novo espera por você',
+    'obj.tailorUpperBody': 'Equipamento novo espera por você',
+    'obj.tailorLowerBody': 'Calças novas esperam por você',
+    'obj.tailorSomething': 'Algo novo espera por você',
     'obj.credits': 'RECOMPENSA DE CRÉDITOS',
     'obj.creditsDay1': 'Missão Dia 1: Minere {goal} rochas',
     'obj.creditsReserved': 'Dia 1 feito! Recompensa reservada',
@@ -458,6 +464,8 @@ export const pt: Strings = {
     'owner.noteLeft': 'Recado deixado na porta',
     'owner.notSent': 'Não enviado: {detail}',
     'owner.visitSender': 'Visitar a casa de {name}',
+    'owner.senderNoHome': '{name} ainda não tem casa',
+    'owner.goToLandOffice': 'Ir ao Cartório de Terras',
     'common.clear': 'LIMPAR',
 
     // Notifications, feedback menu, sound

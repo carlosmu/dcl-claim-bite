@@ -181,6 +181,11 @@ export const REWARD_CAMPAIGNS: readonly RewardCampaign[] = [
 ]
 
 /** The items one place hands out, in the order they are listed. */
+/** The news id (catalogue.ts, CLIENT_NEWS) that says a player was told this Tailor Shop item is within their coins. */
+export function tailorNewsId(id: string): string {
+  return `tailor:${id}`
+}
+
 export function rewardCampaignsAt(venue: RewardVenue): RewardCampaign[] {
   const campaigns = REWARD_CAMPAIGNS.filter((campaign) => campaign.venue === venue)
   return venue === 'tailor' && DEBUG_FILL_TAILOR_SHOP ? padWithStandIns(campaigns) : campaigns

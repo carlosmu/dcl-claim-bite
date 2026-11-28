@@ -35,10 +35,12 @@ import { getActiveMiners } from '../shared/net/social-sync'
 import { socialBonus } from '../shared/economy/constants'
 import { getNoteNews } from '../land-office/owner-card'
 import { getMiningStatus } from '../mining/rocks'
-import { itemName, noteSender, t } from '../i18n'
+import { itemName, noteSender, StringKey, t } from '../i18n'
 import { isPlaying } from '../world/game-phase'
 import { getCampaignStatus } from '../net/campaign-link'
-import { DEBUG_SHOW_ALL_NOTIFICATIONS } from '../shared/debug-flags'
+import { DEBUG_SHOW_ALL_NOTIFICATIONS, DEBUG_TAILOR_HINT_ALWAYS } from '../shared/debug-flags'
+import { RewardCampaign, rewardCampaignsAt, TailorBodyPart, tailorNewsId } from '../shared/rewards'
+import { canBuyTailorItem, isTailorItemSoldOut, isTailorShopPanelOpen, tailorItemCount } from '../tailor-shop/tailor-shop'
 
 /** The Social Bonus note's id: the tracker paints its title in the bonus's own green. */
 export const SOCIAL_BONUS_ID = 'social'
@@ -106,11 +108,25 @@ const CASINO_HINT_COINS = 100
 /** How long the suggestion stays up. */
 const CASINO_HINT_SECONDS = 10
 
+/** How long the note that a Tailor Shop item is within the player's coins stays up. */
+const TAILOR_HINT_SECONDS = 10
+
+/** What the Tailor Shop note says awaits, by where the wearable goes; anything else is "something new". */
+const TAILOR_AWAITS_KEYS: Record<TailorBodyPart, StringKey> = {
+  feet: 'obj.tailorFeet',
+  head: 'obj.tailorHead',
+  upperBody: 'obj.tailorUpperBody',
+  lowerBody: 'obj.tailorLowerBody'
+}
+
 let clock = 0
 /** The highest multiple of CASINO_HINT_COINS reached this session, so that winning a hundred back
  *  after losing it says nothing new. Below zero until the purse arrives. */
 let casinoHintReached = -1
 let casinoHintUntil = 0
+/** The coins on the last frame, so reaching an item's price is seen as it happens. Below zero until the purse arrives. */
+let tailorCoinsBefore = -1
+let tailorHint: { message: string; detail: string; until: number } | null = null
 let lastRate = -1
 let priceAlertUntil = 0
 let lastMiners = 0
@@ -312,6 +328,11 @@ function candidates(): Objective[] {
     list.push(goal('casino', t('obj.tryLuck'), t('obj.coins', { coins: getCoins() })))
   }
 
+  // Not to someone already in the shop.
+  if (tailorHint !== null && clock < tailorHint.until && !isTailorShopPanelOpen()) {
+    list.push(goal('tailor', tailorHint.message, tailorHint.detail))
+  }
+
   return list
 }
 
@@ -389,7 +410,35 @@ function update(dt: number): void {
   if (casinoHintReached >= 0 && hundreds > casinoHintReached) casinoHintUntil = clock + CASINO_HINT_SECONDS
   casinoHintReached = Math.max(casinoHintReached, hundreds)
 
+  checkTailorHint()
+
   restack()
+}
+
+/**
+ * Once ever per Tailor Shop item: when the player's coins climb past its price, while it is on sale
+ * to them and they have none yet. The coins they arrive with are not news, only a price reached
+ * from here on. One climb past several prices tells of the dearest, and counts all of them as told.
+ */
+function checkTailorHint(): void {
+  const coins = getCoins()
+  const before = tailorCoinsBefore
+  tailorCoinsBefore = coins
+  if (before < 0 || coins <= before) return
+
+  let best: RewardCampaign | null = null
+  for (const item of rewardCampaignsAt('tailor')) {
+    if (item.price <= 0 || before >= item.price || coins < item.price) continue
+    const news = tailorNewsId(item.id)
+    if (DEBUG_TAILOR_HINT_ALWAYS) {
+      if (item.comingSoon || isTailorItemSoldOut(item.id)) continue
+    } else if (hasSeenNews(news) || tailorItemCount(item.id) > 0 || !canBuyTailorItem(item.id)) continue
+    sendSeenNews(news)
+    if (best === null || item.price > best.price) best = item
+  }
+  if (best === null) return
+  const key = best.bodyPart !== undefined ? TAILOR_AWAITS_KEYS[best.bodyPart] : 'obj.tailorSomething'
+  tailorHint = { message: t('obj.visitTailor'), detail: t(key), until: clock + TAILOR_HINT_SECONDS }
 }
 
 export function setupObjective(): void {

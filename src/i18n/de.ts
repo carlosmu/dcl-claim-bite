@@ -409,6 +409,12 @@ export const de: Strings = {
     'obj.mineFirstOre': 'Bau {goal} Erz an den Felsen ab',
     'obj.sellYourOre': 'Verkaufe dein Erz in der Bank',
     'obj.tryLuck': 'Versuch dein Glück in der Spielhalle',
+    'obj.visitTailor': 'Besuche die Schneiderei',
+    'obj.tailorFeet': 'Ein Paar Stiefel wartet auf dich',
+    'obj.tailorHead': 'Ein neuer Hut wartet auf dich',
+    'obj.tailorUpperBody': 'Neue Ausrüstung wartet auf dich',
+    'obj.tailorLowerBody': 'Eine neue Hose wartet auf dich',
+    'obj.tailorSomething': 'Etwas Neues wartet auf dich',
     'obj.credits': 'CREDIT-BELOHNUNG',
     'obj.creditsDay1': 'Quest Tag 1: Baue {goal} Felsen ab',
     'obj.creditsReserved': 'Tag 1 geschafft! Belohnung reserviert',
@@ -459,6 +465,8 @@ export const de: Strings = {
     'owner.noteLeft': 'Notiz an der Tür hinterlassen',
     'owner.notSent': 'Nicht gesendet: {detail}',
     'owner.visitSender': 'Zum Grundstück von {name}',
+    'owner.senderNoHome': '{name} hat noch kein Haus',
+    'owner.goToLandOffice': 'Zum Landamt',
     'common.clear': 'LEEREN',
 
     // Notifications, feedback menu, sound

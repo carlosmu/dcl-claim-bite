@@ -410,6 +410,12 @@ export const tr: Strings = {
     'obj.mineFirstOre': 'Kayalardan {goal} cevher kaz',
     'obj.sellYourOre': 'Cevherini Bankada sat',
     'obj.tryLuck': 'Kumarhanede şansını dene',
+    'obj.visitTailor': 'Terziyi ziyaret et',
+    'obj.tailorFeet': 'Bir çift çizme seni bekliyor',
+    'obj.tailorHead': 'Yeni bir şapka seni bekliyor',
+    'obj.tailorUpperBody': 'Yeni teçhizat seni bekliyor',
+    'obj.tailorLowerBody': 'Yeni bir pantolon seni bekliyor',
+    'obj.tailorSomething': 'Yeni bir şey seni bekliyor',
     'obj.credits': 'KREDİ ÖDÜLÜ',
     'obj.creditsDay1': '1. Gün Görevi: {goal} kaya kaz',
     'obj.creditsReserved': '1. gün tamam! Ödül ayrıldı',
@@ -460,6 +466,8 @@ export const tr: Strings = {
     'owner.noteLeft': 'Not kapıya bırakıldı',
     'owner.notSent': 'Gönderilmedi: {detail}',
     'owner.visitSender': '{name} adlı oyuncunun evine git',
+    'owner.senderNoHome': '{name} adlı oyuncunun henüz evi yok',
+    'owner.goToLandOffice': 'Tapu Dairesi’ne git',
     'common.clear': 'TEMİZLE',
 
     // Notifications, feedback menu, sound

@@ -24,6 +24,11 @@ export const DEBUG_ADD_ORE = DEBUG_ENABLED && true
  * coins, nothing owned, an empty M.U.L.E. The server refuses the wipe while this is false. */
 export const DEBUG_RESET_PROGRESS = DEBUG_ENABLED && true
 
+/** The tracker's "Visit the Tailor Shop" note (ui/objective.ts) comes up on every climb past an
+ * item's price, even for an item the player already has or was already told of, so it can be
+ * tried on an account that owns them. Still only for items on sale. */
+export const DEBUG_TAILOR_HINT_ALWAYS = DEBUG_ENABLED && true
+
 /** Shows every M.U.L.E. panel alert at once — storage full, out of fuel, fuel low — whatever the
  * rigs are actually doing, so their wording and layout can be checked without draining a tank. */
 export const DEBUG_SHOW_MULE_ALERTS = DEBUG_ENABLED && false

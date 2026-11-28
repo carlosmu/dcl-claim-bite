@@ -4,7 +4,8 @@ import { getPlayer } from '@dcl/sdk/players'
 import { movePlayerTo } from '~system/RestrictedActions'
 
 import { room } from '../shared/net/protocol'
-import { BANK_NOTE_FROM, cleanNoteText, Note, NOTE_MAX_CHARS, parseNotes } from '../shared/notes'
+import { BANK_NOTE_FROM, cleanNoteText, Note, NOTE_MAX_CHARS, parseNotes, SELL_HOME_NOTE_TEXT } from '../shared/notes'
+import { goToLandOffice } from './land-office'
 import { focusPanel, registerPanel } from '../world/panel-focus'
 import { propertyFrontOf, propertyFrontOfName } from './properties'
 import { t } from '../i18n'
@@ -146,6 +147,11 @@ export function canVisitSender(note: Note): boolean {
 }
 const loggedVisit = new Set<string>()
 
+/** Whether the note was left by the bank rather than a player (the bank has no home to visit or lack). */
+export function isBankNote(note: Note): boolean {
+  return note.fromAddress === undefined && note.from === BANK_NOTE_FROM
+}
+
 /** In front of the sender's property: by their wallet, or by their name on notes left before wallets were kept. The bank has none. */
 function senderFront(note: Note): { position: Vector3; lookAt: Vector3 } | null {
   if (note.fromAddress !== undefined) return propertyFrontOf(note.fromAddress)
@@ -161,6 +167,17 @@ export function visitSender(note: Note): void {
   movePlayerTo({ newRelativePosition: front.position, cameraTarget: front.lookAt, avatarTarget: front.lookAt }).catch((error) => {
     console.error('[owner-card] could not take the player to the sender\'s property', error)
   })
+}
+
+/** Whether the note is the bank's word that it now buys homes, which links to the Land Office. */
+export function isSellHomeNote(note: Note): boolean {
+  return isBankNote(note) && note.text === SELL_HOME_NOTE_TEXT
+}
+
+/** Closes the card and takes the player to the Land Office, open on SELL TO THE BANK. */
+export function visitLandOfficeToSell(): void {
+  closeOwnerCard()
+  goToLandOffice('sell')
 }
 
 /** Goes up each time notes arrive that this client had not seen, with who left the newest. */

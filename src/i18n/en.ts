@@ -410,6 +410,12 @@ export const en = {
     'obj.mineFirstOre': 'Mine {goal} ore at the rocks',
     'obj.sellYourOre': 'Sell your ore at the Bank',
     'obj.tryLuck': 'Try your luck at the Gambling Hall',
+    'obj.visitTailor': 'Visit the Tailor Shop',
+    'obj.tailorFeet': 'A pair of boots awaits you',
+    'obj.tailorHead': 'A new hat awaits you',
+    'obj.tailorUpperBody': 'New gear awaits you',
+    'obj.tailorLowerBody': 'New pants await you',
+    'obj.tailorSomething': 'Something new awaits you',
     'obj.credits': 'CREDIT REWARDS',
     'obj.creditsDay1': 'Day 1 Quest: Mine {goal} rocks',
     'obj.creditsReserved': 'Day 1 done! Reward reserved',
@@ -460,6 +466,8 @@ export const en = {
     'owner.noteLeft': 'Note left at the door',
     'owner.notSent': 'Not sent: {detail}',
     'owner.visitSender': 'Visit {name}’s place',
+    'owner.senderNoHome': '{name} doesn’t have a house yet',
+    'owner.goToLandOffice': 'Go to the Land Office',
     'common.clear': 'CLEAR',
 
     // Notifications, feedback menu, sound

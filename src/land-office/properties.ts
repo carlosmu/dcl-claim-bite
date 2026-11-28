@@ -489,7 +489,7 @@ export function worldPosition(entity: Entity): Vector3 {
 }
 
 /** Where a point given in `parent`'s space stands in the world. */
-function worldPoint(parent: Entity | undefined, local: Vector3): Vector3 {
+export function worldPoint(parent: Entity | undefined, local: Vector3): Vector3 {
   let position = Vector3.clone(local)
   while (parent !== undefined && parent !== engine.RootEntity) {
     const p = Transform.getOrNull(parent)

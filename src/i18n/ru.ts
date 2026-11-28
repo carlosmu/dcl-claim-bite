@@ -412,6 +412,12 @@ export const ru: Strings = {
     'obj.mineFirstOre': 'Добудь {goal} руды из камней',
     'obj.sellYourOre': 'Продай свою руду в Банке',
     'obj.tryLuck': 'Испытай удачу в Игорном зале',
+    'obj.visitTailor': 'Загляни к портному',
+    'obj.tailorFeet': 'Тебя ждут новые сапоги',
+    'obj.tailorHead': 'Тебя ждёт новая шляпа',
+    'obj.tailorUpperBody': 'Тебя ждёт новое снаряжение',
+    'obj.tailorLowerBody': 'Тебя ждут новые штаны',
+    'obj.tailorSomething': 'Тебя ждёт что-то новое',
     'obj.credits': 'НАГРАДА КРЕДИТАМИ',
     'obj.creditsDay1': 'Задание дня 1: добудь {goal} камней',
     'obj.creditsReserved': 'День 1 пройден! Награда забронирована',
@@ -462,6 +468,8 @@ export const ru: Strings = {
     'owner.noteLeft': 'Записка оставлена у двери',
     'owner.notSent': 'Не отправлено: {detail}',
     'owner.visitSender': 'К дому {name}',
+    'owner.senderNoHome': 'У {name} пока нет дома',
+    'owner.goToLandOffice': 'В Земельную контору',
     'common.clear': 'ОЧИСТИТЬ',
 
     // Notifications, feedback menu, sound

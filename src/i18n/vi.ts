@@ -410,6 +410,12 @@ export const vi: Strings = {
     'obj.mineFirstOre': 'Đào {goal} quặng từ đá',
     'obj.sellYourOre': 'Bán quặng của bạn ở Ngân Hàng',
     'obj.tryLuck': 'Thử vận may ở Sòng Bạc',
+    'obj.visitTailor': 'Ghé tiệm may',
+    'obj.tailorFeet': 'Một đôi ủng đang chờ bạn',
+    'obj.tailorHead': 'Một chiếc mũ mới đang chờ bạn',
+    'obj.tailorUpperBody': 'Trang bị mới đang chờ bạn',
+    'obj.tailorLowerBody': 'Một chiếc quần mới đang chờ bạn',
+    'obj.tailorSomething': 'Có thứ mới đang chờ bạn',
     'obj.credits': 'THƯỞNG TÍN DỤNG',
     'obj.creditsDay1': 'Nhiệm vụ ngày 1: Đào {goal} tảng đá',
     'obj.creditsReserved': 'Xong ngày 1! Đã giữ phần thưởng',
@@ -460,6 +466,8 @@ export const vi: Strings = {
     'owner.noteLeft': 'Đã để lời nhắn trước cửa',
     'owner.notSent': 'Chưa gửi được: {detail}',
     'owner.visitSender': 'Đến nhà {name}',
+    'owner.senderNoHome': '{name} chưa có nhà',
+    'owner.goToLandOffice': 'Đến Văn phòng Đất đai',
     'common.clear': 'XÓA',
 
     // Notifications, feedback menu, sound

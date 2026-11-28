@@ -409,6 +409,12 @@ export const id: Strings = {
     'obj.mineFirstOre': 'Tambang {goal} bijih dari batu',
     'obj.sellYourOre': 'Jual bijihmu di Bank',
     'obj.tryLuck': 'Coba peruntunganmu di Rumah Judi',
+    'obj.visitTailor': 'Kunjungi Toko Penjahit',
+    'obj.tailorFeet': 'Sepasang sepatu bot menantimu',
+    'obj.tailorHead': 'Topi baru menantimu',
+    'obj.tailorUpperBody': 'Perlengkapan baru menantimu',
+    'obj.tailorLowerBody': 'Celana baru menantimu',
+    'obj.tailorSomething': 'Sesuatu yang baru menantimu',
     'obj.credits': 'HADIAH KREDIT',
     'obj.creditsDay1': 'Misi Hari 1: Tambang {goal} batu',
     'obj.creditsReserved': 'Hari 1 selesai! Hadiah dipesan',
@@ -459,6 +465,8 @@ export const id: Strings = {
     'owner.noteLeft': 'Catatan ditinggalkan di pintu',
     'owner.notSent': 'Tidak terkirim: {detail}',
     'owner.visitSender': 'Kunjungi rumah {name}',
+    'owner.senderNoHome': '{name} belum punya rumah',
+    'owner.goToLandOffice': 'Pergi ke Kantor Tanah',
     'common.clear': 'HAPUS',
 
     // Notifications, feedback menu, sound

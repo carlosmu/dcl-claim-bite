@@ -78,7 +78,10 @@ import {
     isOwnerCardOpen,
     sendNote,
     setNoteDraft,
-    visitSender
+    visitSender,
+    isBankNote,
+    isSellHomeNote,
+    visitLandOfficeToSell
 } from './land-office/owner-card'
 import { ownerHasFace } from './land-office/properties'
 import { Note, NOTE_MAX_CHARS, NOTE_MAX_KEPT } from './shared/notes'
@@ -4841,6 +4844,16 @@ const ownerNoteRow = (note: Note) => (
                     <UiEntity uiTransform={{ width: OWNER_COPY_ICON_SIZE, height: OWNER_COPY_ICON_SIZE, margin: { right: 6 }, flexShrink: 0 }} uiBackground={iconBackground(ICON_HOUSE_HOME)} />
                     <Label value={`${t('owner.visitSender', { name: noteSender(note.from) })} ›`} fontSize={15} color={BANK_GOLD_LIGHT} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: OWNER_VISIT_HEIGHT }} />
                 </UiEntity>
+            ) : isSellHomeNote(note) ? (
+                <UiEntity
+                    uiTransform={{ height: OWNER_VISIT_HEIGHT, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center' }}
+                    onMouseDown={() => visitLandOfficeToSell()}
+                >
+                    <UiEntity uiTransform={{ width: OWNER_COPY_ICON_SIZE, height: OWNER_COPY_ICON_SIZE, margin: { right: 6 }, flexShrink: 0 }} uiBackground={iconBackground(ICON_HOUSE_HOME)} />
+                    <Label value={`${t('owner.goToLandOffice')} ›`} fontSize={15} color={BANK_GOLD_LIGHT} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: OWNER_VISIT_HEIGHT }} />
+                </UiEntity>
+            ) : !isBankNote(note) ? (
+                <Label value={t('owner.senderNoHome', { name: noteSender(note.from) })} fontSize={15} color={BANK_CAPTION} textAlign="middle-left" textWrap="nowrap" uiTransform={{ height: OWNER_VISIT_HEIGHT }} />
             ) : null}
         </UiEntity>
         {/* Throws away this note only, from beside it at the top; inside the row, so it takes taps on mobile too. */}

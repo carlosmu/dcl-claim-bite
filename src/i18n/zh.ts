@@ -410,6 +410,12 @@ export const zh: Strings = {
     'obj.mineFirstOre': '从岩石中挖出 {goal} 矿石',
     'obj.sellYourOre': '去银行卖掉你的矿石',
     'obj.tryLuck': '去赌场碰碰运气',
+    'obj.visitTailor': '去裁缝店看看',
+    'obj.tailorFeet': '一双靴子在等你',
+    'obj.tailorHead': '一顶新帽子在等你',
+    'obj.tailorUpperBody': '新装备在等你',
+    'obj.tailorLowerBody': '一条新裤子在等你',
+    'obj.tailorSomething': '新东西在等你',
     'obj.credits': '积分奖励',
     'obj.creditsDay1': '第1天任务：开采{goal}块岩石',
     'obj.creditsReserved': '第1天完成！奖励已预约',
@@ -460,6 +466,8 @@ export const zh: Strings = {
     'owner.noteLeft': '便条已留在门口',
     'owner.notSent': '未发送：{detail}',
     'owner.visitSender': '去{name}的家',
+    'owner.senderNoHome': '{name}还没有房子',
+    'owner.goToLandOffice': '去土地管理处',
     'common.clear': '清空',
 
     // Notifications, feedback menu, sound
