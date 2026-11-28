@@ -21,6 +21,22 @@ const TIERS: Record<number, TierStyle> = {
 
 const LABEL_COLOR = Color3.create(0.2, 0.12, 0.02)
 
+// Staff wear a fixed plate that replaces their tier, whatever they own. The label is the same in
+// every language. Addresses are lowercase.
+type StaffStyle = { label: string; labelColor: Color3; background: Color3; border: Color3 }
+
+const STAFF_PLATE: StaffStyle = {
+  label: "★ Sheriff's Deputy",
+  labelColor: Color3.create(1, 0.82, 0.3),
+  background: Color3.create(0.35, 0.2, 0.08),
+  border: Color3.create(1, 0.82, 0.3)
+}
+
+const STAFF: Record<string, StaffStyle> = {
+  '0x4b538e1e044922aec2f428ec7e17a99f44205ff9': STAFF_PLATE
+  // '0x…': STAFF_PLATE,
+}
+
 /** The tier (and language) each avatar was last tagged with, so a plate is only rewritten when either changes. */
 const tagged = new Map<Entity, string>()
 
@@ -31,6 +47,19 @@ function tagPlayers(): void {
   }
 
   for (const [entity, identity] of engine.getEntitiesWith(PlayerIdentityData)) {
+    const staff = STAFF[identity.address.toLowerCase()]
+    if (staff !== undefined) {
+      if (tagged.get(entity) === staff.label) continue
+      tagged.set(entity, staff.label)
+      AvatarNametag.createOrReplace(entity, {
+        label: staff.label,
+        labelColor: staff.labelColor,
+        backgroundColor: staff.background,
+        borderColor: staff.border
+      })
+      continue
+    }
+
     // Until the server has read their purse there is nothing true to show.
     const tier = tiers.get(identity.address.toLowerCase())
     const style = tier !== undefined ? TIERS[tier] : undefined
